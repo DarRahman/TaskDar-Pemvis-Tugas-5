@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, RotateCcw } from 'lucide-react';
+import { AlertCircle, RotateCcw, Calendar } from 'lucide-react';
 import { NewTaskPayload } from '../types/task';
 import { SEMESTER_5_COURSES } from '../data/initialTasks';
 
@@ -12,10 +12,16 @@ export interface AddTaskSheetProps {
   isDarkMode?: boolean;
 }
 
+const QUICK_DEADLINE_OPTIONS = [
+  { label: 'Hari Ini', value: '08 Nov 2026' },
+  { label: 'Besok', value: '09 Nov 2026' },
+  { label: 'Senin Depan', value: '16 Nov 2026' },
+] as const;
+
 /*
  * Slide-up bottom sheet modal for adding a new academic assignment.
- * Uses controlled useState form fields and programmatic useRef focus
- * on the task title input without exposing technical jargon in the UI.
+ * Includes quick date selection chips and programmatic useRef focus
+ * on the task title input.
  */
 export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
   isOpen,
@@ -30,7 +36,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
     initialCourse || SEMESTER_5_COURSES[0]
   );
   const [description, setDescription] = useState<string>('');
-  const [deadline, setDeadline] = useState<string>('20 Nov 2026');
+  const [deadline, setDeadline] = useState<string>('09 Nov 2026');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,7 +63,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
     setTitle('');
     setCourse(initialCourse || SEMESTER_5_COURSES[0]);
     setDescription('');
-    setDeadline('20 Nov 2026');
+    setDeadline('09 Nov 2026');
     setErrorMessage(null);
     titleInputRef.current?.focus();
   };
@@ -277,7 +283,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
               />
             </div>
 
-            {/* Tenggat Waktu */}
+            {/* Tenggat Pengumpulan + Quick Date Selection Chips */}
             <div>
               <label
                 htmlFor="task-deadline-input"
@@ -287,18 +293,61 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
               >
                 Tenggat Pengumpulan
               </label>
-              <input
-                id="task-deadline-input"
-                type="text"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                placeholder="Contoh: 18 Nov 2026"
-                className={`w-full min-h-[44px] px-4 py-2.5 rounded-2xl border text-sm font-mono tabular-nums outline-none transition-colors ${
-                  isDarkMode
-                    ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#EC6B56]'
-                    : 'bg-[#F4EFE6] border-transparent text-[#1E1B18] placeholder:text-[#8C8476] focus:border-[#EC6B56] focus:bg-white'
-                }`}
-              />
+
+              {/* Quick Date Selection Buttons: Hari Ini, Besok, Senin Depan */}
+              <div className="grid grid-cols-3 gap-2 mb-2.5">
+                {QUICK_DEADLINE_OPTIONS.map((option) => {
+                  const isSelected = deadline === option.value;
+                  return (
+                    <button
+                      key={option.label}
+                      type="button"
+                      onClick={() => setDeadline(option.value)}
+                      className={`min-h-[44px] px-2.5 py-1.5 rounded-2xl text-xs font-bold flex flex-col items-center justify-center transition-colors border ${
+                        isSelected
+                          ? 'bg-[#2A9D8F] border-[#2A9D8F] text-white'
+                          : isDarkMode
+                          ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1] hover:border-[#2A9D8F]'
+                          : 'bg-[#F4EFE6] border-transparent text-[#4A4338] hover:bg-[#EAE2D3]'
+                      }`}
+                    >
+                      <span>{option.label}</span>
+                      <span
+                        className={`text-[10px] font-mono tabular-nums mt-0.5 ${
+                          isSelected
+                            ? 'text-white/90'
+                            : isDarkMode
+                            ? 'text-[#94A3B8]'
+                            : 'text-[#6E6658]'
+                        }`}
+                      >
+                        {option.value}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="relative flex items-center">
+                <Calendar
+                  className={`w-4 h-4 absolute left-3.5 pointer-events-none ${
+                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                  }`}
+                  aria-hidden="true"
+                />
+                <input
+                  id="task-deadline-input"
+                  type="text"
+                  value={deadline}
+                  onChange={(e) => setDeadline(e.target.value)}
+                  placeholder="Contoh: 18 Nov 2026"
+                  className={`w-full min-h-[44px] pl-10 pr-4 py-2.5 rounded-2xl border text-sm font-mono tabular-nums outline-none transition-colors ${
+                    isDarkMode
+                      ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#EC6B56]'
+                      : 'bg-[#F4EFE6] border-transparent text-[#1E1B18] placeholder:text-[#8C8476] focus:border-[#EC6B56] focus:bg-white'
+                  }`}
+                />
+              </div>
             </div>
 
             {/* Bottom Actions */}

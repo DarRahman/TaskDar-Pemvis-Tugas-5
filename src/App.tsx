@@ -16,7 +16,6 @@ import {
   PieChart,
   User,
   Flame,
-  Inbox,
   Code2,
   Cpu,
   Database,
@@ -32,8 +31,8 @@ import {
   MapPin,
   UserCheck,
   ChevronRight,
-  FileCode2,
   CheckCircle2,
+  RefreshCw,
 } from 'lucide-react';
 import {
   INITIAL_TASKS,
@@ -52,12 +51,69 @@ import {
 } from './types/task';
 import { TaskCard } from './components/TaskCard';
 import { AddTaskSheet } from './components/AddTaskSheet';
-import { ExpoCodeDrawer } from './components/ExpoCodeDrawer';
+import {
+  StudentMascotAvatar,
+  CelebrationMascotIllustration,
+} from './components/StudentMascot';
 
 const FILTER_TABS: readonly TaskFilterTab[] = [
   'Semua',
   'Belum Dikerjakan',
   'Selesai',
+];
+
+interface WeeklyDayItem {
+  dayShort: string;
+  dayFull: string;
+  dateNumber: string;
+  fullDateLabel: string;
+  isToday?: boolean;
+}
+
+const WEEKLY_CALENDAR_DAYS: readonly WeeklyDayItem[] = [
+  {
+    dayShort: 'Sen',
+    dayFull: 'Senin',
+    dateNumber: '03',
+    fullDateLabel: '03 Nov 2026',
+  },
+  {
+    dayShort: 'Sel',
+    dayFull: 'Selasa',
+    dateNumber: '04',
+    fullDateLabel: '04 Nov 2026',
+  },
+  {
+    dayShort: 'Rab',
+    dayFull: 'Rabu',
+    dateNumber: '05',
+    fullDateLabel: '05 Nov 2026',
+  },
+  {
+    dayShort: 'Kam',
+    dayFull: 'Kamis',
+    dateNumber: '06',
+    fullDateLabel: '06 Nov 2026',
+  },
+  {
+    dayShort: 'Jum',
+    dayFull: 'Jumat',
+    dateNumber: '07',
+    fullDateLabel: '07 Nov 2026',
+  },
+  {
+    dayShort: 'Sab',
+    dayFull: 'Sabtu',
+    dateNumber: '08',
+    fullDateLabel: '08 Nov 2026',
+    isToday: true,
+  },
+  {
+    dayShort: 'Min',
+    dayFull: 'Minggu',
+    dateNumber: '09',
+    fullDateLabel: '09 Nov 2026',
+  },
 ];
 
 function renderCourseVectorIcon(iconKey: CourseDetail['iconKey']) {
@@ -101,10 +157,12 @@ export default function App() {
   const [tasks, dispatch] = useReducer(taskReducer, INITIAL_TASKS);
 
   /*
-   * Hook 2 (useState): Manages active bottom navigation tab, search query,
-   * status filter tab, course filter, settings toggles, and modal sheets.
+   * Hook 2 (useState): Manages active bottom navigation tab, selected weekly
+   * calendar day, search query, status filter tab, course filter, student
+   * settings toggles, and modal sheet visibility.
    */
   const [bottomTab, setBottomTab] = useState<MainBottomTab>('tugas');
+  const [selectedDayDate, setSelectedDayDate] = useState<string>('08 Nov 2026');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeFilterTab, setActiveFilterTab] =
     useState<TaskFilterTab>('Semua');
@@ -113,9 +171,10 @@ export default function App() {
   const [preselectedCourseForAdd, setPreselectedCourseForAdd] =
     useState<string>(COURSE_DIRECTORY[0].name);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState<boolean>(false);
-  const [isCodeDrawerOpen, setIsCodeDrawerOpen] = useState<boolean>(false);
 
   const [reminderEnabled, setReminderEnabled] = useState<boolean>(true);
+  const [googleCalendarSync, setGoogleCalendarSync] = useState<boolean>(true);
+  const [siakadAutoUpdate, setSiakadAutoUpdate] = useState<boolean>(true);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
@@ -206,6 +265,7 @@ export default function App() {
     setSearchQuery('');
     setActiveFilterTab('Semua');
     setSelectedCourseFilter('Semua');
+    setSelectedDayDate('08 Nov 2026');
     showToastMessage('Data tugas diatur ulang ke 5 tugas awal Semester 5.');
   }, [showToastMessage]);
 
@@ -230,6 +290,9 @@ export default function App() {
   const miniStrokeOffset =
     miniCircumference - (taskMetrics.completionRate / 100) * miniCircumference;
 
+  const allTasksCompleted =
+    taskMetrics.total > 0 && taskMetrics.pending === 0;
+
   return (
     <div
       className={`min-h-screen flex items-center justify-center sm:py-6 sm:px-4 transition-colors duration-200 ${
@@ -239,7 +302,7 @@ export default function App() {
       {/* Pure Mobile Application Frame */}
       <main
         aria-label="Aplikasi Mobile Tugas Kuliah STIKOM Poltek Cirebon"
-        className={`w-full max-w-[430px] min-h-screen sm:min-h-[844px] sm:max-h-[880px] sm:rounded-[44px] sm:border-[10px] sm:shadow-2xl flex flex-col relative overflow-hidden transition-colors duration-200 ${
+        className={`w-full max-w-[430px] min-h-screen sm:min-h-[844px] sm:max-h-[890px] sm:rounded-[44px] sm:border-[10px] sm:shadow-2xl flex flex-col relative overflow-hidden transition-colors duration-200 ${
           isDarkMode
             ? 'bg-[#161A22] sm:border-[#262C3A] text-[#F8FAFC]'
             : 'bg-[#FDFBF7] sm:border-[#2B2520] text-[#1E1B18]'
@@ -272,19 +335,14 @@ export default function App() {
             aria-label="Daftar Tugas Harian"
             className="flex-1 flex flex-col min-h-0 overflow-hidden"
           >
-            {/* Greeting Header with Student Avatar & Streak Badge */}
-            <header className="px-5 pt-4 pb-3 flex items-center justify-between gap-2">
+            {/* Greeting Header with Student Mascot Avatar & 6-Day Streak Badge */}
+            <header className="px-5 pt-3.5 pb-2.5 flex items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => setBottomTab('profil')}
                 className="flex items-center gap-3 min-w-0 min-h-[44px] text-left group"
               >
-                {/* Friendly Vector Student Avatar */}
-                <div className="w-11 h-11 rounded-full bg-[#EC6B56] border-2 border-[#FFEAE6] flex items-center justify-center shrink-0 shadow-xs">
-                  <span className="text-sm font-bold text-white tracking-tight">
-                    BR
-                  </span>
-                </div>
+                <StudentMascotAvatar size="sm" />
                 <div className="min-w-0">
                   <h1 className="text-[16px] font-bold tracking-tight truncate">
                     Halo, {STUDENT_METADATA.name}
@@ -299,7 +357,6 @@ export default function App() {
                 </div>
               </button>
 
-              {/* Streak Pill Button */}
               <button
                 type="button"
                 onClick={() => setBottomTab('progres')}
@@ -316,8 +373,65 @@ export default function App() {
               </button>
             </header>
 
-            {/* Aptivo-Style Compact Progress Ring Summary Card */}
-            <div className="px-5 pb-3">
+            {/* Horizontal 7-Day Weekly Calendar Strip (Mon to Sun with Active Day Indicator) */}
+            <div className="px-5 pb-2.5">
+              <div
+                aria-label="Kalender Mingguan"
+                className="grid grid-cols-7 gap-1.5"
+              >
+                {WEEKLY_CALENDAR_DAYS.map((dayItem) => {
+                  const isSelected = selectedDayDate === dayItem.fullDateLabel;
+                  const hasDeadlineOnDay = tasks.some(
+                    (t) => t.deadline === dayItem.fullDateLabel
+                  );
+
+                  return (
+                    <button
+                      key={dayItem.fullDateLabel}
+                      type="button"
+                      onClick={() => setSelectedDayDate(dayItem.fullDateLabel)}
+                      aria-label={`${dayItem.dayFull}, ${dayItem.fullDateLabel}`}
+                      aria-pressed={isSelected}
+                      className={`min-h-[54px] min-w-[44px] py-1.5 rounded-2xl flex flex-col items-center justify-center transition-all border ${
+                        isSelected
+                          ? 'bg-[#EC6B56] border-[#EC6B56] text-white shadow-xs'
+                          : isDarkMode
+                          ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1] hover:border-[#EC6B56]/60'
+                          : 'bg-white border-[#EFE8DC] text-[#4A4338] hover:border-[#DEC397]'
+                      }`}
+                    >
+                      <span
+                        className={`text-[10px] font-semibold leading-none ${
+                          isSelected
+                            ? 'text-white/90'
+                            : isDarkMode
+                            ? 'text-[#94A3B8]'
+                            : 'text-[#8C8476]'
+                        }`}
+                      >
+                        {dayItem.dayShort}
+                      </span>
+                      <span className="mt-1 text-xs font-bold font-mono tabular-nums leading-none">
+                        {dayItem.dateNumber}
+                      </span>
+                      <span
+                        className={`mt-1 w-1.5 h-1.5 rounded-full ${
+                          hasDeadlineOnDay
+                            ? isSelected
+                              ? 'bg-white'
+                              : 'bg-[#2A9D8F]'
+                            : 'bg-transparent'
+                        }`}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Compact Progress Ring Summary Card */}
+            <div className="px-5 pb-2.5">
               <div
                 onClick={() => setBottomTab('progres')}
                 role="button"
@@ -327,17 +441,16 @@ export default function App() {
                     setBottomTab('progres');
                   }
                 }}
-                className={`rounded-3xl border p-3.5 flex items-center justify-between gap-3.5 cursor-pointer transition-colors ${
+                className={`rounded-3xl border p-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
                   isDarkMode
                     ? 'bg-[#232934] border-[#323A48] hover:border-[#EC6B56]/60'
                     : 'bg-white border-[#EFE8DC] hover:border-[#DEC397] shadow-xs'
                 }`}
               >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  {/* Mini SVG Progress Ring */}
-                  <div className="relative w-13 h-13 flex items-center justify-center shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative w-12 h-12 flex items-center justify-center shrink-0">
                     <svg
-                      className="w-13 h-13 -rotate-90"
+                      className="w-12 h-12 -rotate-90"
                       viewBox="0 0 52 52"
                       aria-hidden="true"
                     >
@@ -480,7 +593,7 @@ export default function App() {
               })}
             </nav>
 
-            {/* Active Course Filter Indicator (if selected from Mata Kuliah tab) */}
+            {/* Active Course Filter Indicator */}
             {selectedCourseFilter !== 'Semua' && (
               <div
                 className={`mx-5 mt-2.5 px-3.5 py-1.5 rounded-2xl flex items-center justify-between text-xs ${
@@ -502,8 +615,32 @@ export default function App() {
               </div>
             )}
 
-            {/* Scrollable TaskCard List */}
-            <div className="flex-1 overflow-y-auto px-5 pt-3.5 pb-28 space-y-3">
+            {/* Scrollable TaskCard List & Friendly Mascot Empty/Celebration State */}
+            <div className="flex-1 overflow-y-auto px-5 pt-3 pb-28 space-y-3">
+              {allTasksCompleted && activeFilterTab === 'Semua' && (
+                <div
+                  className={`p-4 rounded-3xl border flex items-center gap-3.5 ${
+                    isDarkMode
+                      ? 'bg-[#1F2928] border-[#2A9D8F]/40'
+                      : 'bg-[#E6F4F1] border-[#BFE3DC]'
+                  }`}
+                >
+                  <StudentMascotAvatar size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-[#1E7A68] dark:text-[#34D399]">
+                      Semua tugas kuliah sudah tuntas. Waktunya istirahat!
+                    </p>
+                    <p
+                      className={`text-[11px] mt-0.5 ${
+                        isDarkMode ? 'text-[#CBD5E1]' : 'text-[#3D3830]'
+                      }`}
+                    >
+                      Seluruh {taskMetrics.total} tugas Semester 5 telah selesai dikerjakan.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {filteredTasks.length > 0 ? (
                 filteredTasks.map((task) => (
                   <TaskCard
@@ -516,25 +653,24 @@ export default function App() {
                 ))
               ) : (
                 <div
-                  className={`py-12 px-4 text-center rounded-3xl border border-dashed ${
+                  className={`py-8 px-5 text-center rounded-3xl border ${
                     isDarkMode
-                      ? 'border-[#323A48] bg-[#232934]/40'
-                      : 'border-[#DDD5C7] bg-white/60'
+                      ? 'border-[#323A48] bg-[#232934]/50'
+                      : 'border-[#EFE8DC] bg-white shadow-xs'
                   }`}
                 >
-                  <Inbox
-                    className="w-8 h-8 text-[#8C8476] mx-auto mb-2.5"
-                    aria-hidden="true"
-                  />
-                  <p className="text-sm font-bold">
-                    Tidak ada tugas ditemukan
-                  </p>
+                  <CelebrationMascotIllustration />
+                  <h3 className="mt-3 text-[15px] font-bold leading-snug max-w-[260px] mx-auto">
+                    Semua tugas kuliah sudah tuntas. Waktunya istirahat!
+                  </h3>
                   <p
-                    className={`text-xs mt-1 max-w-[240px] mx-auto leading-relaxed ${
+                    className={`text-xs mt-1.5 max-w-[250px] mx-auto leading-relaxed ${
                       isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
                     }`}
                   >
-                    Ubah kata kunci pencarian, ganti tab filter, atau tambahkan tugas baru.
+                    {searchQuery.trim() !== ''
+                      ? `Tidak ada tugas untuk pencarian "${searchQuery}".`
+                      : 'Tidak ada tugas yang tertunda pada daftar ini.'}
                   </p>
                   <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                     {(searchQuery !== '' ||
@@ -549,11 +685,11 @@ export default function App() {
                         }}
                         className={`min-h-[44px] px-4 rounded-2xl text-xs font-bold transition-colors ${
                           isDarkMode
-                            ? 'bg-[#232934] text-white'
+                            ? 'bg-[#232934] text-white border border-[#323A48]'
                             : 'bg-[#F4EFE6] text-[#1E1B18]'
                         }`}
                       >
-                        Tampilkan Semua
+                        Lihat Semua Tugas
                       </button>
                     )}
                     <button
@@ -561,7 +697,7 @@ export default function App() {
                       onClick={() => handleOpenAddSheet()}
                       className="min-h-[44px] px-4 rounded-2xl bg-[#EC6B56] hover:bg-[#D95540] text-xs font-bold text-white transition-colors"
                     >
-                      Tambah Tugas
+                      Tambah Tugas Baru
                     </button>
                   </div>
                 </div>
@@ -639,7 +775,6 @@ export default function App() {
                         : 'shadow-xs'
                     }`}
                   >
-                    {/* Top Row: Subject Icon + Title + Code */}
                     <div className="flex items-start gap-3.5">
                       <div
                         style={{ backgroundColor: course.iconBg }}
@@ -671,7 +806,6 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Lecturer & Schedule Box */}
                     <div
                       className={`mt-3 rounded-2xl p-3 space-y-1.5 text-xs ${
                         isDarkMode
@@ -706,7 +840,6 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Footer Row: Active Task Count & Interactive Actions */}
                     <div className="mt-3 flex items-center justify-between gap-2">
                       <div className="text-xs font-bold">
                         <span
@@ -792,7 +925,7 @@ export default function App() {
             </header>
 
             <div className="flex-1 overflow-y-auto px-5 pt-1 pb-28 space-y-4">
-              {/* Aptivo-Inspired Warm Coral Streak Banner */}
+              {/* Warm Coral Streak Banner */}
               <div className="rounded-3xl bg-[#EC6B56] text-white p-4.5 flex items-center gap-4 shadow-sm">
                 <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
                   <Flame
@@ -810,7 +943,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Circular Radial Progress Gauge + Metrics Breakdown (derived via useMemo) */}
+              {/* Circular Radial Progress Gauge + Metrics Breakdown (useMemo) */}
               <div
                 className={`rounded-3xl border p-5 ${
                   isDarkMode
@@ -819,7 +952,6 @@ export default function App() {
                 }`}
               >
                 <div className="flex items-center gap-5">
-                  {/* Radial SVG Progress Gauge */}
                   <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
                     <svg
                       className="w-28 h-28 -rotate-90"
@@ -860,7 +992,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Metrics Breakdown Column */}
                   <div className="flex-1 space-y-2.5">
                     <div
                       className={`p-2.5 rounded-2xl flex items-center justify-between ${
@@ -908,7 +1039,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Per-Subject Progress Breakdown (Aptivo "By subject" Style) */}
+              {/* Per-Subject Progress Breakdown */}
               <div
                 className={`rounded-3xl border p-5 ${
                   isDarkMode
@@ -1039,25 +1170,22 @@ export default function App() {
             className="flex-1 flex flex-col min-h-0 overflow-hidden"
           >
             <header className="px-5 pt-4 pb-3 flex items-center justify-between">
-              <h1 className="text-xl font-bold tracking-tight">
-                Profil Mahasiswa
-              </h1>
-              <button
-                type="button"
-                onClick={() => setIsCodeDrawerOpen(true)}
-                className={`min-h-[44px] px-3.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-colors ${
-                  isDarkMode
-                    ? 'bg-[#232934] text-[#CBD5E1] hover:bg-[#2E3440]'
-                    : 'bg-[#F4EFE6] text-[#4A4338] hover:bg-[#EAE2D3]'
-                }`}
-              >
-                <FileCode2 className="w-4 h-4" aria-hidden="true" />
-                <span>App.js</span>
-              </button>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight">
+                  Profil Mahasiswa
+                </h1>
+                <p
+                  className={`text-xs mt-0.5 ${
+                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                  }`}
+                >
+                  Identitas akademik dan preferensi belajar
+                </p>
+              </div>
             </header>
 
             <div className="flex-1 overflow-y-auto px-5 pt-1 pb-28 space-y-4">
-              {/* Student Identity Card (Aptivo Profile Header Style) */}
+              {/* Student Identity Card with Mascot Avatar */}
               <div
                 className={`rounded-3xl border p-5 text-center ${
                   isDarkMode
@@ -1065,10 +1193,8 @@ export default function App() {
                     : 'bg-white border-[#EFE8DC] shadow-xs'
                 }`}
               >
-                <div className="w-18 h-18 rounded-full bg-[#EC6B56] border-4 border-[#FFEAE6] mx-auto flex items-center justify-center shadow-sm">
-                  <span className="text-xl font-bold text-white tracking-tight">
-                    BR
-                  </span>
+                <div className="flex justify-center">
+                  <StudentMascotAvatar size="lg" />
                 </div>
 
                 <h2 className="mt-3 text-lg font-bold tracking-tight">
@@ -1142,7 +1268,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Interactive Settings List */}
+              {/* Student-Focused Settings List */}
               <div
                 className={`rounded-3xl border p-3 space-y-1 ${
                   isDarkMode
@@ -1153,7 +1279,7 @@ export default function App() {
                 {/* Setting 1: Pengingat Tugas */}
                 <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-2xl bg-[#FFEAE6] text-[#EC6B56] flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-2xl bg-[#FFEAE6] text-[#EC6B56] flex items-center justify-center shrink-0">
                       <Bell className="w-4 h-4" aria-hidden="true" />
                     </div>
                     <div>
@@ -1202,10 +1328,114 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Setting 2: Mode Tampilan */}
+                {/* Setting 2: Sinkronisasi Google Calendar */}
                 <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-2xl bg-[#EAF2FF] text-[#2563EB] flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-2xl bg-[#E6F4F1] text-[#1E7A68] flex items-center justify-center shrink-0">
+                      <Calendar className="w-4 h-4" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <span className="text-sm font-bold block">
+                        Sinkronisasi Google Calendar
+                      </span>
+                      <span
+                        className={`text-[11px] block ${
+                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                        }`}
+                      >
+                        {googleCalendarSync
+                          ? 'Tenggat tugas otomatis masuk kalender'
+                          : 'Sinkronisasi kalender tidak aktif'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={googleCalendarSync}
+                    aria-label="Aktifkan atau nonaktifkan sinkronisasi Google Calendar"
+                    onClick={() => {
+                      const next = !googleCalendarSync;
+                      setGoogleCalendarSync(next);
+                      showToastMessage(
+                        next
+                          ? 'Sinkronisasi Google Calendar diaktifkan.'
+                          : 'Sinkronisasi Google Calendar dinonaktifkan.'
+                      );
+                    }}
+                    className="min-w-[48px] min-h-[44px] flex items-center justify-end"
+                  >
+                    <span
+                      className={`w-12 h-7 rounded-full p-1 transition-colors flex items-center ${
+                        googleCalendarSync
+                          ? 'bg-[#2A9D8F] justify-end'
+                          : isDarkMode
+                          ? 'bg-[#323A48] justify-start'
+                          : 'bg-[#DDD5C7] justify-start'
+                      }`}
+                    >
+                      <span className="w-5 h-5 rounded-full bg-white shadow-xs" />
+                    </span>
+                  </button>
+                </div>
+
+                {/* Setting 3: Pembaruan SIAKAD Otomatis */}
+                <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-2xl bg-[#F3EEFF] text-[#6D28D9] flex items-center justify-center shrink-0">
+                      <RefreshCw className="w-4 h-4" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <span className="text-sm font-bold block">
+                        Pembaruan SIAKAD Otomatis
+                      </span>
+                      <span
+                        className={`text-[11px] block ${
+                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                        }`}
+                      >
+                        {siakadAutoUpdate
+                          ? 'Terhubung dengan portal akademik kampus'
+                          : 'Pembaruan otomatis SIAKAD dimatikan'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={siakadAutoUpdate}
+                    aria-label="Aktifkan atau nonaktifkan pembaruan SIAKAD otomatis"
+                    onClick={() => {
+                      const next = !siakadAutoUpdate;
+                      setSiakadAutoUpdate(next);
+                      showToastMessage(
+                        next
+                          ? 'Pembaruan SIAKAD Otomatis diaktifkan.'
+                          : 'Pembaruan SIAKAD Otomatis dinonaktifkan.'
+                      );
+                    }}
+                    className="min-w-[48px] min-h-[44px] flex items-center justify-end"
+                  >
+                    <span
+                      className={`w-12 h-7 rounded-full p-1 transition-colors flex items-center ${
+                        siakadAutoUpdate
+                          ? 'bg-[#2A9D8F] justify-end'
+                          : isDarkMode
+                          ? 'bg-[#323A48] justify-start'
+                          : 'bg-[#DDD5C7] justify-start'
+                      }`}
+                    >
+                      <span className="w-5 h-5 rounded-full bg-white shadow-xs" />
+                    </span>
+                  </button>
+                </div>
+
+                {/* Setting 4: Mode Tampilan */}
+                <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-2xl bg-[#EAF2FF] text-[#2563EB] flex items-center justify-center shrink-0">
                       {isDarkMode ? (
                         <Moon className="w-4 h-4" aria-hidden="true" />
                       ) : (
@@ -1253,37 +1483,6 @@ export default function App() {
                     </span>
                   </button>
                 </div>
-
-                {/* Setting 3: Kode Sumber React Native Expo */}
-                <button
-                  type="button"
-                  onClick={() => setIsCodeDrawerOpen(true)}
-                  className={`w-full flex items-center justify-between px-3 py-2 min-h-[52px] rounded-2xl transition-colors text-left ${
-                    isDarkMode ? 'hover:bg-[#1A1F28]' : 'hover:bg-[#FDFBF7]'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-2xl bg-[#E6F4F1] text-[#1E7A68] flex items-center justify-center">
-                      <FileCode2 className="w-4 h-4" aria-hidden="true" />
-                    </div>
-                    <div>
-                      <span className="text-sm font-bold block">
-                        Ekspor Kode Expo (App.js)
-                      </span>
-                      <span
-                        className={`text-[11px] block ${
-                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
-                        }`}
-                      >
-                        Salin atau unduh kode React Native siap jalan
-                      </span>
-                    </div>
-                  </div>
-                  <ChevronRight
-                    className="w-4 h-4 text-[#8C8476]"
-                    aria-hidden="true"
-                  />
-                </button>
               </div>
 
               {/* Atur Ulang Data Button (Dispatches RESET_TASKS in useReducer) */}
@@ -1365,7 +1564,7 @@ export default function App() {
         </nav>
       </main>
 
-      {/* Slide-Up Add Task Bottom Sheet Modal (with useRef auto-focus) */}
+      {/* Slide-Up Add Task Bottom Sheet Modal (with useRef auto-focus & quick date chips) */}
       <AddTaskSheet
         isOpen={isAddSheetOpen}
         onClose={() => setIsAddSheetOpen(false)}
@@ -1373,12 +1572,6 @@ export default function App() {
         titleInputRef={titleInputRef}
         initialCourse={preselectedCourseForAdd}
         isDarkMode={isDarkMode}
-      />
-
-      {/* React Native Expo App.js Code Export Modal */}
-      <ExpoCodeDrawer
-        isOpen={isCodeDrawerOpen}
-        onClose={() => setIsCodeDrawerOpen(false)}
       />
     </div>
   );

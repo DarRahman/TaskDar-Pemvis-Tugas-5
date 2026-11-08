@@ -33,6 +33,22 @@ const STUDENT_METADATA = {
   streakDays: 6,
 };
 
+const WEEKLY_CALENDAR_DAYS = [
+  { dayShort: 'Sen', dateNumber: '03', fullDateLabel: '03 Nov 2026' },
+  { dayShort: 'Sel', dateNumber: '04', fullDateLabel: '04 Nov 2026' },
+  { dayShort: 'Rab', dateNumber: '05', fullDateLabel: '05 Nov 2026' },
+  { dayShort: 'Kam', dateNumber: '06', fullDateLabel: '06 Nov 2026' },
+  { dayShort: 'Jum', dateNumber: '07', fullDateLabel: '07 Nov 2026' },
+  { dayShort: 'Sab', dateNumber: '08', fullDateLabel: '08 Nov 2026' },
+  { dayShort: 'Min', dateNumber: '09', fullDateLabel: '09 Nov 2026' },
+];
+
+const QUICK_DEADLINE_OPTIONS = [
+  { label: 'Hari Ini', value: '08 Nov 2026' },
+  { label: 'Besok', value: '09 Nov 2026' },
+  { label: 'Senin Depan', value: '16 Nov 2026' },
+];
+
 const COURSE_DIRECTORY = [
   {
     id: 'course-ti361',
@@ -233,6 +249,29 @@ function getCourseStyle(courseName) {
 }
 
 /*
+ * Student mascot avatar rendered using native views and vector glyphs.
+ */
+const StudentMascotBadge = ({ large = false }) => (
+  <View
+    style={[
+      styles.mascotAvatar,
+      large && styles.mascotAvatarLarge,
+    ]}
+  >
+    <View style={styles.mascotCapBadge}>
+      <Feather name="award" size={large ? 14 : 10} color="#FFFFFF" />
+    </View>
+    <View style={[styles.mascotFace, large && styles.mascotFaceLarge]}>
+      <View style={styles.mascotEyesRow}>
+        <View style={styles.mascotEyeDot} />
+        <View style={styles.mascotEyeDot} />
+      </View>
+      <View style={styles.mascotSmileBar} />
+    </View>
+  </View>
+);
+
+/*
  * Pure child component receiving task data and callbacks via Props.
  */
 const TaskCard = React.memo(({ task, onToggleStatus, onDeleteTask }) => {
@@ -326,18 +365,21 @@ export default function App() {
   const [tasks, dispatch] = useReducer(taskReducer, INITIAL_TASKS);
 
   const [bottomTab, setBottomTab] = useState('tugas');
+  const [selectedDayDate, setSelectedDayDate] = useState('08 Nov 2026');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilterTab, setActiveFilterTab] = useState('Semua');
   const [selectedCourseFilter, setSelectedCourseFilter] = useState('Semua');
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   const [reminderEnabled, setReminderEnabled] = useState(true);
+  const [googleCalendarSync, setGoogleCalendarSync] = useState(true);
+  const [siakadAutoUpdate, setSiakadAutoUpdate] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
 
   const [title, setTitle] = useState('');
   const [course, setCourse] = useState(COURSE_DIRECTORY[0].name);
   const [description, setDescription] = useState('');
-  const [deadline, setDeadline] = useState('20 Nov 2026');
+  const [deadline, setDeadline] = useState('09 Nov 2026');
   const [formError, setFormError] = useState('');
 
   const titleInputRef = useRef(null);
@@ -387,6 +429,7 @@ export default function App() {
     setSearchQuery('');
     setActiveFilterTab('Semua');
     setSelectedCourseFilter('Semua');
+    setSelectedDayDate('08 Nov 2026');
   }, []);
 
   const handleOpenAddModal = useCallback((defaultCourse) => {
@@ -443,11 +486,10 @@ export default function App() {
       <View style={styles.container}>
         {bottomTab === 'tugas' && (
           <View style={styles.screenBody}>
+            {/* Greeting Header with Student Mascot Avatar & Streak Badge */}
             <View style={styles.greetingHeader}>
               <View style={styles.avatarRow}>
-                <View style={styles.avatarCircle}>
-                  <Feather name="user" size={20} color="#FFFFFF" />
-                </View>
+                <StudentMascotBadge />
                 <View>
                   <Text style={styles.greetingTitle}>
                     Halo, {STUDENT_METADATA.name}
@@ -466,6 +508,54 @@ export default function App() {
               </View>
             </View>
 
+            {/* Horizontal 7-Day Weekly Calendar Strip */}
+            <View style={styles.weeklyCalendarRow}>
+              {WEEKLY_CALENDAR_DAYS.map((dayItem) => {
+                const isSelected = selectedDayDate === dayItem.fullDateLabel;
+                const hasDeadline = tasks.some(
+                  (t) => t.deadline === dayItem.fullDateLabel
+                );
+
+                return (
+                  <TouchableOpacity
+                    key={dayItem.fullDateLabel}
+                    style={[
+                      styles.dayPill,
+                      isSelected && styles.dayPillSelected,
+                    ]}
+                    onPress={() => setSelectedDayDate(dayItem.fullDateLabel)}
+                  >
+                    <Text
+                      style={[
+                        styles.dayShortText,
+                        isSelected && styles.dayShortTextSelected,
+                      ]}
+                    >
+                      {dayItem.dayShort}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.dayDateNumber,
+                        isSelected && styles.dayDateNumberSelected,
+                      ]}
+                    >
+                      {dayItem.dateNumber}
+                    </Text>
+                    <View
+                      style={[
+                        styles.dayDot,
+                        hasDeadline &&
+                          (isSelected
+                            ? styles.dayDotSelected
+                            : styles.dayDotActive),
+                      ]}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Progress Summary Card */}
             <View style={styles.progressSummaryCard}>
               <View style={styles.progressRingBox}>
                 <Text style={styles.progressRingPercent}>
@@ -482,6 +572,7 @@ export default function App() {
               </View>
             </View>
 
+            {/* Real-Time Search Bar */}
             <View style={styles.searchWrapper}>
               <Feather name="search" size={16} color="#6E6658" />
               <TextInput
@@ -501,6 +592,7 @@ export default function App() {
               )}
             </View>
 
+            {/* Status Filter Tabs */}
             <View style={styles.tabsRow}>
               {['Semua', 'Belum Dikerjakan', 'Selesai'].map((tab) => {
                 const isActive = activeFilterTab === tab;
@@ -528,10 +620,12 @@ export default function App() {
               showsVerticalScrollIndicator={false}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
-                  <Feather name="inbox" size={28} color="#8C8476" />
-                  <Text style={styles.emptyTitle}>Tidak ada tugas ditemukan</Text>
+                  <StudentMascotBadge large={true} />
+                  <Text style={styles.emptyTitle}>
+                    Semua tugas kuliah sudah tuntas. Waktunya istirahat!
+                  </Text>
                   <Text style={styles.emptySubtitle}>
-                    Ubah filter pencarian atau tambah tugas kuliah baru.
+                    Tidak ada tugas yang tertunda pada tampilan saat ini.
                   </Text>
                 </View>
               }
@@ -710,9 +804,7 @@ export default function App() {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.profileCard}>
-              <View style={styles.profileAvatarLarge}>
-                <Feather name="user" size={32} color="#FFFFFF" />
-              </View>
+              <StudentMascotBadge large={true} />
               <Text style={styles.profileName}>{STUDENT_METADATA.name}</Text>
               <Text style={styles.profileNim}>
                 NIM {STUDENT_METADATA.nim} · {STUDENT_METADATA.classGroup}
@@ -731,6 +823,32 @@ export default function App() {
                 <Switch
                   value={reminderEnabled}
                   onValueChange={setReminderEnabled}
+                />
+              </View>
+
+              <View style={styles.settingRow}>
+                <View style={styles.settingLabelRow}>
+                  <Feather name="calendar" size={18} color="#1E1B18" />
+                  <Text style={styles.settingLabel}>
+                    Sinkronisasi Google Calendar
+                  </Text>
+                </View>
+                <Switch
+                  value={googleCalendarSync}
+                  onValueChange={setGoogleCalendarSync}
+                />
+              </View>
+
+              <View style={styles.settingRow}>
+                <View style={styles.settingLabelRow}>
+                  <Feather name="refresh-cw" size={18} color="#1E1B18" />
+                  <Text style={styles.settingLabel}>
+                    Pembaruan SIAKAD Otomatis
+                  </Text>
+                </View>
+                <Switch
+                  value={siakadAutoUpdate}
+                  onValueChange={setSiakadAutoUpdate}
                 />
               </View>
 
@@ -871,6 +989,38 @@ export default function App() {
                 />
 
                 <Text style={styles.fieldLabel}>Tenggat Waktu</Text>
+                <View style={styles.quickDateRow}>
+                  {QUICK_DEADLINE_OPTIONS.map((opt) => {
+                    const isPicked = deadline === opt.value;
+                    return (
+                      <TouchableOpacity
+                        key={opt.label}
+                        style={[
+                          styles.quickDateChip,
+                          isPicked && styles.quickDateChipActive,
+                        ]}
+                        onPress={() => setDeadline(opt.value)}
+                      >
+                        <Text
+                          style={[
+                            styles.quickDateChipLabel,
+                            isPicked && styles.quickDateChipLabelActive,
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.quickDateChipSub,
+                            isPicked && styles.quickDateChipLabelActive,
+                          ]}
+                        >
+                          {opt.value}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
                 <TextInput
                   style={styles.textInput}
                   value={deadline}
@@ -896,16 +1046,66 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#EC6B56',
+  mascotAvatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#FFEAE6',
+    borderWidth: 2,
+    borderColor: '#EC6B56',
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  mascotAvatarLarge: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    marginBottom: 10,
+  },
+  mascotCapBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#1E1B18',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mascotFace: {
+    width: 28,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mascotFaceLarge: {
+    width: 44,
+    height: 34,
+    borderRadius: 17,
+  },
+  mascotEyesRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 3,
+  },
+  mascotEyeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#1E1B18',
+  },
+  mascotSmileBar: {
+    width: 8,
+    height: 2.5,
+    borderRadius: 2,
+    backgroundColor: '#EC6B56',
   },
   greetingTitle: { fontSize: 16, fontWeight: '700', color: '#1E1B18' },
   greetingSubtitle: { fontSize: 12, color: '#6E6658', marginTop: 2 },
@@ -919,6 +1119,58 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   streakText: { fontSize: 12, fontWeight: '700', color: '#C84332' },
+  weeklyCalendarRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    gap: 4,
+  },
+  dayPill: {
+    flex: 1,
+    minHeight: 54,
+    minWidth: 44,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EFE8DC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+  },
+  dayPillSelected: {
+    backgroundColor: '#EC6B56',
+    borderColor: '#EC6B56',
+  },
+  dayShortText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#8C8476',
+  },
+  dayShortTextSelected: {
+    color: '#FFEAE6',
+  },
+  dayDateNumber: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E1B18',
+    marginTop: 2,
+  },
+  dayDateNumberSelected: {
+    color: '#FFFFFF',
+  },
+  dayDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: 'transparent',
+    marginTop: 3,
+  },
+  dayDotActive: {
+    backgroundColor: '#2A9D8F',
+  },
+  dayDotSelected: {
+    backgroundColor: '#FFFFFF',
+  },
   progressSummaryCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -931,9 +1183,9 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   progressRingBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     borderWidth: 4,
     borderColor: '#EC6B56',
     alignItems: 'center',
@@ -1053,13 +1305,19 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 44,
+    paddingVertical: 36,
+    paddingHorizontal: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#EFE8DC',
   },
   emptyTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: '#1E1B18',
-    marginTop: 10,
+    marginTop: 8,
+    textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 12,
@@ -1209,15 +1467,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  profileAvatarLarge: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: '#EC6B56',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
   profileName: { fontSize: 18, fontWeight: '700', color: '#1E1B18' },
   profileNim: { fontSize: 13, fontWeight: '600', color: '#5C5549', marginTop: 2 },
   profileInstitution: { fontSize: 12, color: '#6E6658', marginTop: 2 },
@@ -1354,4 +1603,34 @@ const styles = StyleSheet.create({
   courseOptionActive: { backgroundColor: '#EC6B56' },
   courseOptionText: { fontSize: 12, fontWeight: '600', color: '#4A4338' },
   courseOptionTextActive: { color: '#FFFFFF' },
+  quickDateRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  quickDateChip: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 14,
+    backgroundColor: '#F4EFE6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+  },
+  quickDateChipActive: {
+    backgroundColor: '#2A9D8F',
+  },
+  quickDateChipLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#4A4338',
+  },
+  quickDateChipSub: {
+    fontSize: 9,
+    color: '#6E6658',
+    marginTop: 1,
+  },
+  quickDateChipLabelActive: {
+    color: '#FFFFFF',
+  },
 });
