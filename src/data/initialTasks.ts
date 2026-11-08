@@ -6,7 +6,6 @@ import {
   CourseIconKey,
   CourseStickerOption,
   PodiumTrophyItem,
-  ClassLeaderboardPeer,
 } from '../types/task';
 
 export const STUDENT_METADATA = {
@@ -68,7 +67,7 @@ export const COURSE_STICKER_GALLERY: readonly CourseStickerOption[] = [
   },
   {
     id: 'sticker-mascot',
-    label: 'Maskot Kampus',
+    label: 'Karakter Maskot',
     imageUrl: '/assets/mascot-splash.jpg',
     defaultIconKey: 'briefcase',
   },
@@ -134,6 +133,50 @@ export const BENTO_COLOR_THEMES: readonly CourseColorTheme[] = [
     iconBg: '#0891B2',
   },
 ];
+
+/*
+ * Converts any user-picked RGB/Hex color into a harmonious Bento card theme
+ * with a soft tinted pastel surface, border, and high-contrast accent.
+ */
+export function deriveBentoThemeFromHex(hexColor: string): CourseColorTheme {
+  const cleanHex = hexColor.replace('#', '').trim();
+  const fullHex =
+    cleanHex.length === 3
+      ? cleanHex
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : cleanHex.padEnd(6, '0').slice(0, 6);
+
+  const r = parseInt(fullHex.slice(0, 2), 16) || 196;
+  const g = parseInt(fullHex.slice(2, 4), 16) || 30;
+  const b = parseInt(fullHex.slice(4, 6), 16) || 58;
+
+  const mixWithWhite = (channel: number, whiteRatio: number) =>
+    Math.round(channel * (1 - whiteRatio) + 255 * whiteRatio);
+
+  const toHex = (n: number) =>
+    Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0').toUpperCase();
+
+  const bgR = mixWithWhite(r, 0.86);
+  const bgG = mixWithWhite(g, 0.86);
+  const bgB = mixWithWhite(b, 0.86);
+
+  const borderR = mixWithWhite(r, 0.72);
+  const borderG = mixWithWhite(g, 0.72);
+  const borderB = mixWithWhite(b, 0.72);
+
+  const normalizedHex = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+
+  return {
+    id: 'custom',
+    name: 'Warna Kustom',
+    pastelBg: `#${toHex(bgR)}${toHex(bgG)}${toHex(bgB)}`,
+    pastelBorder: `#${toHex(borderR)}${toHex(borderG)}${toHex(borderB)}`,
+    accentColor: normalizedHex,
+    iconBg: normalizedHex,
+  };
+}
 
 export const INITIAL_COURSES: CourseDetail[] = [
   {
@@ -218,70 +261,6 @@ export const COURSE_DIRECTORY = INITIAL_COURSES;
 export const SEMESTER_5_COURSES: readonly string[] = INITIAL_COURSES.map(
   (course) => course.name
 );
-
-export const CLASS_TI1_LEADERBOARD: readonly ClassLeaderboardPeer[] = [
-  {
-    id: 'peer-badar',
-    name: 'Badar Rahman',
-    nim: '14524303',
-    avatarUrl: '/assets/mascot-splash.jpg',
-    weeklyBasePoints: 340,
-    monthlyBasePoints: 1280,
-    weeklyCompletion: 88,
-    monthlyCompletion: 92,
-    badgeColor: '#C41E3A',
-    surfaceColor: '#FEE2E2',
-    isCurrentUser: true,
-  },
-  {
-    id: 'peer-nadia',
-    name: 'Nadia Putri Lestari',
-    nim: '14524308',
-    avatarUrl: '/assets/sticker-ai.jpg',
-    weeklyBasePoints: 390,
-    monthlyBasePoints: 1340,
-    weeklyCompletion: 90,
-    monthlyCompletion: 94,
-    badgeColor: '#4F46E5',
-    surfaceColor: '#EEF2FF',
-  },
-  {
-    id: 'peer-rizky',
-    name: 'Rizky Pratama Wijaya',
-    nim: '14524312',
-    avatarUrl: '/assets/sticker-robotics.jpg',
-    weeklyBasePoints: 310,
-    monthlyBasePoints: 1190,
-    weeklyCompletion: 76,
-    monthlyCompletion: 84,
-    badgeColor: '#D97706',
-    surfaceColor: '#FEF3C7',
-  },
-  {
-    id: 'peer-siti',
-    name: 'Siti Nurhaliza Rahma',
-    nim: '14524319',
-    avatarUrl: '/assets/sticker-design.jpg',
-    weeklyBasePoints: 280,
-    monthlyBasePoints: 1120,
-    weeklyCompletion: 70,
-    monthlyCompletion: 79,
-    badgeColor: '#059669',
-    surfaceColor: '#D1FAE5',
-  },
-  {
-    id: 'peer-dimas',
-    name: 'Dimas Aditya Saputra',
-    nim: '14524325',
-    avatarUrl: '/assets/sticker-oop.jpg',
-    weeklyBasePoints: 245,
-    monthlyBasePoints: 980,
-    weeklyCompletion: 62,
-    monthlyCompletion: 72,
-    badgeColor: '#0891B2',
-    surfaceColor: '#CFFAFE',
-  },
-];
 
 export const PODIUM_TROPHY_SHELF: readonly PodiumTrophyItem[] = [
   {

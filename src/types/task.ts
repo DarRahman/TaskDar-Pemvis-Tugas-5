@@ -101,6 +101,7 @@ export interface NewCoursePayload {
   iconKey: CourseIconKey;
   stickerUrl: string;
   colorThemeId: string;
+  customAccentHex?: string;
 }
 
 export interface PodiumTrophyItem {
@@ -116,18 +117,17 @@ export interface PodiumTrophyItem {
   accentColor: string;
 }
 
-export interface ClassLeaderboardPeer {
+export interface PersonalLeaderboardEntry {
   id: string;
-  name: string;
-  nim: string;
+  title: string;
+  subtitle: string;
   avatarUrl: string;
-  weeklyBasePoints: number;
-  monthlyBasePoints: number;
-  weeklyCompletion: number;
-  monthlyCompletion: number;
-  badgeColor: string;
-  surfaceColor: string;
-  isCurrentUser?: boolean;
+  completedCount: number;
+  totalCount: number;
+  completionRate: number;
+  xpPoints: number;
+  accentColor: string;
+  pastelBg: string;
 }
 
 export interface StudentUserSession {

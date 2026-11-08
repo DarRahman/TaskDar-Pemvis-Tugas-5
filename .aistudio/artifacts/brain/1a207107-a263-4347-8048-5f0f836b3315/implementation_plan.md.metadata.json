@@ -1,6 +1,6 @@
 {
-  "summary":  "Rencana perombakan total UI/UX dan visual aplikasi manajemen tugas mahasiswa STIKOM Poltek Cirebon bergaya Aptivo, Charmi, dan Learning Olympiad: pembuatan aset ilustrasi karakter 2D ekspresif, animasi splash screen naik otomatis diikuti Login Akun Google dan NIM, tata letak Grid Bento 2 kolom berilustrasi, filter tanggal kalender aktif, kustomisasi stiker/upload gambar mata kuliah, fitur Edit Tugas dan Mata Kuliah, serta Leaderboard Kelas TI-1 Mingguan dan Bulanan interaktif.",
-  "updatedAt":  "2026-11-08T10:35:04.977322719Z",
+  "summary":  "Rencana pembaruan menyeluruh aplikasi TaskDar: Full-screen Aptivo splash screen, layout responsif penuh tanpa bingkai kaku, perbaikan kalender dan badge tanggal TaskCard, animasi FAB morph saat tambah tugas, kustomisasi penuh form Mata Kuliah (hari Minggu, SKS ketik sendiri, jam mulai/selesai ala HP, warna RGB kustom), regenerasi 4 stiker karakter tanpa latar putih, Leaderboard produktivitas pribadi (Matkul & Kategori), serta halaman Profil & Akun Google lengkap yang dapat diedit untuk kampus mana pun.",
+  "updatedAt":  "2026-11-08T11:18:53.233350800Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

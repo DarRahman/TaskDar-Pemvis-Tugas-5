@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertCircle, Check, BookPlus, Upload, Sparkles } from 'lucide-react';
+import {
+  AlertCircle,
+  Check,
+  BookPlus,
+  Upload,
+  Sparkles,
+  Clock,
+  Palette,
+} from 'lucide-react';
 import {
   NewCoursePayload,
   CourseIconKey,
@@ -8,6 +16,7 @@ import {
 import {
   BENTO_COLOR_THEMES,
   COURSE_STICKER_GALLERY,
+  deriveBentoThemeFromHex,
 } from '../data/initialTasks';
 
 export interface AddCourseSheetProps {
@@ -18,28 +27,28 @@ export interface AddCourseSheetProps {
   isDarkMode?: boolean;
 }
 
-const CREDIT_OPTIONS = [2, 3, 4] as const;
-
 const DAY_CHIPS = [
-  'Senin',
-  'Selasa',
-  'Rabu',
-  'Kamis',
-  'Jumat',
-  'Sabtu',
+  { full: 'Senin', short: 'Sen' },
+  { full: 'Selasa', short: 'Sel' },
+  { full: 'Rabu', short: 'Rab' },
+  { full: 'Kamis', short: 'Kam' },
+  { full: 'Jumat', short: 'Jum' },
+  { full: 'Sabtu', short: 'Sab' },
+  { full: 'Minggu', short: 'Min' },
 ] as const;
 
-const TIME_SLOT_CHIPS = [
-  '08:00 - 10:30 WIB',
-  '10:30 - 13:00 WIB',
-  '13:00 - 15:30 WIB',
-  '15:30 - 18:00 WIB',
+const QUICK_TIME_PRESETS = [
+  { label: 'Pagi 08:00', start: '08:00', end: '10:30' },
+  { label: 'Siang 10:30', start: '10:30', end: '13:00' },
+  { label: 'Sore 13:00', start: '13:00', end: '15:30' },
+  { label: 'Petang 15:30', start: '15:30', end: '18:00' },
 ] as const;
 
 /*
  * Slide-up bottom sheet modal for adding or editing a course in Tab 2 (Mata Kuliah),
- * featuring an 8-character Expressive 2D Sticker Picker, Custom Image Upload,
- * Quick Day & Time Slot Chips, and 5 Bento Color Themes.
+ * featuring an 8-character clean 2D Sticker Picker, Custom Image Upload,
+ * 7-Day Selection (Sen-Min), Custom SKS Input, Mobile Time Picker + Free Text,
+ * and Custom RGB / Full-Spectrum Color Picker.
  */
 export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
   isOpen,
@@ -51,10 +60,17 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
   const [name, setName] = useState<string>('');
   const [lecturer, setLecturer] = useState<string>('');
   const [credits, setCredits] = useState<number>(3);
+  const [customCreditsMode, setCustomCreditsMode] = useState<boolean>(false);
+  const [customCreditsText, setCustomCreditsText] = useState<string>('4');
+
   const [selectedDay, setSelectedDay] = useState<string>('Senin');
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>(
+  const [timeMode, setTimeMode] = useState<'picker' | 'manual'>('picker');
+  const [startTime, setStartTime] = useState<string>('08:00');
+  const [endTime, setEndTime] = useState<string>('10:30');
+  const [manualTimeText, setManualTimeText] = useState<string>(
     '08:00 - 10:30 WIB'
   );
+
   const [room, setRoom] = useState<string>('Lab Mobile 2');
   const [selectedIconKey, setSelectedIconKey] = useState<CourseIconKey>('code');
   const [selectedStickerUrl, setSelectedStickerUrl] = useState<string>(
@@ -63,41 +79,72 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
   const [colorThemeId, setColorThemeId] = useState<string>(
     BENTO_COLOR_THEMES[0].id
   );
+  const [customHexColor, setCustomHexColor] = useState<string>('#7C3AED');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const customCreditsInputRef = useRef<HTMLInputElement | null>(null);
+  const colorInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (editingCourse) {
       setName(editingCourse.name);
       setLecturer(editingCourse.lecturer);
       setCredits(editingCourse.credits);
+      if (editingCourse.credits !== 2 && editingCourse.credits !== 3) {
+        setCustomCreditsMode(true);
+        setCustomCreditsText(String(editingCourse.credits));
+      } else {
+        setCustomCreditsMode(false);
+        setCustomCreditsText('4');
+      }
       setRoom(editingCourse.room);
       setSelectedIconKey(editingCourse.iconKey);
       setSelectedStickerUrl(
         editingCourse.stickerUrl || COURSE_STICKER_GALLERY[0].imageUrl
       );
+
       const parts = editingCourse.schedule.split(',');
       if (parts.length >= 2) {
         setSelectedDay(parts[0].trim());
-        setSelectedTimeSlot(parts.slice(1).join(',').trim());
+        const timePart = parts.slice(1).join(',').trim();
+        setManualTimeText(timePart);
+        const match = timePart.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+        if (match) {
+          setStartTime(match[1]);
+          setEndTime(match[2]);
+          setTimeMode('picker');
+        } else {
+          setTimeMode('manual');
+        }
       }
+
       const matchedTheme = BENTO_COLOR_THEMES.find(
         (t) => t.iconBg.toLowerCase() === editingCourse.iconBg.toLowerCase()
       );
       if (matchedTheme) {
         setColorThemeId(matchedTheme.id);
+      } else {
+        setColorThemeId('custom');
+        setCustomHexColor(editingCourse.iconBg);
       }
       setErrorMessage(null);
     } else {
       setName('');
       setLecturer('');
       setCredits(3);
+      setCustomCreditsMode(false);
+      setCustomCreditsText('4');
       setSelectedDay('Senin');
-      setSelectedTimeSlot('08:00 - 10:30 WIB');
+      setTimeMode('picker');
+      setStartTime('08:00');
+      setEndTime('10:30');
+      setManualTimeText('08:00 - 10:30 WIB');
       setRoom('Lab Mobile 2');
       setSelectedIconKey('code');
       setSelectedStickerUrl(COURSE_STICKER_GALLERY[0].imageUrl);
       setColorThemeId(BENTO_COLOR_THEMES[0].id);
+      setCustomHexColor('#7C3AED');
       setErrorMessage(null);
     }
   }, [editingCourse, isOpen]);
@@ -136,20 +183,32 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
       return;
     }
 
+    const parsedCredits = customCreditsMode
+      ? Math.max(1, Math.min(12, parseInt(customCreditsText, 10) || 1))
+      : credits;
+
+    const finalTimeString =
+      timeMode === 'picker'
+        ? `${startTime} - ${endTime} WIB`
+        : manualTimeText.trim() || '08:00 - 10:30 WIB';
+
     onAddCourse({
       id: editingCourse?.id,
       name: name.trim(),
       lecturer: lecturer.trim(),
-      credits,
-      schedule: `${selectedDay}, ${selectedTimeSlot}`,
+      credits: parsedCredits,
+      schedule: `${selectedDay}, ${finalTimeString}`,
       room: room.trim(),
       iconKey: selectedIconKey,
       stickerUrl: selectedStickerUrl,
       colorThemeId,
+      customAccentHex: colorThemeId === 'custom' ? customHexColor : undefined,
     });
 
     onClose();
   };
+
+  const customPreviewTheme = deriveBentoThemeFromHex(customHexColor);
 
   return (
     <div
@@ -159,7 +218,7 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
       aria-labelledby="add-course-sheet-title"
     >
       <div
-        className={`w-full max-w-[430px] rounded-t-[32px] sm:rounded-[32px] border-2 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-150 ${
+        className={`w-full max-w-[480px] rounded-t-[32px] sm:rounded-[32px] border-2 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-150 ${
           isDarkMode
             ? 'bg-[#161A22] border-[#262C3A] text-white'
             : 'bg-white border-[#0F172A] text-[#0F172A]'
@@ -210,7 +269,7 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
             </button>
           </div>
 
-          <div className="p-5 space-y-4 max-h-[76vh] overflow-y-auto">
+          <div className="p-5 space-y-4 max-h-[78vh] overflow-y-auto">
             {errorMessage && (
               <div
                 role="alert"
@@ -225,7 +284,10 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-extrabold flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-[#C41E3A]" aria-hidden="true" />
+                  <Sparkles
+                    className="w-3.5 h-3.5 text-[#C41E3A]"
+                    aria-hidden="true"
+                  />
                   <span>Pilih Karakter Stiker Visual</span>
                 </span>
 
@@ -265,7 +327,7 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
                           : 'border-[#E2E8F0] bg-[#F8FAFC]'
                       }`}
                     >
-                      <div className="w-12 h-12 rounded-xl overflow-hidden border border-[#0F172A]/20 bg-white">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden border border-[#0F172A]/15">
                         <img
                           src={sticker.imageUrl}
                           alt={sticker.label}
@@ -347,21 +409,24 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
               />
             </div>
 
-            {/* Jumlah SKS & Ruang Kuliah */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Jumlah SKS (2, 3, or Custom Typed SKS) & Ruang Kuliah */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <span className="block text-xs font-extrabold mb-1.5">
-                  Jumlah SKS
+                  Jumlah SKS (Pilih atau Ketik)
                 </span>
                 <div className="grid grid-cols-3 gap-1.5">
-                  {CREDIT_OPTIONS.map((sks) => {
-                    const isSelected = credits === sks;
+                  {[2, 3].map((sks) => {
+                    const isSelected = !customCreditsMode && credits === sks;
                     return (
                       <button
                         key={sks}
                         type="button"
-                        onClick={() => setCredits(sks)}
-                        className={`min-h-[44px] rounded-2xl text-xs font-extrabold font-mono tabular-nums border-2 transition-colors ${
+                        onClick={() => {
+                          setCustomCreditsMode(false);
+                          setCredits(sks);
+                        }}
+                        className={`min-h-[44px] rounded-2xl text-xs font-extrabold border-2 transition-colors ${
                           isSelected
                             ? 'bg-[#C41E3A] border-[#0F172A] text-white'
                             : isDarkMode
@@ -369,10 +434,35 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
                             : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A]'
                         }`}
                       >
-                        {sks}
+                        {sks} SKS
                       </button>
                     );
                   })}
+
+                  {/* Option 3: Custom Typed SKS Input */}
+                  <div className="relative">
+                    <input
+                      ref={customCreditsInputRef}
+                      type="number"
+                      min={1}
+                      max={12}
+                      value={customCreditsMode ? customCreditsText : ''}
+                      onFocus={() => setCustomCreditsMode(true)}
+                      onChange={(e) => {
+                        setCustomCreditsMode(true);
+                        setCustomCreditsText(e.target.value);
+                      }}
+                      placeholder="Ketik..."
+                      aria-label="Ketik jumlah SKS kustom"
+                      className={`w-full min-h-[44px] px-2 text-center rounded-2xl text-xs font-extrabold border-2 outline-none transition-colors ${
+                        customCreditsMode
+                          ? 'bg-[#FFF1F2] border-[#C41E3A] text-[#C41E3A]'
+                          : isDarkMode
+                          ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1] placeholder:text-[#94A3B8]'
+                          : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] placeholder:text-[#64748B]'
+                      }`}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -388,7 +478,7 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
                   type="text"
                   value={room}
                   onChange={(e) => setRoom(e.target.value)}
-                  placeholder="Ruang 302"
+                  placeholder="Contoh: Ruang 302 / Lab 1"
                   className={`w-full min-h-[44px] px-3.5 py-2.5 rounded-2xl border-2 text-sm font-semibold outline-none transition-colors ${
                     isDarkMode
                       ? 'bg-[#232934] border-[#323A48] text-white'
@@ -398,20 +488,20 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
               </div>
             </div>
 
-            {/* Quick Day Chips & Time Slot Chips (No More Manual Typing!) */}
+            {/* 7-Day Selection (Senin s/d Minggu) */}
             <div>
               <span className="block text-xs font-extrabold mb-1.5">
-                Pilih Hari Kuliah
+                Pilih Hari Kuliah (Senin s/d Minggu)
               </span>
-              <div className="grid grid-cols-6 gap-1.5 mb-2.5">
+              <div className="grid grid-cols-7 gap-1">
                 {DAY_CHIPS.map((day) => {
-                  const isSelected = selectedDay === day;
+                  const isSelected = selectedDay === day.full;
                   return (
                     <button
-                      key={day}
+                      key={day.full}
                       type="button"
-                      onClick={() => setSelectedDay(day)}
-                      className={`min-h-[38px] rounded-xl text-[11px] font-extrabold border transition-colors ${
+                      onClick={() => setSelectedDay(day.full)}
+                      className={`min-h-[40px] rounded-xl text-[11px] font-extrabold border transition-colors ${
                         isSelected
                           ? 'bg-[#C41E3A] border-[#0F172A] text-white'
                           : isDarkMode
@@ -419,44 +509,152 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
                           : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#334155]'
                       }`}
                     >
-                      {day.slice(0, 3)}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <span className="block text-xs font-extrabold mb-1.5">
-                Pilih Jam Perkuliahan
-              </span>
-              <div className="grid grid-cols-2 gap-1.5">
-                {TIME_SLOT_CHIPS.map((slot) => {
-                  const isSelected = selectedTimeSlot === slot;
-                  return (
-                    <button
-                      key={slot}
-                      type="button"
-                      onClick={() => setSelectedTimeSlot(slot)}
-                      className={`min-h-[40px] px-2 rounded-xl text-[11px] font-mono font-bold border transition-colors ${
-                        isSelected
-                          ? 'bg-[#FEE2E2] border-[#C41E3A] text-[#C41E3A]'
-                          : isDarkMode
-                          ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1]'
-                          : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#334155]'
-                      }`}
-                    >
-                      {slot}
+                      {day.short}
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* Bento Color Theme Selector (5 Color Chips) */}
+            {/* Jam Perkuliahan: Mobile-Style Start & End Time Picker + Free Typing */}
             <div>
-              <span className="block text-xs font-extrabold mb-2">
-                Pilih Tema Warna Kartu Bento
-              </span>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-extrabold flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-[#C41E3A]" aria-hidden="true" />
+                  <span>Jam Perkuliahan</span>
+                </span>
+
+                <div className="flex items-center gap-1 bg-[#F1F5F9] dark:bg-[#232934] p-0.5 rounded-xl border border-[#CBD5E1] dark:border-[#323A48]">
+                  <button
+                    type="button"
+                    onClick={() => setTimeMode('picker')}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-colors ${
+                      timeMode === 'picker'
+                        ? 'bg-[#C41E3A] text-white'
+                        : 'text-[#64748B]'
+                    }`}
+                  >
+                    Pilih Jam HP
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManualTimeText(`${startTime} - ${endTime} WIB`);
+                      setTimeMode('manual');
+                    }}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-colors ${
+                      timeMode === 'manual'
+                        ? 'bg-[#C41E3A] text-white'
+                        : 'text-[#64748B]'
+                    }`}
+                  >
+                    Ketik Bebas
+                  </button>
+                </div>
+              </div>
+
+              {timeMode === 'picker' ? (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div
+                      className={`p-2.5 rounded-2xl border-2 ${
+                        isDarkMode
+                          ? 'bg-[#232934] border-[#323A48]'
+                          : 'bg-[#F8FAFC] border-[#E2E8F0]'
+                      }`}
+                    >
+                      <label
+                        htmlFor="course-start-time"
+                        className="block text-[10px] font-bold text-[#64748B] mb-1"
+                      >
+                        Jam Mulai
+                      </label>
+                      <input
+                        id="course-start-time"
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="w-full bg-transparent text-sm font-black outline-none"
+                      />
+                    </div>
+
+                    <div
+                      className={`p-2.5 rounded-2xl border-2 ${
+                        isDarkMode
+                          ? 'bg-[#232934] border-[#323A48]'
+                          : 'bg-[#F8FAFC] border-[#E2E8F0]'
+                      }`}
+                    >
+                      <label
+                        htmlFor="course-end-time"
+                        className="block text-[10px] font-bold text-[#64748B] mb-1"
+                      >
+                        Jam Selesai
+                      </label>
+                      <input
+                        id="course-end-time"
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        className="w-full bg-transparent text-sm font-black outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quick Time Presets */}
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {QUICK_TIME_PRESETS.map((preset) => {
+                      const active =
+                        startTime === preset.start && endTime === preset.end;
+                      return (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => {
+                            setStartTime(preset.start);
+                            setEndTime(preset.end);
+                          }}
+                          className={`min-h-[34px] px-1.5 rounded-xl text-[10px] font-bold border transition-colors ${
+                            active
+                              ? 'bg-[#FEE2E2] border-[#C41E3A] text-[#C41E3A]'
+                              : isDarkMode
+                              ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1]'
+                              : 'bg-white border-[#E2E8F0] text-[#475569]'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={manualTimeText}
+                  onChange={(e) => setManualTimeText(e.target.value)}
+                  placeholder="Contoh: 08:00 - 10:30 WIB atau Malam 19:00"
+                  className={`w-full min-h-[44px] px-4 py-2.5 rounded-2xl border-2 text-sm font-semibold outline-none ${
+                    isDarkMode
+                      ? 'bg-[#232934] border-[#323A48] text-white focus:border-[#C41E3A]'
+                      : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] focus:border-[#C41E3A] focus:bg-white'
+                  }`}
+                />
+              )}
+            </div>
+
+            {/* Bento Color Theme Selector (5 Curated Themes + Custom RGB Spectrum Picker) */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-extrabold">
+                  Pilih Tema Warna Kartu Bento
+                </span>
+                <span className="text-[10px] font-bold text-[#64748B]">
+                  5 Preset + RGB Bebas
+                </span>
+              </div>
+
+              <div className="grid grid-cols-6 gap-1.5">
                 {BENTO_COLOR_THEMES.map((theme) => {
                   const isPicked = colorThemeId === theme.id;
                   return (
@@ -468,7 +666,7 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
                         backgroundColor: theme.pastelBg,
                         borderColor: isPicked ? '#0F172A' : theme.pastelBorder,
                       }}
-                      className="min-h-[48px] rounded-2xl border-2 flex flex-col items-center justify-center gap-1 p-1 transition-transform active:scale-95"
+                      className="min-h-[52px] rounded-2xl border-2 flex flex-col items-center justify-center gap-1 p-1 transition-transform active:scale-95"
                       title={theme.name}
                     >
                       <span
@@ -486,7 +684,80 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
                     </button>
                   );
                 })}
+
+                {/* 6th Tile: Custom RGB / Hex Color Picker */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setColorThemeId('custom');
+                    colorInputRef.current?.click();
+                  }}
+                  style={{
+                    backgroundColor: customPreviewTheme.pastelBg,
+                    borderColor:
+                      colorThemeId === 'custom'
+                        ? '#0F172A'
+                        : customPreviewTheme.pastelBorder,
+                  }}
+                  className="min-h-[52px] rounded-2xl border-2 flex flex-col items-center justify-center gap-1 p-1 transition-transform active:scale-95 relative"
+                  title="Pilih Warna Kustom RGB"
+                >
+                  <input
+                    ref={colorInputRef}
+                    type="color"
+                    value={customHexColor}
+                    onChange={(e) => {
+                      setCustomHexColor(e.target.value);
+                      setColorThemeId('custom');
+                    }}
+                    className="sr-only"
+                    aria-label="Pilih warna kustom RGB"
+                  />
+                  <span
+                    style={{ backgroundColor: customHexColor }}
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-white border border-black/20"
+                  >
+                    {colorThemeId === 'custom' ? (
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    ) : (
+                      <Palette className="w-3 h-3" />
+                    )}
+                  </span>
+                  <span
+                    style={{ color: customHexColor }}
+                    className="text-[10px] font-extrabold truncate max-w-full"
+                  >
+                    RGB
+                  </span>
+                </button>
               </div>
+
+              {colorThemeId === 'custom' && (
+                <div
+                  style={{
+                    backgroundColor: customPreviewTheme.pastelBg,
+                    borderColor: customPreviewTheme.pastelBorder,
+                  }}
+                  className="mt-2 p-2.5 rounded-2xl border-2 flex items-center justify-between gap-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      style={{ backgroundColor: customHexColor }}
+                      className="w-6 h-6 rounded-lg border border-[#0F172A]"
+                    />
+                    <span className="text-xs font-extrabold text-[#0F172A]">
+                      Warna Kustom Aktif ({customHexColor.toUpperCase()})
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => colorInputRef.current?.click()}
+                    className="px-2.5 py-1 rounded-xl bg-white border border-[#0F172A] text-[11px] font-extrabold text-[#0F172A]"
+                  >
+                    Ubah Spektrum RGB
+                  </button>
+                </div>
+              )}
             </div>
 
             <button

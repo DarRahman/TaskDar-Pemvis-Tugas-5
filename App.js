@@ -26,7 +26,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 
 /*
- * Paket Aset Visual Lokal (Tersedia di folder /public/assets/ proyek ini):
+ * Paket Aset Visual Lokal TaskDar (Tersedia di folder /public/assets/ proyek ini):
  * - mascot-splash.jpg
  * - sticker-coding.jpg
  * - sticker-robotics.jpg
@@ -49,7 +49,7 @@ const VISUAL_ASSETS = {
   olympiadTrophy: require('./public/assets/olympiad-trophy.jpg'),
 };
 
-const STUDENT_PROFILE = {
+const DEFAULT_STUDENT_PROFILE = {
   name: 'Badar Rahman',
   shortName: 'Badar',
   nim: '14524303',
@@ -62,20 +62,20 @@ const STUDENT_PROFILE = {
 };
 
 const STICKER_OPTIONS = [
-  { id: 'coding', label: 'Koding', source: VISUAL_ASSETS.stickerCoding, iconKey: 'code' },
-  { id: 'robotics', label: 'Robotik', source: VISUAL_ASSETS.stickerRobotics, iconKey: 'cpu' },
-  { id: 'data', label: 'Data', source: VISUAL_ASSETS.stickerData, iconKey: 'database' },
-  { id: 'security', label: 'Siber', source: VISUAL_ASSETS.stickerSecurity, iconKey: 'shield' },
-  { id: 'oop', label: 'Sistem', source: VISUAL_ASSETS.stickerOop, iconKey: 'layers' },
-  { id: 'ai', label: 'Pintar', source: VISUAL_ASSETS.stickerAi, iconKey: 'book-open' },
-  { id: 'design', label: 'Visual', source: VISUAL_ASSETS.stickerDesign, iconKey: ' layout' },
-  { id: 'mascot', label: 'Kampus', source: VISUAL_ASSETS.mascotSplash, iconKey: 'award' },
+  { id: 'coding', label: 'Koding', source: VISUAL_ASSETS.stickerCoding },
+  { id: 'robotics', label: 'Robotik', source: VISUAL_ASSETS.stickerRobotics },
+  { id: 'data', label: 'Data', source: VISUAL_ASSETS.stickerData },
+  { id: 'security', label: 'Siber', source: VISUAL_ASSETS.stickerSecurity },
+  { id: 'oop', label: 'Sistem', source: VISUAL_ASSETS.stickerOop },
+  { id: 'ai', label: 'Pintar', source: VISUAL_ASSETS.stickerAi },
+  { id: 'design', label: 'Visual', source: VISUAL_ASSETS.stickerDesign },
+  { id: 'mascot', label: 'Maskot', source: VISUAL_ASSETS.mascotSplash },
 ];
 
 const BENTO_COLOR_THEMES = [
   {
     id: 'crimson',
-    label: 'Merah Koral',
+    label: 'Merah',
     pastelBg: '#FEE2E2',
     pastelBorder: '#FECACA',
     accentColor: '#C41E3A',
@@ -83,7 +83,7 @@ const BENTO_COLOR_THEMES = [
   },
   {
     id: 'indigo',
-    label: 'Indigo Tekno',
+    label: 'Indigo',
     pastelBg: '#EEF2FF',
     pastelBorder: '#C7D2FE',
     accentColor: '#4F46E5',
@@ -91,7 +91,7 @@ const BENTO_COLOR_THEMES = [
   },
   {
     id: 'amber',
-    label: 'Jingga Amber',
+    label: 'Jingga',
     pastelBg: '#FEF3C7',
     pastelBorder: '#FDE68A',
     accentColor: '#D97706',
@@ -99,7 +99,7 @@ const BENTO_COLOR_THEMES = [
   },
   {
     id: 'emerald',
-    label: 'Hijau Zamrud',
+    label: 'Hijau',
     pastelBg: '#D1FAE5',
     pastelBorder: '#A7F3D0',
     accentColor: '#059669',
@@ -107,11 +107,19 @@ const BENTO_COLOR_THEMES = [
   },
   {
     id: 'cyan',
-    label: 'Sian Elektrik',
+    label: 'Sian',
     pastelBg: '#CFFAFE',
     pastelBorder: '#A5F3FC',
     accentColor: '#0891B2',
     iconBg: '#0891B2',
+  },
+  {
+    id: 'purple',
+    label: 'Ungu RGB',
+    pastelBg: '#F3E8FF',
+    pastelBorder: '#E9D5FF',
+    accentColor: '#7C3AED',
+    iconBg: '#7C3AED',
   },
 ];
 
@@ -194,110 +202,74 @@ const INITIAL_TASKS = [
     title: 'Tugas Pertemuan 5 - Aplikasi Manajemen Tugas Mahasiswa',
     course: 'Pemrograman Visual I',
     category: 'Proyek',
-    deadline: '08 Nov 2026',
-    status: 'Belum Dikerjakan',
     description:
       'Merancang antarmuka aplikasi daftar tugas mahasiswa dengan fitur pencarian langsung, filter status penyelesaian, dan ringkasan progres.',
+    deadline: '08 Nov 2026',
+    status: 'Belum Dikerjakan',
   },
   {
     id: 'task-rob-02',
     title: 'Latihan 4 - Kinematika Ruang dan Transformasi Koordinat',
     course: 'Robotika',
     category: 'Praktikum',
-    deadline: '04 Nov 2026',
-    status: 'Selesai',
     description:
       'Konversi koordinat bola ke kartesian dan matriks rotasi end-effector robot manipulator.',
+    deadline: '04 Nov 2026',
+    status: 'Selesai',
   },
   {
     id: 'task-dwdm-03',
     title: 'Analisis 3V Big Data Tokopedia dan Shopee',
     course: 'Data Warehouse & Data Mining',
     category: 'Teori',
-    deadline: '07 Nov 2026',
-    status: 'Selesai',
     description:
       'Arsitektur data lake, pemrosesan aliran data, dan pemisahan sistem transaksi dengan analitik.',
+    deadline: '07 Nov 2026',
+    status: 'Selesai',
   },
   {
     id: 'task-kij-04',
     title: 'Praktikum Modul 1.4.1 - Uji Port Nmap Kali Linux',
     course: 'Keamanan Informasi & Jaringan',
     category: 'Praktikum',
-    deadline: '05 Nov 2026',
-    status: 'Selesai',
     description:
       'Pengujian pemindaian port jaringan menggunakan Nmap 7.99 pada lingkungan Kali Linux.',
+    deadline: '05 Nov 2026',
+    status: 'Selesai',
   },
   {
     id: 'task-pbo-05',
     title: 'Analisis OOM Perancangan Sistem Pasar Cirebon',
     course: 'Pemodelan Berorientasi Objek',
     category: 'Proyek',
-    deadline: '09 Nov 2026',
-    status: 'Belum Dikerjakan',
     description:
       'Pemodelan diagram kelas dan skenario kebutuhan spesifikasi harga pangan daerah Cirebon.',
+    deadline: '09 Nov 2026',
+    status: 'Belum Dikerjakan',
   },
 ];
 
-const CLASS_TI1_PEERS = [
-  {
-    id: 'peer-badar',
-    name: 'Badar Rahman',
-    nim: '14524303',
-    avatar: VISUAL_ASSETS.mascotSplash,
-    weeklyBase: 220,
-    monthlyBase: 1150,
-    weeklyComp: 88,
-    monthlyComp: 92,
-    isCurrentUser: true,
-  },
-  {
-    id: 'peer-nadia',
-    name: 'Nadia Putri Lestari',
-    nim: '14524308',
-    avatar: VISUAL_ASSETS.stickerAi,
-    weeklyBase: 390,
-    monthlyBase: 1340,
-    weeklyComp: 90,
-    monthlyComp: 94,
-  },
-  {
-    id: 'peer-rizky',
-    name: 'Rizky Pratama Wijaya',
-    nim: '14524312',
-    avatar: VISUAL_ASSETS.stickerRobotics,
-    weeklyBase: 310,
-    monthlyBase: 1190,
-    weeklyComp: 76,
-    monthlyComp: 84,
-  },
-  {
-    id: 'peer-siti',
-    name: 'Siti Nurhaliza Rahma',
-    nim: '14524319',
-    avatar: VISUAL_ASSETS.stickerDesign,
-    weeklyBase: 280,
-    monthlyBase: 1120,
-    weeklyComp: 70,
-    monthlyComp: 79,
-  },
+const WEEKLY_DAYS = [
+  { short: 'Sen', num: '3', fullDate: '03 Nov 2026', hours: 3.5 },
+  { short: 'Sel', num: '4', fullDate: '04 Nov 2026', hours: 4.0 },
+  { short: 'Rab', num: '5', fullDate: '05 Nov 2026', hours: 4.5 },
+  { short: 'Kam', num: '6', fullDate: '06 Nov 2026', hours: 3.0 },
+  { short: 'Jum', num: '7', fullDate: '07 Nov 2026', hours: 5.0 },
+  { short: 'Sab', num: '8', fullDate: '08 Nov 2026', hours: 4.2 },
+  { short: 'Min', num: '9', fullDate: '09 Nov 2026', hours: 2.5 },
 ];
 
-const WEEKLY_CALENDAR_DAYS = [
-  { dayShort: 'Sen', dateNumber: '03', fullDateLabel: '03 Nov 2026' },
-  { dayShort: 'Sel', dateNumber: '04', fullDateLabel: '04 Nov 2026' },
-  { dayShort: 'Rab', dateNumber: '05', fullDateLabel: '05 Nov 2026' },
-  { dayShort: 'Kam', dateNumber: '06', fullDateLabel: '06 Nov 2026' },
-  { dayShort: 'Jum', dateNumber: '07', fullDateLabel: '07 Nov 2026' },
-  { dayShort: 'Sab', dateNumber: '08', fullDateLabel: '08 Nov 2026' },
-  { dayShort: 'Min', dateNumber: '09', fullDateLabel: '09 Nov 2026' },
+const DAY_CHIPS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+
+const QUICK_DATE_CHIPS = [
+  { label: 'Hari Ini', value: '08 Nov 2026' },
+  { label: 'Besok', value: '09 Nov 2026' },
+  { label: 'Rabu Depan', value: '11 Nov 2026' },
+  { label: 'Senin Depan', value: '16 Nov 2026' },
 ];
 
 /*
- * Hook 7 (useReducer): Central state reducer handling task list mutations
- * across ADD_TASK, EDIT_TASK, DELETE_TASK, TOGGLE_STATUS, and RESET_TASKS.
+ * Komponen 7 (useReducer): Reducer terpusat untuk mutasi daftar tugas.
  */
 function taskReducer(state, action) {
   switch (action.type) {
@@ -307,13 +279,13 @@ function taskReducer(state, action) {
         title: action.payload.title.trim(),
         course: action.payload.course.trim(),
         category: action.payload.category || 'Praktikum',
+        description: action.payload.description.trim(),
         deadline: action.payload.deadline.trim(),
         status: 'Belum Dikerjakan',
-        description: action.payload.description.trim(),
       };
       return [newTask, ...state];
     }
-    case 'EDIT_TASK': {
+    case 'EDIT_TASK':
       return state.map((task) =>
         task.id === action.payload.id
           ? {
@@ -321,48 +293,47 @@ function taskReducer(state, action) {
               title: action.payload.title.trim(),
               course: action.payload.course.trim(),
               category: action.payload.category,
-              deadline: action.payload.deadline.trim(),
               description: action.payload.description.trim(),
+              deadline: action.payload.deadline.trim(),
             }
           : task
       );
-    }
-    case 'TOGGLE_STATUS': {
-      return state.map((task) => {
-        if (task.id !== action.payload) return task;
-        const nextStatus =
-          task.status === 'Selesai' ? 'Belum Dikerjakan' : 'Selesai';
-        return { ...task, status: nextStatus };
-      });
-    }
-    case 'DELETE_TASK': {
+    case 'DELETE_TASK':
       return state.filter((task) => task.id !== action.payload);
-    }
-    case 'RESET_TASKS': {
-      return INITIAL_TASKS;
-    }
+    case 'TOGGLE_STATUS':
+      return state.map((task) =>
+        task.id === action.payload
+          ? {
+              ...task,
+              status:
+                task.status === 'Selesai' ? 'Belum Dikerjakan' : 'Selesai',
+            }
+          : task
+      );
+    case 'RESET_TASKS':
+      return INITIAL_TASKS.map((item) => ({ ...item }));
     default:
       return state;
   }
 }
 
 /*
- * Component 1 (Props): Standalone Visual Bento TaskCard child component
- * displaying expressive 2D character stickers, category badge, edit & delete controls.
+ * Komponen 1 (Props): TaskCard menerima data dan callback aksi melalui Props.
  */
 const TaskCard = React.memo(function TaskCard({
   task,
   courses,
   onToggleStatus,
-  onEditTask,
   onDeleteTask,
+  onEditTask,
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const isCompleted = task.status === 'Selesai';
 
   const matchedCourse =
-    courses.find((c) => c.name.toLowerCase() === task.course.toLowerCase()) ||
-    INITIAL_COURSES[0];
+    courses.find(
+      (c) => c.name.toLowerCase() === task.course.toLowerCase()
+    ) || INITIAL_COURSES[0];
 
   return (
     <View
@@ -374,12 +345,14 @@ const TaskCard = React.memo(function TaskCard({
         },
       ]}
     >
-      <View style={styles.taskCardRow}>
-        {/* Left: 56x56pt Character Sticker Container */}
+      <View style={styles.taskCardTopRow}>
         <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => setIsExpanded((prev) => !prev)}
-          style={styles.taskStickerFrame}
+          activeOpacity={0.85}
+          onPress={() => setExpanded((prev) => !prev)}
+          style={[
+            styles.taskStickerBox,
+            isCompleted && styles.taskStickerBoxCompleted,
+          ]}
         >
           <Image
             source={matchedCourse.stickerSource}
@@ -388,13 +361,12 @@ const TaskCard = React.memo(function TaskCard({
           />
         </TouchableOpacity>
 
-        {/* Center: Category Badge, 1-Line Bold Title, Course Name, and Deadline */}
         <TouchableOpacity
-          activeOpacity={0.75}
-          onPress={() => setIsExpanded((prev) => !prev)}
-          style={styles.taskCenterContent}
+          style={styles.taskCenterArea}
+          activeOpacity={0.85}
+          onPress={() => setExpanded((prev) => !prev)}
         >
-          <View style={styles.taskCategoryRow}>
+          <View style={styles.taskBadgeRow}>
             <View
               style={[
                 styles.categoryBadge,
@@ -406,75 +378,91 @@ const TaskCard = React.memo(function TaskCard({
               </Text>
             </View>
             <Text
-              numberOfLines={1}
               style={[
-                styles.taskCourseSubtitle,
+                styles.taskCourseLabel,
                 { color: matchedCourse.accentColor },
               ]}
+              numberOfLines={1}
             >
               {task.course}
             </Text>
           </View>
 
           <Text
-            numberOfLines={isExpanded ? 3 : 1}
             style={[
-              styles.taskTitleText,
+              styles.taskTitle,
               isCompleted && styles.taskTitleCompleted,
             ]}
+            numberOfLines={expanded ? undefined : 2}
           >
             {task.title}
           </Text>
-
-          <View style={styles.taskMetaInline}>
-            <View style={styles.deadlinePill}>
-              <Feather name="calendar" size={11} color="#0F172A" />
-              <Text style={styles.deadlinePillText}>{task.deadline}</Text>
-            </View>
-            <Text style={styles.accordionTriggerText}>
-              {isExpanded ? 'Tutup' : 'Rincian'}
-            </Text>
-          </View>
         </TouchableOpacity>
+      </View>
 
-        {/* Right: Checkmark Toggle, Edit, and Delete */}
-        <View style={styles.taskActionsRight}>
+      <View style={styles.taskFooterBar}>
+        <View style={styles.taskFooterLeft}>
+          <View style={styles.deadlineBadge}>
+            <Feather
+              name="calendar"
+              size={12}
+              color={isCompleted ? '#64748B' : matchedCourse.iconBg}
+            />
+            <Text style={styles.deadlineText}>{task.deadline}</Text>
+          </View>
+
           <TouchableOpacity
-            activeOpacity={0.75}
+            onPress={() => setExpanded((prev) => !prev)}
+            style={styles.rincianBtn}
+          >
+            <Text style={styles.rincianText}>
+              {expanded ? 'Tutup' : 'Rincian'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.taskActionRow}>
+          <TouchableOpacity
             onPress={() => onToggleStatus(task.id)}
             style={[
-              styles.iconTouchTarget,
-              isCompleted ? styles.checkBtnCompleted : styles.checkBtnPending,
+              styles.checkPillBtn,
+              isCompleted && styles.checkPillBtnActive,
             ]}
           >
             <Feather
               name="check"
-              size={16}
+              size={13}
               color={isCompleted ? '#FFFFFF' : '#0F172A'}
             />
+            <Text
+              style={[
+                styles.checkPillText,
+                isCompleted && { color: '#FFFFFF' },
+              ]}
+            >
+              {isCompleted ? 'Selesai' : 'Tandai'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            activeOpacity={0.75}
             onPress={() => onEditTask(task)}
-            style={[styles.iconTouchTarget, styles.whiteActionBtn]}
+            style={styles.iconActionBtn}
           >
-            <Feather name="edit-2" size={14} color="#0F172A" />
+            <Feather name="edit-2" size={14} color="#334155" />
           </TouchableOpacity>
 
           <TouchableOpacity
-            activeOpacity={0.75}
             onPress={() => onDeleteTask(task.id)}
-            style={[styles.iconTouchTarget, styles.whiteActionBtn]}
+            style={styles.iconActionBtn}
           >
-            <Feather name="trash-2" size={15} color="#C41E3A" />
+            <Feather name="trash-2" size={14} color="#C41E3A" />
           </TouchableOpacity>
         </View>
       </View>
 
-      {isExpanded && (
-        <View style={styles.accordionBody}>
-          <Text style={styles.accordionDescText}>{task.description}</Text>
+      {expanded && (
+        <View style={styles.taskExpandedArea}>
+          <Text style={styles.taskDescription}>{task.description}</Text>
         </View>
       )}
     </View>
@@ -485,131 +473,138 @@ export default function App() {
   const [tasks, dispatch] = useReducer(taskReducer, INITIAL_TASKS);
 
   const [screenPhase, setScreenPhase] = useState('splash');
-  const [studentName, setStudentName] = useState(STUDENT_PROFILE.name);
-  const [studentNim, setStudentNim] = useState(STUDENT_PROFILE.nim);
-  const [studentClass, setStudentClass] = useState(STUDENT_PROFILE.classGroup);
-  const [isGoogleLinked, setIsGoogleLinked] = useState(false);
-
+  const [studentUser, setStudentUser] = useState({
+    ...DEFAULT_STUDENT_PROFILE,
+    avatarSource: VISUAL_ASSETS.mascotSplash,
+  });
   const [courses, setCourses] = useState(INITIAL_COURSES);
   const [bottomTab, setBottomTab] = useState('tugas');
+
   const [selectedDayDate, setSelectedDayDate] = useState('Semua');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilterTab, setActiveFilterTab] = useState('Semua');
   const [selectedCourseFilter, setSelectedCourseFilter] = useState('Semua');
-  const [leaderboardPeriod, setLeaderboardPeriod] = useState('weekly');
+  const [leaderboardMode, setLeaderboardMode] = useState('course');
 
-  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
-  const [editingTaskItem, setEditingTaskItem] = useState(null);
-  const [isAddCourseModalOpen, setIsAddCourseModalOpen] = useState(false);
+  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskCategory, setTaskCategory] = useState('Praktikum');
+  const [taskCourse, setTaskCourse] = useState(INITIAL_COURSES[0].name);
+  const [taskDeadline, setTaskDeadline] = useState('08 Nov 2026');
+  const [taskDesc, setTaskDesc] = useState('');
 
-  const [newTitle, setNewTitle] = useState('');
-  const [newCourse, setNewCourse] = useState(INITIAL_COURSES[0].name);
-  const [newCategory, setNewCategory] = useState('Praktikum');
-  const [newDeadline, setNewDeadline] = useState('08 Nov 2026');
-  const [newDescription, setNewDescription] = useState('');
+  const [isAddCourseOpen, setIsAddCourseOpen] = useState(false);
+  const [courseName, setCourseName] = useState('');
+  const [courseLecturer, setCourseLecturer] = useState('');
+  const [courseCredits, setCourseCredits] = useState('3');
+  const [courseDay, setCourseDay] = useState('Senin');
+  const [courseTime, setCourseTime] = useState('08:00 - 10:30 WIB');
+  const [courseRoom, setCourseRoom] = useState('Lab Mobile 2');
+  const [courseSticker, setCourseSticker] = useState(STICKER_OPTIONS[0]);
+  const [courseTheme, setCourseTheme] = useState(BENTO_COLOR_THEMES[0]);
 
-  const [courseNameInput, setCourseNameInput] = useState('');
-  const [courseLecturerInput, setCourseLecturerInput] = useState('');
-  const [courseCreditsInput, setCourseCreditsInput] = useState(3);
-  const [courseStickerIdx, setCourseStickerIdx] = useState(0);
-  const [courseThemeIdInput, setCourseThemeIdInput] = useState('crimson');
-
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(true);
-  const [googleCalendarSync, setGoogleCalendarSync] = useState(true);
-  const [siakadAutoUpdate, setSiakadAutoUpdate] = useState(true);
+  const [calendarSyncEnabled, setCalendarSyncEnabled] = useState(true);
+  const [portalSyncEnabled, setPortalSyncEnabled] = useState(true);
 
-  const splashTranslateY = useRef(new Animated.Value(260)).current;
   const titleInputRef = useRef(null);
+  const splashTranslateY = useRef(new Animated.Value(180)).current;
 
-  /*
-   * Aptivo-style rising character splash animation from bottom to top on launch.
-   */
   useEffect(() => {
     if (screenPhase === 'splash') {
       Animated.spring(splashTranslateY, {
         toValue: 0,
-        friction: 7,
-        tension: 60,
+        friction: 6,
+        tension: 50,
         useNativeDriver: true,
       }).start();
 
       const timer = setTimeout(() => {
         setScreenPhase('auth');
-      }, 2200);
+      }, 2300);
       return () => clearTimeout(timer);
     }
   }, [screenPhase, splashTranslateY]);
 
-  /*
-   * Hook 3 (useEffect): Observes searchQuery transitions and logs to console (FR-05).
-   */
   useEffect(() => {
-    const trimmed = searchQuery.trim();
     console.log(
-      '[Pemrograman Visual I - TI361] Kata kunci pencarian aktif:',
-      trimmed === '' ? '(kosong)' : trimmed
+      '[TaskDar - Pencarian Langsung] Kata kunci aktif:',
+      searchQuery.trim() === '' ? '(kosong)' : searchQuery.trim()
     );
   }, [searchQuery]);
 
-  /*
-   * Hook 4 (useMemo): Reactive task metrics derived from the task list (FR-06).
-   */
   const taskMetrics = useMemo(() => {
     const total = tasks.length;
-    const completed = tasks.filter((item) => item.status === 'Selesai').length;
+    const completed = tasks.filter((t) => t.status === 'Selesai').length;
     const pending = total - completed;
     const completionRate =
       total > 0 ? Math.round((completed / total) * 100) : 0;
     return { total, pending, completed, completionRate };
   }, [tasks]);
 
-  const totalCredits = useMemo(
-    () => courses.reduce((sum, item) => sum + item.credits, 0),
-    [courses]
-  );
+  const personalLeaderboard = useMemo(() => {
+    if (leaderboardMode === 'course') {
+      return courses
+        .map((c) => {
+          const list = tasks.filter(
+            (t) => t.course.toLowerCase() === c.name.toLowerCase()
+          );
+          const done = list.filter((t) => t.status === 'Selesai').length;
+          const total = list.length;
+          const rate = total > 0 ? Math.round((done / total) * 100) : 0;
+          const xp = done * 85 + total * 20;
+          return {
+            id: c.id,
+            title: c.name,
+            subtitle: `${c.code} · ${done}/${total} Tugas Selesai`,
+            stickerSource: c.stickerSource,
+            rate,
+            xp,
+            accentColor: c.iconBg,
+          };
+        })
+        .sort((a, b) => b.rate - a.rate || b.xp - a.xp);
+    }
 
-  const rankedLeaderboard = useMemo(() => {
-    const bonus = taskMetrics.completed * 45;
-    const items = CLASS_TI1_PEERS.map((peer) => {
-      if (peer.isCurrentUser) {
+    const categories = ['Praktikum', 'Proyek', 'Teori', 'Kuis'];
+    return categories
+      .map((cat, idx) => {
+        const list = tasks.filter((t) => (t.category || 'Praktikum') === cat);
+        const done = list.filter((t) => t.status === 'Selesai').length;
+        const total = list.length;
+        const rate = total > 0 ? Math.round((done / total) * 100) : 0;
+        const xp = done * 90 + total * 25;
         return {
-          ...peer,
-          name: studentName,
-          nim: studentNim,
-          score:
-            leaderboardPeriod === 'weekly'
-              ? peer.weeklyBase + bonus
-              : peer.monthlyBase + bonus,
-          completion: taskMetrics.completionRate,
+          id: `cat-${cat}`,
+          title: `Kategori ${cat}`,
+          subtitle: `${done}/${total} Tugas Selesai`,
+          stickerSource: STICKER_OPTIONS[idx % STICKER_OPTIONS.length].source,
+          rate,
+          xp,
+          accentColor: BENTO_COLOR_THEMES[idx % BENTO_COLOR_THEMES.length].iconBg,
         };
-      }
-      return {
-        ...peer,
-        score:
-          leaderboardPeriod === 'weekly' ? peer.weeklyBase : peer.monthlyBase,
-        completion:
-          leaderboardPeriod === 'weekly' ? peer.weeklyComp : peer.monthlyComp,
-      };
-    });
-    return items.sort((a, b) => b.score - a.score);
-  }, [taskMetrics, leaderboardPeriod, studentName, studentNim]);
+      })
+      .sort((a, b) => b.rate - a.rate || b.xp - a.xp);
+  }, [leaderboardMode, courses, tasks]);
 
   const filteredTasks = useMemo(() => {
-    const keyword = searchQuery.trim().toLowerCase();
-    return tasks.filter((item) => {
-      const matchesTab =
-        activeFilterTab === 'Semua' ? true : item.status === activeFilterTab;
-      const matchesCourse =
+    const q = searchQuery.trim().toLowerCase();
+    return tasks.filter((t) => {
+      const matchStatus =
+        activeFilterTab === 'Semua' ? true : t.status === activeFilterTab;
+      const matchCourse =
         selectedCourseFilter === 'Semua'
           ? true
-          : item.course.toLowerCase() === selectedCourseFilter.toLowerCase();
-      const matchesDate =
-        selectedDayDate === 'Semua' ? true : item.deadline === selectedDayDate;
-      const matchesKeyword =
-        keyword === '' ||
-        item.title.toLowerCase().includes(keyword) ||
-        item.course.toLowerCase().includes(keyword);
-      return matchesTab && matchesCourse && matchesDate && matchesKeyword;
+          : t.course.toLowerCase() === selectedCourseFilter.toLowerCase();
+      const matchDate =
+        selectedDayDate === 'Semua' ? true : t.deadline === selectedDayDate;
+      const matchKeyword =
+        q === '' ||
+        t.title.toLowerCase().includes(q) ||
+        t.course.toLowerCase().includes(q);
+      return matchStatus && matchCourse && matchDate && matchKeyword;
     });
   }, [
     tasks,
@@ -619,176 +614,173 @@ export default function App() {
     searchQuery,
   ]);
 
-  /*
-   * Hook 5 (useCallback): Stable callback references passed down to TaskCard.
-   */
-  const handleToggleStatus = useCallback((taskId) => {
-    dispatch({ type: 'TOGGLE_STATUS', payload: taskId });
+  const handleToggleStatus = useCallback((id) => {
+    dispatch({ type: 'TOGGLE_STATUS', payload: id });
   }, []);
 
-  const handleDeleteTask = useCallback((taskId) => {
-    dispatch({ type: 'DELETE_TASK', payload: taskId });
+  const handleDeleteTask = useCallback((id) => {
+    dispatch({ type: 'DELETE_TASK', payload: id });
   }, []);
 
-  const handleOpenEditTask = useCallback((task) => {
-    setEditingTaskItem(task);
-    setNewTitle(task.title);
-    setNewCourse(task.course);
-    setNewCategory(task.category || 'Praktikum');
-    setNewDeadline(task.deadline);
-    setNewDescription(task.description);
-    setIsAddTaskModalOpen(true);
+  const handleOpenEditTask = useCallback((taskItem) => {
+    setEditingTask(taskItem);
+    setTaskTitle(taskItem.title);
+    setTaskCategory(taskItem.category || 'Praktikum');
+    setTaskCourse(taskItem.course);
+    setTaskDeadline(taskItem.deadline);
+    setTaskDesc(taskItem.description);
+    setIsAddTaskOpen(true);
   }, []);
 
-  const handleSubmitTask = useCallback(() => {
-    if (!newTitle.trim()) return;
-    if (editingTaskItem) {
+  const handleSaveTask = () => {
+    if (!taskTitle.trim()) return;
+    if (editingTask) {
       dispatch({
         type: 'EDIT_TASK',
         payload: {
-          id: editingTaskItem.id,
-          title: newTitle,
-          course: newCourse,
-          category: newCategory,
-          deadline: newDeadline,
-          description: newDescription,
+          id: editingTask.id,
+          title: taskTitle,
+          course: taskCourse,
+          category: taskCategory,
+          deadline: taskDeadline,
+          description: taskDesc || `Tugas ${taskCourse}`,
         },
       });
     } else {
       dispatch({
         type: 'ADD_TASK',
         payload: {
-          title: newTitle,
-          course: newCourse,
-          category: newCategory,
-          deadline: newDeadline,
-          description:
-            newDescription.trim() || `Tugas ${newCategory} ${newCourse}.`,
+          title: taskTitle,
+          course: taskCourse,
+          category: taskCategory,
+          deadline: taskDeadline,
+          description: taskDesc || `Tugas ${taskCourse}`,
         },
       });
     }
-    setEditingTaskItem(null);
-    setNewTitle('');
-    setIsAddTaskModalOpen(false);
-  }, [
-    editingTaskItem,
-    newTitle,
-    newCourse,
-    newCategory,
-    newDeadline,
-    newDescription,
-  ]);
+    setEditingTask(null);
+    setTaskTitle('');
+    setTaskDesc('');
+    setIsAddTaskOpen(false);
+  };
 
-  const handleSubmitNewCourse = useCallback(() => {
-    if (!courseNameInput.trim()) return;
-    const chosenTheme =
-      BENTO_COLOR_THEMES.find((t) => t.id === courseThemeIdInput) ||
-      BENTO_COLOR_THEMES[0];
-    const chosenSticker =
-      STICKER_OPTIONS[courseStickerIdx] || STICKER_OPTIONS[0];
-    const createdCourse = {
+  const handleSaveCourse = () => {
+    if (!courseName.trim() || !courseLecturer.trim()) return;
+    const newCourse = {
       id: `course-${Date.now()}`,
-      code: `TI${361 + courses.length}`,
-      name: courseNameInput.trim(),
-      lecturer: courseLecturerInput.trim() || 'Dosen Pengampu STIKOM',
-      credits: courseCreditsInput,
-      schedule: 'Senin, 08:00 - 10:30 WIB',
-      room: 'Lab Mobile 2',
-      stickerSource: chosenSticker.source,
-      pastelBg: chosenTheme.pastelBg,
-      pastelBorder: chosenTheme.pastelBorder,
-      accentColor: chosenTheme.accentColor,
-      iconBg: chosenTheme.iconBg,
+      code: `MK${361 + courses.length}`,
+      name: courseName.trim(),
+      lecturer: courseLecturer.trim(),
+      credits: parseInt(courseCredits, 10) || 3,
+      schedule: `${courseDay}, ${courseTime}`,
+      room: courseRoom.trim(),
+      stickerSource: courseSticker.source,
+      pastelBg: courseTheme.pastelBg,
+      pastelBorder: courseTheme.pastelBorder,
+      accentColor: courseTheme.accentColor,
+      iconBg: courseTheme.iconBg,
     };
-    setCourses((prev) => [...prev, createdCourse]);
-    setCourseNameInput('');
-    setCourseLecturerInput('');
-    setIsAddCourseModalOpen(false);
-  }, [
-    courseNameInput,
-    courseLecturerInput,
-    courseCreditsInput,
-    courseStickerIdx,
-    courseThemeIdInput,
-    courses.length,
-  ]);
+    setCourses((prev) => [...prev, newCourse]);
+    setCourseName('');
+    setCourseLecturer('');
+    setIsAddCourseOpen(false);
+  };
 
+  /* 1. LAYAR FULL-SCREEN CORAL SPLASH (GAYA APTIVO) */
   if (screenPhase === 'splash') {
     return (
-      <SafeAreaView style={styles.splashScreenCream}>
-        <View style={styles.splashTopBrand}>
-          <Text style={styles.splashBrandSubtitle}>STIKOM POLTEK CIREBON</Text>
-          <Text style={styles.splashBrandLogo}>stikom.app</Text>
-        </View>
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={() => setScreenPhase('auth')}
+        style={styles.splashContainer}
+      >
+        <StatusBar barStyle="light-content" backgroundColor="#E85D56" />
         <Animated.View
           style={[
-            styles.splashRisingCharacterWrap,
+            styles.splashCenterWrap,
             { transform: [{ translateY: splashTranslateY }] },
           ]}
         >
-          <Image
-            source={VISUAL_ASSETS.mascotSplash}
-            style={styles.splashCharacterImg}
-            resizeMode="cover"
-          />
-          <Text style={styles.splashLoadingHint}>
-            Menyiapkan ruang belajar Semester 5...
+          <View style={styles.eyesRow}>
+            <View style={styles.eyeCircle}>
+              <View style={styles.eyePupil} />
+            </View>
+            <View style={styles.eyeCircle}>
+              <View style={styles.eyePupil} />
+            </View>
+          </View>
+          <Text style={styles.splashWordmark}>TaskDar</Text>
+          <Text style={styles.splashTagline}>
+            Teman Belajar & Pengatur Tugas Kuliahmu
           </Text>
         </Animated.View>
-      </SafeAreaView>
+      </TouchableOpacity>
     );
   }
 
+  /* 2. LAYAR LOGIN / REGISTER UNIVERSAL TASKDAR */
   if (screenPhase === 'auth') {
     return (
-      <SafeAreaView style={styles.splashScreenCream}>
-        <ScrollView contentContainerStyle={styles.authScrollContent}>
-          <Image
-            source={VISUAL_ASSETS.mascotSplash}
-            style={styles.authMascotImg}
-            resizeMode="cover"
-          />
-          <Text style={styles.authGreetingTitle}>
-            Halo! Siapa nama & NIM kamu?
-          </Text>
-          <Text style={styles.authGreetingSub}>
-            Masuk dengan Akun Google kampus atau identitas mahasiswa STIKOM.
+      <SafeAreaView style={styles.authContainer}>
+        <ScrollView contentContainerStyle={styles.authScroll}>
+          <View style={styles.authMascotBox}>
+            <Image
+              source={VISUAL_ASSETS.mascotSplash}
+              style={styles.authMascotImg}
+            />
+          </View>
+          <Text style={styles.authTitle}>Selamat Datang di TaskDar</Text>
+          <Text style={styles.authSubtitle}>
+            Masuk dengan Akun Google atau isi identitas kampusmu
           </Text>
 
-          <View style={styles.authFormCard}>
+          <View style={styles.authCard}>
             <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => {
-                setIsGoogleLinked(true);
-                setScreenPhase('main');
-              }}
-              style={styles.googleAuthBtn}
+              onPress={() => setScreenPhase('main')}
+              style={styles.googleBtn}
             >
-              <Feather name="globe" size={16} color="#FFFFFF" />
-              <Text style={styles.googleAuthBtnText}>
-                Lanjutkan dengan Akun Google
+              <Feather name="globe" size={16} color="#0F172A" />
+              <Text style={styles.googleBtnText}>
+                Masuk Cepat dengan Akun Google
               </Text>
             </TouchableOpacity>
 
+            <Text style={styles.inputLabel}>Nama Lengkap</Text>
             <TextInput
-              value={studentName}
-              onChangeText={setStudentName}
-              placeholder="Nama Lengkap Mahasiswa"
-              style={styles.sheetInput}
+              value={studentUser.name}
+              onChangeText={(v) =>
+                setStudentUser((prev) => ({
+                  ...prev,
+                  name: v,
+                  shortName: v.split(' ')[0] || v,
+                }))
+              }
+              style={styles.textInput}
             />
+
+            <Text style={styles.inputLabel}>NIM / NPM</Text>
             <TextInput
-              value={studentNim}
-              onChangeText={setStudentNim}
-              placeholder="NIM STIKOM (14524303)"
-              style={styles.sheetInput}
+              value={studentUser.nim}
+              onChangeText={(v) =>
+                setStudentUser((prev) => ({ ...prev, nim: v }))
+              }
+              style={styles.textInput}
+            />
+
+            <Text style={styles.inputLabel}>Nama Kampus / Perguruan Tinggi</Text>
+            <TextInput
+              value={studentUser.institution}
+              onChangeText={(v) =>
+                setStudentUser((prev) => ({ ...prev, institution: v }))
+              }
+              style={styles.textInput}
             />
 
             <TouchableOpacity
-              activeOpacity={0.85}
               onPress={() => setScreenPhase('main')}
-              style={styles.submitBtnCrimson}
+              style={styles.primaryBtn}
             >
-              <Text style={styles.submitBtnText}>Mulai Belajar Sekarang</Text>
+              <Text style={styles.primaryBtnText}>Mulai Gunakan TaskDar</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -797,147 +789,114 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.mainContainer}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFDF9" />
 
       {/* TAB 1: TUGAS */}
       {bottomTab === 'tugas' && (
-        <View style={styles.screenContainer}>
-          {/* Compact Airy Greeting Bar */}
-          <View style={styles.airyHeaderRow}>
-            <View style={styles.airyHeaderLeft}>
+        <View style={styles.flexOne}>
+          <View style={styles.headerRow}>
+            <View style={styles.headerLeft}>
               <Image
-                source={VISUAL_ASSETS.mascotSplash}
-                style={styles.headerMascotAvatar}
+                source={studentUser.avatarSource}
+                style={styles.headerAvatar}
               />
               <View>
-                <Text style={styles.headerGreetingTitle}>
-                  Halo, {studentName.split(' ')[0]}!
+                <Text style={styles.greetingTitle}>
+                  Halo, {studentUser.shortName}!
                 </Text>
-                <Text style={styles.headerGreetingSub}>
-                  {taskMetrics.pending} tugas aktif ·{' '}
-                  {taskMetrics.completionRate}% tuntas
+                <Text style={styles.greetingSub}>
+                  {taskMetrics.pending} tugas aktif · {taskMetrics.completionRate}% tuntas
                 </Text>
               </View>
             </View>
-
-            <TouchableOpacity
-              onPress={() => setBottomTab('progres')}
-              style={styles.streakBadgePill}
-            >
+            <View style={styles.streakBadge}>
               <Feather name="zap" size={14} color="#C41E3A" />
-              <Text style={styles.streakBadgeText}>
-                {STUDENT_PROFILE.streakDays} Hari
-              </Text>
-            </TouchableOpacity>
+              <Text style={styles.streakText}>{studentUser.streakDays}h</Text>
+            </View>
           </View>
 
-          {/* Active Date Filter Strip */}
-          <View style={styles.calendarHeaderRow}>
-            <TouchableOpacity
-              onPress={() => setSelectedDayDate('Semua')}
-              style={[
-                styles.allDatesChip,
-                selectedDayDate === 'Semua' && styles.allDatesChipActive,
-              ]}
-            >
-              <Text
+          <View style={styles.calendarStripWrap}>
+            <View style={styles.calendarTopBar}>
+              <TouchableOpacity
+                onPress={() => setSelectedDayDate('Semua')}
                 style={[
-                  styles.allDatesChipText,
-                  selectedDayDate === 'Semua' && { color: '#FFFFFF' },
+                  styles.allDateChip,
+                  selectedDayDate === 'Semua' && styles.allDateChipActive,
                 ]}
               >
-                Semua Tanggal ({tasks.length})
-              </Text>
-            </TouchableOpacity>
-            {selectedDayDate !== 'Semua' && (
-              <Text style={styles.activeDateLabel}>
-                Filter: {selectedDayDate}
-              </Text>
-            )}
-          </View>
-
-          <View style={styles.weeklyStripRow}>
-            {WEEKLY_CALENDAR_DAYS.map((dayItem) => {
-              const isSelected = selectedDayDate === dayItem.fullDateLabel;
-              const countOnDay = tasks.filter(
-                (t) => t.deadline === dayItem.fullDateLabel
-              ).length;
-              return (
-                <TouchableOpacity
-                  key={dayItem.fullDateLabel}
-                  onPress={() =>
-                    setSelectedDayDate((prev) =>
-                      prev === dayItem.fullDateLabel
-                        ? 'Semua'
-                        : dayItem.fullDateLabel
-                    )
-                  }
+                <Text
                   style={[
-                    styles.weeklyDayCell,
-                    isSelected && styles.weeklyDayCellActive,
+                    styles.allDateChipText,
+                    selectedDayDate === 'Semua' && { color: '#FFFFFF' },
                   ]}
                 >
-                  <Text
+                  Semua Tanggal ({tasks.length})
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.weekRow}>
+              {WEEKLY_DAYS.map((d) => {
+                const selected = selectedDayDate === d.fullDate;
+                return (
+                  <TouchableOpacity
+                    key={d.fullDate}
+                    onPress={() =>
+                      setSelectedDayDate((prev) =>
+                        prev === d.fullDate ? 'Semua' : d.fullDate
+                      )
+                    }
                     style={[
-                      styles.weeklyDayShort,
-                      isSelected && styles.weeklyDayTextActive,
+                      styles.dayPill,
+                      selected && styles.dayPillSelected,
                     ]}
                   >
-                    {dayItem.dayShort}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.weeklyDayNumber,
-                      isSelected && styles.weeklyDayTextActive,
-                    ]}
-                  >
-                    {dayItem.dateNumber}
-                  </Text>
-                  {countOnDay > 0 && (
                     <Text
                       style={[
-                        styles.weeklyCountBadge,
-                        isSelected && { color: '#FFFFFF' },
+                        styles.dayShortText,
+                        selected && { color: '#FFFFFF' },
                       ]}
                     >
-                      {countOnDay}
+                      {d.short}
                     </Text>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
+                    <Text
+                      style={[
+                        styles.dayNumText,
+                        selected && { color: '#FFFFFF' },
+                      ]}
+                    >
+                      {d.num}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
 
-          {/* Search Bar */}
-          <View style={styles.searchBarBox}>
+          <View style={styles.searchWrap}>
             <Feather name="search" size={16} color="#64748B" />
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Cari tugas, mata kuliah, atau praktikum..."
-              placeholderTextColor="#94A3B8"
+              placeholder="Cari tugas, mata kuliah, atau kategori..."
               style={styles.searchInput}
             />
           </View>
 
-          {/* Filter Tabs */}
           <View style={styles.filterTabsRow}>
             {['Semua', 'Belum Dikerjakan', 'Selesai'].map((tab) => {
-              const isActive = activeFilterTab === tab;
+              const active = activeFilterTab === tab;
               return (
                 <TouchableOpacity
                   key={tab}
                   onPress={() => setActiveFilterTab(tab)}
-                  style={[
-                    styles.filterTabBtn,
-                    isActive && styles.filterTabBtnActive,
-                  ]}
+                  style={[styles.filterTabBtn, active && styles.filterTabActive]}
                 >
                   <Text
                     style={[
                       styles.filterTabText,
-                      isActive && styles.filterTabTextActive,
+                      active && styles.filterTabTextActive,
                     ]}
                   >
                     {tab}
@@ -950,75 +909,85 @@ export default function App() {
           <FlatList
             data={filteredTasks}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContentContainer}
+            contentContainerStyle={styles.listContent}
             renderItem={({ item }) => (
               <TaskCard
                 task={item}
                 courses={courses}
                 onToggleStatus={handleToggleStatus}
-                onEditTask={handleOpenEditTask}
                 onDeleteTask={handleDeleteTask}
+                onEditTask={handleOpenEditTask}
               />
             )}
           />
 
           <TouchableOpacity
-            activeOpacity={0.85}
             onPress={() => {
-              setEditingTaskItem(null);
-              setNewTitle('');
-              setIsAddTaskModalOpen(true);
+              setEditingTask(null);
+              setIsAddTaskOpen(true);
             }}
-            style={styles.fabCrimson}
+            style={styles.fabBtn}
           >
             <Feather name="plus" size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       )}
 
-      {/* TAB 2: MATA KULIAH (2-COLUMN ILLUSTRATED BENTO GRID) */}
+      {/* TAB 2: MATA KULIAH (2-COLUMN BENTO GRID) */}
       {bottomTab === 'matakuliah' && (
-        <ScrollView contentContainerStyle={styles.scrollTabContainer}>
-          <View style={styles.tabHeaderRow}>
+        <ScrollView contentContainerStyle={styles.listContent}>
+          <View style={styles.sectionHeaderRow}>
             <View>
-              <Text style={styles.tabHeaderTitle}>Mata Kuliah</Text>
-              <Text style={styles.tabHeaderSub}>
-                {courses.length} Matkul · {totalCredits} SKS Semester 5
+              <Text style={styles.sectionTitle}>Mata Kuliah</Text>
+              <Text style={styles.greetingSub}>
+                {courses.length} Mata Kuliah ({studentUser.semester})
               </Text>
             </View>
             <TouchableOpacity
-              onPress={() => setIsAddCourseModalOpen(true)}
-              style={styles.addCourseTopBtn}
+              onPress={() => setIsAddCourseOpen(true)}
+              style={styles.addCourseHeaderBtn}
             >
-              <Feather name="plus" size={15} color="#FFFFFF" />
-              <Text style={styles.addCourseTopBtnText}>Matkul</Text>
+              <Feather name="plus" size={14} color="#FFFFFF" />
+              <Text style={styles.addCourseHeaderText}>Matkul</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.bentoGrid2Col}>
+          <View style={styles.bentoGridWrap}>
             {courses.map((course) => (
               <View
                 key={course.id}
                 style={[
-                  styles.bentoCourseGridCard,
+                  styles.courseBentoCard,
                   { backgroundColor: course.pastelBg },
                 ]}
               >
-                <View style={styles.bentoCourseStickerWrap}>
+                <View
+                  style={[
+                    styles.courseCodeBadge,
+                    { backgroundColor: course.iconBg },
+                  ]}
+                >
+                  <Text style={styles.courseCodeText}>
+                    {course.code} · {course.credits} SKS
+                  </Text>
+                </View>
+
+                <View style={styles.courseArtBox}>
                   <Image
                     source={course.stickerSource}
-                    style={styles.bentoCourseStickerImg}
+                    style={styles.courseArtImg}
                     resizeMode="cover"
                   />
                 </View>
-                <Text style={styles.bentoCourseCode}>
-                  {course.code} · {course.credits} SKS
-                </Text>
-                <Text numberOfLines={2} style={styles.bentoCourseTitle}>
+
+                <Text style={styles.courseBentoTitle} numberOfLines={2}>
                   {course.name}
                 </Text>
-                <Text numberOfLines={1} style={styles.bentoCourseLecturer}>
+                <Text style={styles.courseBentoSub} numberOfLines={1}>
                   {course.lecturer}
+                </Text>
+                <Text style={styles.courseBentoSchedule} numberOfLines={1}>
+                  {course.schedule}
                 </Text>
               </View>
             ))}
@@ -1026,13 +995,14 @@ export default function App() {
         </ScrollView>
       )}
 
-      {/* TAB 3: PROGRES & LEADERBOARD KELAS TI-1 */}
+      {/* TAB 3: PROGRES (PERSONAL LEADERBOARD PER MATKUL & KATEGORI) */}
       {bottomTab === 'progres' && (
-        <ScrollView contentContainerStyle={styles.scrollTabContainer}>
+        <ScrollView contentContainerStyle={styles.listContent}>
+          <Text style={styles.sectionTitle}>Progres & Capaianmu</Text>
+
           <View style={styles.olympiadHeroCard}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.olympiadOverline}>OLIMPIADE SEMESTER 5</Text>
-              <Text style={styles.olympiadBigPercent}>
+              <Text style={styles.olympiadRateText}>
                 {taskMetrics.completionRate}% Tuntas
               </Text>
               <Text style={styles.olympiadSubText}>
@@ -1041,407 +1011,562 @@ export default function App() {
             </View>
             <Image
               source={VISUAL_ASSETS.olympiadTrophy}
-              style={styles.olympiadTrophyImg}
+              style={styles.trophyImg}
             />
           </View>
 
           <View style={styles.leaderboardContainer}>
-            <View style={styles.leaderboardHeader}>
+            <View style={styles.leaderboardHeaderRow}>
               <Text style={styles.leaderboardTitle}>
-                Leaderboard Kelas TI-1
+                {leaderboardMode === 'course'
+                  ? 'Leaderboard Mata Kuliahmu'
+                  : 'Leaderboard Kategori Tugas'}
               </Text>
-              <TouchableOpacity
-                onPress={() =>
-                  setLeaderboardPeriod((prev) =>
-                    prev === 'weekly' ? 'monthly' : 'weekly'
-                  )
-                }
-                style={styles.periodSwitchBtn}
-              >
-                <Text style={styles.periodSwitchText}>
-                  {leaderboardPeriod === 'weekly' ? 'Mingguan' : 'Bulanan'}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.modeSwitchRow}>
+                <TouchableOpacity
+                  onPress={() => setLeaderboardMode('course')}
+                  style={[
+                    styles.modeSwitchBtn,
+                    leaderboardMode === 'course' && styles.modeSwitchBtnActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.modeSwitchText,
+                      leaderboardMode === 'course' && { color: '#134E4A' },
+                    ]}
+                  >
+                    Matkul
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setLeaderboardMode('category')}
+                  style={[
+                    styles.modeSwitchBtn,
+                    leaderboardMode === 'category' && styles.modeSwitchBtnActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.modeSwitchText,
+                      leaderboardMode === 'category' && { color: '#134E4A' },
+                    ]}
+                  >
+                    Kategori
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
-            {rankedLeaderboard.map((peer, idx) => (
-              <View key={peer.id} style={styles.leaderboardRow}>
-                <Text style={styles.leaderboardRank}>#{idx + 1}</Text>
-                <Image source={peer.avatar} style={styles.leaderboardAvatar} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.leaderboardPeerName}>{peer.name}</Text>
-                  <Text style={styles.leaderboardPeerScore}>
-                    NIM {peer.nim} · {peer.score} XP
-                  </Text>
+            {personalLeaderboard.map((item, idx) => (
+              <View key={item.id} style={styles.leaderboardRow}>
+                <View style={styles.leaderboardLeft}>
+                  <View
+                    style={[
+                      styles.rankCircle,
+                      { backgroundColor: item.accentColor },
+                    ]}
+                  >
+                    <Text style={styles.rankText}>#{idx + 1}</Text>
+                  </View>
+                  <Image
+                    source={item.stickerSource}
+                    style={styles.leaderAvatar}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.leaderName} numberOfLines={1}>
+                      {item.title}
+                    </Text>
+                    <Text style={styles.leaderSub} numberOfLines={1}>
+                      {item.subtitle} · {item.xp} XP
+                    </Text>
+                  </View>
                 </View>
-                <Text style={styles.leaderboardPercentBadge}>
-                  {peer.completion}%
-                </Text>
+                <View style={styles.leaderRateBadge}>
+                  <Text style={styles.leaderRateText}>{item.rate}%</Text>
+                </View>
               </View>
             ))}
           </View>
         </ScrollView>
       )}
 
-      {/* TAB 4: PROFIL */}
+      {/* TAB 4: PROFIL & PENGATURAN TASKDAR */}
       {bottomTab === 'profil' && (
-        <ScrollView contentContainerStyle={styles.scrollTabContainer}>
+        <ScrollView contentContainerStyle={styles.listContent}>
           <View style={styles.profileCard}>
+            <TouchableOpacity
+              onPress={() => setIsEditProfileOpen(true)}
+              style={styles.campusBadge}
+            >
+              <Text style={styles.campusBadgeText}>
+                {studentUser.institution} (Ubah)
+              </Text>
+            </TouchableOpacity>
+
             <Image
-              source={VISUAL_ASSETS.mascotSplash}
-              style={styles.profileUnclippedAvatar}
+              source={studentUser.avatarSource}
+              style={styles.profileBigAvatar}
             />
-            <Text style={styles.profileName}>{studentName}</Text>
-            <Text style={styles.profileNim}>NIM {studentNim}</Text>
-            <Text style={styles.profileProgram}>
-              Kelas {studentClass} · {STUDENT_PROFILE.semester} ·{' '}
-              {STUDENT_PROFILE.program}
+            <Text style={styles.profileName}>{studentUser.name}</Text>
+            <Text style={styles.profileNim}>NIM / NPM: {studentUser.nim}</Text>
+            <Text style={styles.greetingSub}>
+              Kelas {studentUser.classGroup} · {studentUser.semester} ·{' '}
+              {studentUser.program}
             </Text>
+
+            <View style={styles.avatarGrid}>
+              {STICKER_OPTIONS.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  onPress={() =>
+                    setStudentUser((prev) => ({
+                      ...prev,
+                      avatarSource: item.source,
+                    }))
+                  }
+                  style={styles.avatarChoiceBtn}
+                >
+                  <Image source={item.source} style={styles.avatarChoiceImg} />
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
-          <View style={styles.settingsBox}>
-            <View style={styles.settingItemRow}>
+          <View style={styles.googleAccountCard}>
+            <View>
+              <Text style={styles.googleAccountTitle}>
+                Akun Google Terhubung
+              </Text>
+              <Text style={styles.greetingSub}>{studentUser.email}</Text>
+            </View>
+            <View style={styles.syncBadge}>
+              <Text style={styles.syncBadgeText}>Aktif</Text>
+            </View>
+          </View>
+
+          <View style={styles.settingsCard}>
+            <View style={styles.settingRow}>
               <Text style={styles.settingLabel}>Pengingat Tugas H-1</Text>
               <Switch
                 value={reminderEnabled}
                 onValueChange={setReminderEnabled}
               />
             </View>
-            <View style={styles.settingItemRow}>
+            <View style={styles.settingRow}>
               <Text style={styles.settingLabel}>
                 Sinkronisasi Google Calendar
               </Text>
               <Switch
-                value={googleCalendarSync}
-                onValueChange={setGoogleCalendarSync}
+                value={calendarSyncEnabled}
+                onValueChange={setCalendarSyncEnabled}
               />
             </View>
-            <View style={styles.settingItemRow}>
-              <Text style={styles.settingLabel}>Pembaruan SIAKAD Otomatis</Text>
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>
+                Pembaruan Jadwal Portal Kampus
+              </Text>
               <Switch
-                value={siakadAutoUpdate}
-                onValueChange={setSiakadAutoUpdate}
+                value={portalSyncEnabled}
+                onValueChange={setPortalSyncEnabled}
               />
             </View>
           </View>
 
-          <TouchableOpacity
-            onPress={() => setScreenPhase('auth')}
-            style={styles.resetButtonCrimson}
-          >
-            <Feather name="log-out" size={16} color="#FFFFFF" />
-            <Text style={styles.resetButtonText}>Keluar Akun</Text>
-          </TouchableOpacity>
+          <View style={styles.profileActionsRow}>
+            <TouchableOpacity
+              onPress={() => dispatch({ type: 'RESET_TASKS' })}
+              style={styles.resetBtn}
+            >
+              <Text style={styles.resetBtnText}>Atur Ulang Data</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setScreenPhase('auth')}
+              style={styles.logoutBtn}
+            >
+              <Text style={styles.logoutBtnText}>Keluar Akun</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       )}
 
-      {/* BOTTOM NAVIGATION */}
-      <View style={styles.bottomNavContainer}>
-        {[
-          { key: 'tugas', label: 'Tugas', icon: 'check-square' },
-          { key: 'matakuliah', label: 'Mata Kuliah', icon: 'book-open' },
-          { key: 'progres', label: 'Progres', icon: 'pie-chart' },
-          { key: 'profil', label: 'Profil', icon: 'user' },
-        ].map((item) => {
-          const isSelected = bottomTab === item.key;
-          return (
-            <TouchableOpacity
-              key={item.key}
-              onPress={() => setBottomTab(item.key)}
-              style={[
-                styles.bottomNavButton,
-                isSelected && styles.bottomNavButtonActive,
-              ]}
-            >
-              <Feather
-                name={item.icon}
-                size={17}
-                color={isSelected ? '#FFFFFF' : '#64748B'}
-              />
-              {isSelected && (
-                <Text style={styles.bottomNavLabelActive}>{item.label}</Text>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
       {/* MODAL TAMBAH / EDIT TUGAS */}
-      <Modal
-        visible={isAddTaskModalOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setIsAddTaskModalOpen(false)}
-      >
+      <Modal visible={isAddTaskOpen} transparent animationType="slide">
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalBackdrop}
         >
-          <View style={styles.bottomSheetCard}>
-            <Text style={styles.modalSheetTitle}>
-              {editingTaskItem ? 'Edit Tugas Kuliah' : 'Tambah Tugas Kuliah'}
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>
+              {editingTask ? 'Edit Tugas Kuliah' : 'Tambah Tugas Baru'}
             </Text>
             <TextInput
               ref={titleInputRef}
-              value={newTitle}
-              onChangeText={setNewTitle}
-              placeholder="Judul Tugas"
-              style={styles.sheetInput}
+              value={taskTitle}
+              onChangeText={setTaskTitle}
+              placeholder="Judul Tugas Kuliah"
+              style={styles.textInput}
             />
-            <View style={styles.modalFooterActions}>
+            <View style={styles.quickDateRow}>
+              {QUICK_DATE_CHIPS.map((c) => (
+                <TouchableOpacity
+                  key={c.label}
+                  onPress={() => setTaskDeadline(c.value)}
+                  style={styles.quickChip}
+                >
+                  <Text style={styles.quickChipText}>{c.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              value={taskDeadline}
+              onChangeText={setTaskDeadline}
+              placeholder="Tanggal Tenggat"
+              style={styles.textInput}
+            />
+            <View style={styles.modalActionRow}>
               <TouchableOpacity
-                onPress={() => setIsAddTaskModalOpen(false)}
-                style={styles.cancelBtn}
+                onPress={() => setIsAddTaskOpen(false)}
+                style={styles.resetBtn}
               >
-                <Text style={styles.cancelBtnText}>Batal</Text>
+                <Text style={styles.resetBtnText}>Batal</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={handleSubmitTask}
-                style={styles.submitBtnCrimson}
+                onPress={handleSaveTask}
+                style={styles.logoutBtn}
               >
-                <Text style={styles.submitBtnText}>Simpan</Text>
+                <Text style={styles.logoutBtnText}>Simpan</Text>
               </TouchableOpacity>
             </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* MODAL TAMBAH MATKUL */}
-      <Modal
-        visible={isAddCourseModalOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setIsAddCourseModalOpen(false)}
-      >
+      {/* MODAL TAMBAH MATA KULIAH (HARI SEN-MIN, SKS KETIK, JAM & WARNA) */}
+      <Modal visible={isAddCourseOpen} transparent animationType="slide">
         <View style={styles.modalBackdrop}>
-          <View style={styles.bottomSheetCard}>
-            <Text style={styles.modalSheetTitle}>Tambah Mata Kuliah</Text>
+          <ScrollView contentContainerStyle={styles.modalCard}>
+            <Text style={styles.modalTitle}>Tambah Mata Kuliah</Text>
             <TextInput
-              value={courseNameInput}
-              onChangeText={setCourseNameInput}
+              value={courseName}
+              onChangeText={setCourseName}
               placeholder="Nama Mata Kuliah"
-              style={styles.sheetInput}
+              style={styles.textInput}
             />
             <TextInput
-              value={courseLecturerInput}
-              onChangeText={setCourseLecturerInput}
+              value={courseLecturer}
+              onChangeText={setCourseLecturer}
               placeholder="Dosen Pengampu"
-              style={styles.sheetInput}
+              style={styles.textInput}
             />
-            <View style={styles.modalFooterActions}>
+            <TextInput
+              value={courseCredits}
+              onChangeText={setCourseCredits}
+              keyboardType="numeric"
+              placeholder="Jumlah SKS (Ketik angka)"
+              style={styles.textInput}
+            />
+            <View style={styles.quickDateRow}>
+              {DAY_CHIPS.map((d) => (
+                <TouchableOpacity
+                  key={d}
+                  onPress={() => setCourseDay(d)}
+                  style={[
+                    styles.quickChip,
+                    courseDay === d && { backgroundColor: '#FEE2E2' },
+                  ]}
+                >
+                  <Text style={styles.quickChipText}>{d.slice(0, 3)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              value={courseTime}
+              onChangeText={setCourseTime}
+              placeholder="Jam Perkuliahan (misal 08:00 - 10:30 WIB)"
+              style={styles.textInput}
+            />
+            <View style={styles.modalActionRow}>
               <TouchableOpacity
-                onPress={() => setIsAddCourseModalOpen(false)}
-                style={styles.cancelBtn}
+                onPress={() => setIsAddCourseOpen(false)}
+                style={styles.resetBtn}
               >
-                <Text style={styles.cancelBtnText}>Batal</Text>
+                <Text style={styles.resetBtnText}>Batal</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={handleSubmitNewCourse}
-                style={styles.submitBtnCrimson}
+                onPress={handleSaveCourse}
+                style={styles.logoutBtn}
               >
-                <Text style={styles.submitBtnText}>Simpan Matkul</Text>
+                <Text style={styles.logoutBtnText}>Simpan</Text>
               </TouchableOpacity>
             </View>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* MODAL UBAH PROFIL AKADEMIK & KAMPUS */}
+      <Modal visible={isEditProfileOpen} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Ubah Profil & Kampus</Text>
+            <TextInput
+              value={studentUser.name}
+              onChangeText={(v) =>
+                setStudentUser((prev) => ({
+                  ...prev,
+                  name: v,
+                  shortName: v.split(' ')[0] || v,
+                }))
+              }
+              placeholder="Nama Lengkap"
+              style={styles.textInput}
+            />
+            <TextInput
+              value={studentUser.nim}
+              onChangeText={(v) =>
+                setStudentUser((prev) => ({ ...prev, nim: v }))
+              }
+              placeholder="NIM / NPM"
+              style={styles.textInput}
+            />
+            <TextInput
+              value={studentUser.institution}
+              onChangeText={(v) =>
+                setStudentUser((prev) => ({ ...prev, institution: v }))
+              }
+              placeholder="Nama Kampus / Universitas"
+              style={styles.textInput}
+            />
+            <TouchableOpacity
+              onPress={() => setIsEditProfileOpen(false)}
+              style={styles.primaryBtn}
+            >
+              <Text style={styles.primaryBtnText}>Simpan Profil</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
+
+      {/* BOTTOM NAVIGATION BAR 4 TAB */}
+      <View style={styles.bottomNav}>
+        {[
+          { key: 'tugas', label: 'Tugas', icon: 'check-square' },
+          { key: 'matakuliah', label: 'Mata Kuliah', icon: 'book-open' },
+          { key: 'progres', label: 'Progres', icon: 'pie-chart' },
+          { key: 'profil', label: 'Profil', icon: 'user' },
+        ].map((item) => {
+          const active = bottomTab === item.key;
+          return (
+            <TouchableOpacity
+              key={item.key}
+              onPress={() => setBottomTab(item.key)}
+              style={[styles.navTabBtn, active && styles.navTabBtnActive]}
+            >
+              <Feather
+                name={item.icon}
+                size={16}
+                color={active ? '#FFFFFF' : '#64748B'}
+              />
+              {active && <Text style={styles.navTabLabel}>{item.label}</Text>}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FFFDF9' },
-  screenContainer: { flex: 1 },
-  scrollTabContainer: { padding: 16, paddingBottom: 110 },
-  splashScreenCream: {
+  flexOne: { flex: 1 },
+  splashContainer: {
     flex: 1,
-    backgroundColor: '#FFF7ED',
-    justifyContent: 'space-between',
+    backgroundColor: '#E85D56',
     alignItems: 'center',
-    paddingVertical: 40,
+    justifyContent: 'center',
   },
-  splashTopBrand: { alignItems: 'center', marginTop: 20 },
-  splashBrandSubtitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#C41E3A',
-    letterSpacing: 1,
+  splashCenterWrap: { alignItems: 'center' },
+  eyesRow: { flexDirection: 'row', gap: 14, marginBottom: 18 },
+  eyeCircle: {
+    width: 72,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 3.5,
+    borderColor: '#18181B',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  splashBrandLogo: {
-    fontSize: 38,
+  eyePupil: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#09090B',
+  },
+  splashWordmark: {
+    fontSize: 46,
     fontWeight: '900',
-    color: '#C41E3A',
-    marginTop: 4,
+    color: '#FFFFFF',
   },
-  splashRisingCharacterWrap: { alignItems: 'center', marginBottom: 30 },
-  splashCharacterImg: {
-    width: 240,
-    height: 240,
-    borderRadius: 42,
-    borderWidth: 3,
-    borderColor: '#0F172A',
-  },
-  splashLoadingHint: {
-    marginTop: 16,
-    fontSize: 12,
+  splashTagline: {
+    fontSize: 13,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#FFF1F2',
+    marginTop: 6,
   },
-  authScrollContent: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  authMascotImg: {
-    width: 130,
-    height: 130,
-    borderRadius: 32,
-    borderWidth: 3,
+  authContainer: { flex: 1, backgroundColor: '#FFF7ED' },
+  authScroll: { padding: 20, alignItems: 'center' },
+  authMascotBox: {
+    width: 104,
+    height: 104,
+    borderRadius: 28,
+    borderWidth: 2.5,
     borderColor: '#0F172A',
-    marginTop: 20,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
   },
-  authGreetingTitle: {
-    fontSize: 20,
+  authMascotImg: { width: '100%', height: '100%' },
+  authTitle: {
+    fontSize: 22,
     fontWeight: '900',
     color: '#0F172A',
-    marginTop: 14,
+    marginTop: 12,
   },
-  authGreetingSub: {
+  authSubtitle: {
     fontSize: 12,
     color: '#475569',
     textAlign: 'center',
     marginTop: 4,
-    marginBottom: 18,
+    marginBottom: 16,
   },
-  authFormCard: {
+  authCard: {
     width: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 28,
+    borderRadius: 24,
     borderWidth: 2,
     borderColor: '#0F172A',
     padding: 16,
   },
-  googleAuthBtn: {
-    minHeight: 48,
-    borderRadius: 16,
-    backgroundColor: '#0F172A',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  googleAuthBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 13,
-    marginLeft: 8,
-  },
-  airyHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  airyHeaderLeft: { flexDirection: 'row', alignItems: 'center' },
-  headerMascotAvatar: {
-    width: 44,
-    height: 44,
+  googleBtn: {
+    minHeight: 46,
     borderRadius: 16,
     borderWidth: 2,
     borderColor: '#0F172A',
-    marginRight: 10,
-  },
-  headerGreetingTitle: { fontSize: 16, fontWeight: '900', color: '#0F172A' },
-  headerGreetingSub: { fontSize: 11, fontWeight: '600', color: '#64748B' },
-  streakBadgePill: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 14,
+  },
+  googleBtnText: { fontSize: 12, fontWeight: '800', color: '#0F172A' },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#334155',
+    marginBottom: 4,
+  },
+  textInput: {
+    minHeight: 44,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 12,
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 10,
+  },
+  primaryBtn: {
+    minHeight: 48,
+    borderRadius: 16,
+    backgroundColor: '#E85D56',
+    borderWidth: 2,
+    borderColor: '#0F172A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+  },
+  primaryBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
+  mainContainer: { flex: 1, backgroundColor: '#FFFDF9' },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#0F172A',
+  },
+  greetingTitle: { fontSize: 17, fontWeight: '900', color: '#0F172A' },
+  greetingSub: { fontSize: 12, fontWeight: '600', color: '#64748B' },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: '#FEE2E2',
     borderWidth: 2,
     borderColor: '#0F172A',
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 14,
   },
-  streakBadgeText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#C41E3A',
-    marginLeft: 4,
-  },
-  calendarHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 6,
-  },
-  allDatesChip: {
+  streakText: { fontSize: 12, fontWeight: '900', color: '#C41E3A' },
+  calendarStripWrap: { paddingHorizontal: 16, paddingBottom: 8 },
+  calendarTopBar: { flexDirection: 'row', marginBottom: 6 },
+  allDateChip: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 10,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#CBD5E1',
     backgroundColor: '#FFFFFF',
   },
-  allDatesChipActive: {
+  allDateChipActive: {
     backgroundColor: '#0F172A',
     borderColor: '#0F172A',
   },
-  allDatesChipText: { fontSize: 11, fontWeight: '800', color: '#0F172A' },
-  activeDateLabel: {
-    marginLeft: 8,
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#C41E3A',
-  },
-  weeklyStripRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginBottom: 8,
-  },
-  weeklyDayCell: {
+  allDateChipText: { fontSize: 11, fontWeight: '800', color: '#0F172A' },
+  weekRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
+  dayPill: {
     flex: 1,
-    minHeight: 54,
-    marginHorizontal: 2,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
+    paddingVertical: 8,
+    borderRadius: 14,
+    borderWidth: 1.5,
     borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  weeklyDayCellActive: {
+  dayPillSelected: {
     backgroundColor: '#C41E3A',
     borderColor: '#0F172A',
   },
-  weeklyDayShort: { fontSize: 10, fontWeight: '700', color: '#64748B' },
-  weeklyDayNumber: {
-    fontSize: 12,
+  dayShortText: { fontSize: 10, fontWeight: '700', color: '#64748B' },
+  dayNumText: {
+    fontSize: 14,
     fontWeight: '900',
     color: '#0F172A',
     marginTop: 2,
   },
-  weeklyDayTextActive: { color: '#FFFFFF' },
-  weeklyCountBadge: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#C41E3A',
-    marginTop: 2,
-  },
-  searchBarBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  searchWrap: {
     marginHorizontal: 16,
     marginBottom: 8,
-    paddingHorizontal: 14,
-    minHeight: 42,
+    paddingHorizontal: 12,
+    minHeight: 44,
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
     borderWidth: 2,
     borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  searchInput: { flex: 1, marginLeft: 8, fontSize: 13, color: '#0F172A' },
+  searchInput: { flex: 1, fontSize: 13, fontWeight: '600' },
   filterTabsRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,
@@ -1456,94 +1581,105 @@ const styles = StyleSheet.create({
     borderBottomWidth: 3,
     borderBottomColor: 'transparent',
   },
-  filterTabBtnActive: { borderBottomColor: '#C41E3A' },
+  filterTabActive: { borderBottomColor: '#C41E3A' },
   filterTabText: { fontSize: 12, fontWeight: '800', color: '#64748B' },
   filterTabTextActive: { color: '#C41E3A' },
-  listContentContainer: { padding: 16, paddingBottom: 110 },
+  listContent: { padding: 16, paddingBottom: 110, gap: 12 },
   taskCard: {
-    borderRadius: 26,
+    borderRadius: 24,
     borderWidth: 2,
-    padding: 12,
-    marginBottom: 12,
+    padding: 14,
   },
-  taskCardRow: { flexDirection: 'row', alignItems: 'center' },
-  taskStickerFrame: {
+  taskCardTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  taskStickerBox: {
     width: 56,
     height: 56,
     borderRadius: 16,
     borderWidth: 2,
     borderColor: '#0F172A',
-    backgroundColor: '#FFFFFF',
     overflow: 'hidden',
-    marginRight: 12,
+    backgroundColor: '#FFFFFF',
   },
+  taskStickerBoxCompleted: { opacity: 0.55 },
   taskStickerImg: { width: '100%', height: '100%' },
-  taskCenterContent: { flex: 1, marginRight: 6 },
-  taskCategoryRow: { flexDirection: 'row', alignItems: 'center' },
+  taskCenterArea: { flex: 1 },
+  taskBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   categoryBadge: {
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 6,
-    marginRight: 6,
+    borderRadius: 8,
   },
-  categoryBadgeText: { fontSize: 9, fontWeight: '800', color: '#FFFFFF' },
-  taskCourseSubtitle: { fontSize: 11, fontWeight: '800', flex: 1 },
-  taskTitleText: {
-    fontSize: 13,
-    fontWeight: '900',
+  categoryBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
+  taskCourseLabel: { fontSize: 11, fontWeight: '800', flex: 1 },
+  taskTitle: {
+    fontSize: 14,
+    fontWeight: '800',
     color: '#0F172A',
-    marginTop: 2,
+    marginTop: 4,
   },
   taskTitleCompleted: {
     textDecorationLine: 'line-through',
     color: '#64748B',
   },
-  taskMetaInline: {
+  taskFooterBar: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(15,23,42,0.1)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 6,
   },
-  deadlinePill: {
+  taskFooterLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  deadlineBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  deadlinePillText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginLeft: 4,
-  },
-  accordionTriggerText: { fontSize: 10, fontWeight: '700', color: '#475569' },
-  taskActionsRight: { flexDirection: 'row', alignItems: 'center' },
-  iconTouchTarget: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 4,
+    gap: 5,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderColor: '#0F172A',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 10,
   },
-  checkBtnPending: { backgroundColor: '#FFFFFF' },
-  checkBtnCompleted: { backgroundColor: '#059669' },
-  whiteActionBtn: { backgroundColor: '#FFFFFF' },
-  accordionBody: {
-    marginTop: 10,
-    padding: 10,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.85)',
+  deadlineText: { fontSize: 11, fontWeight: '800', color: '#0F172A' },
+  rincianBtn: { paddingHorizontal: 6, paddingVertical: 4 },
+  rincianText: { fontSize: 11, fontWeight: '700', color: '#334155' },
+  taskActionRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  checkPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#0F172A',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
-  accordionDescText: { fontSize: 12, color: '#1E293B', lineHeight: 18 },
-  fabCrimson: {
+  checkPillBtnActive: { backgroundColor: '#059669' },
+  checkPillText: { fontSize: 11, fontWeight: '800', color: '#0F172A' },
+  iconActionBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(15,23,42,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  taskExpandedArea: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(15,23,42,0.1)',
+  },
+  taskDescription: { fontSize: 12, color: '#1E293B', lineHeight: 18 },
+  fabBtn: {
     position: 'absolute',
     right: 20,
-    bottom: 88,
+    bottom: 84,
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -1553,287 +1689,303 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tabHeaderRow: {
+  sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
   },
-  tabHeaderTitle: { fontSize: 20, fontWeight: '900', color: '#0F172A' },
-  tabHeaderSub: { fontSize: 12, color: '#64748B', marginTop: 2 },
-  addCourseTopBtn: {
+  sectionTitle: { fontSize: 20, fontWeight: '900', color: '#0F172A' },
+  addCourseHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
     backgroundColor: '#C41E3A',
     borderWidth: 2,
     borderColor: '#0F172A',
-    minHeight: 42,
     paddingHorizontal: 12,
-    borderRadius: 16,
+    paddingVertical: 8,
+    borderRadius: 14,
   },
-  addCourseTopBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 12,
-    marginLeft: 4,
-  },
-  bentoGrid2Col: {
+  addCourseHeaderText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  bentoGridWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    gap: 10,
   },
-  bentoCourseGridCard: {
+  courseBentoCard: {
     width: '48%',
-    borderRadius: 26,
+    borderRadius: 24,
     borderWidth: 2,
     borderColor: '#0F172A',
     padding: 12,
-    marginBottom: 12,
   },
-  bentoCourseStickerWrap: {
+  courseCodeBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  courseCodeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
+  courseArtBox: {
     width: '100%',
     height: 100,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: '#0F172A',
-    backgroundColor: '#FFFFFF',
     overflow: 'hidden',
-    marginBottom: 8,
+    marginTop: 8,
   },
-  bentoCourseStickerImg: { width: '100%', height: '100%' },
-  bentoCourseCode: { fontSize: 10, fontWeight: '800', color: '#C41E3A' },
-  bentoCourseTitle: {
+  courseArtImg: { width: '100%', height: '100%' },
+  courseBentoTitle: {
     fontSize: 13,
     fontWeight: '900',
     color: '#0F172A',
-    marginTop: 2,
+    marginTop: 8,
   },
-  bentoCourseLecturer: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#475569',
-    marginTop: 2,
-  },
+  courseBentoSub: { fontSize: 11, fontWeight: '600', color: '#475569' },
+  courseBentoSchedule: { fontSize: 10, fontWeight: '700', color: '#64748B' },
   olympiadHeroCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#EDE9FE',
-    borderRadius: 28,
+    borderRadius: 24,
     borderWidth: 2,
     borderColor: '#0F172A',
     padding: 16,
-    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  olympiadOverline: { fontSize: 10, fontWeight: '800', color: '#4F46E5' },
-  olympiadBigPercent: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#1E1B4B',
-    marginTop: 4,
-  },
+  olympiadRateText: { fontSize: 26, fontWeight: '900', color: '#1E1B4B' },
   olympiadSubText: { fontSize: 12, fontWeight: '600', color: '#3730A3' },
-  olympiadTrophyImg: {
-    width: 84,
-    height: 84,
-    borderRadius: 20,
+  trophyImg: {
+    width: 76,
+    height: 76,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: '#0F172A',
   },
   leaderboardContainer: {
     backgroundColor: '#134E4A',
-    borderRadius: 28,
+    borderRadius: 24,
     borderWidth: 2,
     borderColor: '#0F172A',
-    padding: 16,
+    padding: 14,
+    gap: 8,
   },
-  leaderboardHeader: {
+  leaderboardHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 6,
   },
-  leaderboardTitle: { fontSize: 16, fontWeight: '900', color: '#FFFFFF' },
-  periodSwitchBtn: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+  leaderboardTitle: { fontSize: 15, fontWeight: '900', color: '#FFFFFF' },
+  modeSwitchRow: {
+    flexDirection: 'row',
+    backgroundColor: '#0F766E',
+    padding: 3,
     borderRadius: 12,
   },
-  periodSwitchText: { fontSize: 11, fontWeight: '800', color: '#134E4A' },
+  modeSwitchBtn: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 9 },
+  modeSwitchBtnActive: { backgroundColor: '#FFFFFF' },
+  modeSwitchText: { fontSize: 10, fontWeight: '800', color: '#CCFBF1' },
   leaderboardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: '#0F172A',
     padding: 10,
-    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  leaderboardRank: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#C41E3A',
-    width: 28,
+  leaderboardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
   },
-  leaderboardAvatar: {
+  rankCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
+  leaderAvatar: {
     width: 36,
     height: 36,
-    borderRadius: 12,
-    borderWidth: 1.5,
+    borderRadius: 10,
+    borderWidth: 1,
     borderColor: '#0F172A',
-    marginRight: 10,
   },
-  leaderboardPeerName: { fontSize: 13, fontWeight: '800', color: '#0F172A' },
-  leaderboardPeerScore: { fontSize: 11, color: '#475569' },
-  leaderboardPercentBadge: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: '#0F172A',
+  leaderName: { fontSize: 12, fontWeight: '900', color: '#0F172A' },
+  leaderSub: { fontSize: 10, fontWeight: '700', color: '#475569' },
+  leaderRateBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#0F172A',
   },
+  leaderRateText: { fontSize: 11, fontWeight: '900', color: '#0F172A' },
   profileCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 28,
+    borderRadius: 24,
     borderWidth: 2,
     borderColor: '#0F172A',
-    padding: 20,
+    padding: 16,
     alignItems: 'center',
-    marginBottom: 14,
   },
-  profileUnclippedAvatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 28,
-    borderWidth: 3,
+  campusBadge: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  campusBadgeText: { color: '#C41E3A', fontSize: 11, fontWeight: '800' },
+  profileBigAvatar: {
+    width: 88,
+    height: 88,
+    borderRadius: 24,
+    borderWidth: 2.5,
     borderColor: '#0F172A',
   },
   profileName: {
     fontSize: 18,
     fontWeight: '900',
     color: '#0F172A',
-    marginTop: 10,
+    marginTop: 8,
   },
-  profileNim: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#C41E3A',
-    marginTop: 2,
+  profileNim: { fontSize: 12, fontWeight: '800', color: '#C41E3A' },
+  avatarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
   },
-  profileProgram: { fontSize: 12, color: '#64748B', marginTop: 4 },
-  settingsBox: {
+  avatarChoiceBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    overflow: 'hidden',
+  },
+  avatarChoiceImg: { width: '100%', height: '100%' },
+  googleAccountCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 2,
     borderColor: '#0F172A',
     padding: 14,
-    marginBottom: 14,
-  },
-  settingItemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    minHeight: 48,
   },
-  settingLabel: { fontSize: 13, fontWeight: '800', color: '#0F172A' },
-  resetButtonCrimson: {
-    minHeight: 50,
-    borderRadius: 22,
-    backgroundColor: '#C41E3A',
-    borderWidth: 2,
-    borderColor: '#0F172A',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  googleAccountTitle: { fontSize: 13, fontWeight: '900', color: '#0F172A' },
+  syncBadge: {
+    backgroundColor: '#D1FAE5',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
   },
-  resetButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
-    marginLeft: 8,
-  },
-  bottomNavContainer: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  syncBadgeText: { fontSize: 10, fontWeight: '800', color: '#065F46' },
+  settingsCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 28,
+    borderRadius: 20,
     borderWidth: 2,
     borderColor: '#0F172A',
-    padding: 6,
+    padding: 12,
+    gap: 8,
   },
-  bottomNavButton: {
-    minHeight: 44,
-    minWidth: 48,
-    paddingHorizontal: 14,
-    borderRadius: 22,
+  settingRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 44,
+  },
+  settingLabel: { fontSize: 12, fontWeight: '800', color: '#0F172A' },
+  profileActionsRow: { flexDirection: 'row', gap: 10 },
+  resetBtn: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#0F172A',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bottomNavButtonActive: { backgroundColor: '#C41E3A' },
-  bottomNavLabelActive: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 12,
-    marginLeft: 6,
+  resetBtnText: { fontSize: 12, fontWeight: '800', color: '#0F172A' },
+  logoutBtn: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#0F172A',
+    backgroundColor: '#C41E3A',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  logoutBtnText: { fontSize: 12, fontWeight: '800', color: '#FFFFFF' },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15,23,42,0.55)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
-  bottomSheetCard: {
+  modalCard: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     borderWidth: 2,
     borderColor: '#0F172A',
-    padding: 20,
+    padding: 18,
   },
-  modalSheetTitle: {
-    fontSize: 17,
+  modalTitle: {
+    fontSize: 16,
     fontWeight: '900',
     color: '#0F172A',
     marginBottom: 12,
   },
-  sheetInput: {
-    width: '100%',
-    minHeight: 46,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 14,
-    marginBottom: 10,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  modalFooterActions: {
+  quickDateRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 6,
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 10,
   },
-  cancelBtn: {
-    flex: 1,
-    minHeight: 48,
-    borderRadius: 16,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
+  quickChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
   },
-  cancelBtnText: { fontSize: 13, fontWeight: '800', color: '#334155' },
-  submitBtnCrimson: {
-    flex: 1,
-    minHeight: 48,
-    borderRadius: 16,
-    backgroundColor: '#C41E3A',
+  quickChipText: { fontSize: 11, fontWeight: '700', color: '#0F172A' },
+  modalActionRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  bottomNav: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
     borderWidth: 2,
     borderColor: '#0F172A',
+    padding: 6,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  navTabBtn: {
+    minHeight: 42,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
   },
-  submitBtnText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
+  navTabBtnActive: { backgroundColor: '#C41E3A', flex: 1 },
+  navTabLabel: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
 });
