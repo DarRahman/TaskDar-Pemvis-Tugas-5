@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, RotateCcw, Calendar } from 'lucide-react';
-import { NewTaskPayload } from '../types/task';
-import { SEMESTER_5_COURSES } from '../data/initialTasks';
+import { NewTaskPayload, CourseDetail } from '../types/task';
+import { INITIAL_COURSES } from '../data/initialTasks';
 
 export interface AddTaskSheetProps {
   isOpen: boolean;
   onClose: () => void;
   onAddTask: (payload: NewTaskPayload) => void;
   titleInputRef: React.RefObject<HTMLInputElement | null>;
+  courses?: readonly CourseDetail[];
   initialCourse?: string;
+  onRequestCalendarPicker?: (
+    currentDate: string,
+    onPick: (pickedDate: string) => void
+  ) => void;
   isDarkMode?: boolean;
 }
 
@@ -20,20 +25,22 @@ const QUICK_DEADLINE_OPTIONS = [
 
 /*
  * Slide-up bottom sheet modal for adding a new academic assignment.
- * Includes quick date selection chips and programmatic useRef focus
- * on the task title input.
+ * Includes quick date selection chips, interactive calendar picker trigger,
+ * and programmatic useRef focus on the task title input.
  */
 export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
   isOpen,
   onClose,
   onAddTask,
   titleInputRef,
+  courses = INITIAL_COURSES,
   initialCourse,
+  onRequestCalendarPicker,
   isDarkMode = false,
 }) => {
   const [title, setTitle] = useState<string>('');
   const [course, setCourse] = useState<string>(
-    initialCourse || SEMESTER_5_COURSES[0]
+    initialCourse || courses[0]?.name || 'Pemrograman Visual I'
   );
   const [description, setDescription] = useState<string>('');
   const [deadline, setDeadline] = useState<string>('09 Nov 2026');
@@ -61,7 +68,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
 
   const handleClearForm = () => {
     setTitle('');
-    setCourse(initialCourse || SEMESTER_5_COURSES[0]);
+    setCourse(initialCourse || courses[0]?.name || 'Pemrograman Visual I');
     setDescription('');
     setDeadline('09 Nov 2026');
     setErrorMessage(null);
@@ -105,7 +112,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-[2px] p-0 sm:p-4"
+      className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/55 backdrop-blur-[2px] p-0 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-task-sheet-title"
@@ -113,15 +120,15 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
       <div
         className={`w-full max-w-[430px] rounded-t-[32px] sm:rounded-[32px] border shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-150 ${
           isDarkMode
-            ? 'bg-[#1A1F28] border-[#2E3440] text-[#F8FAFC]'
-            : 'bg-[#FDFBF7] border-[#EFE8DC] text-[#1E1B18]'
+            ? 'bg-[#161A22] border-[#262C3A] text-white'
+            : 'bg-white border-[#E2E8F0] text-[#0F172A]'
         }`}
       >
         {/* Drag Handle Bar */}
         <div className="pt-3 pb-1 flex justify-center">
           <div
             className={`w-11 h-1.5 rounded-full ${
-              isDarkMode ? 'bg-[#3B4252]' : 'bg-[#DDD5C7]'
+              isDarkMode ? 'bg-[#334155]' : 'bg-[#CBD5E1]'
             }`}
             aria-hidden="true"
           />
@@ -131,7 +138,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
           {/* Header Bar: Batal · Tambah Tugas · Simpan */}
           <div
             className={`px-4 pb-2.5 flex items-center justify-between border-b ${
-              isDarkMode ? 'border-[#2E3440]' : 'border-[#EFE8DC]'
+              isDarkMode ? 'border-[#262C3A]' : 'border-[#F1F5F9]'
             }`}
           >
             <button
@@ -140,7 +147,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
               className={`min-h-[44px] min-w-[64px] px-2 flex items-center justify-start text-sm font-semibold transition-colors ${
                 isDarkMode
                   ? 'text-[#94A3B8] hover:text-white'
-                  : 'text-[#6E6658] hover:text-[#1E1B18]'
+                  : 'text-[#64748B] hover:text-[#0F172A]'
               }`}
             >
               Batal
@@ -150,12 +157,12 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
               id="add-task-sheet-title"
               className="text-[15px] font-bold tracking-tight"
             >
-              Tambah Tugas
+              Tambah Tugas Baru
             </h2>
 
             <button
               type="submit"
-              className="min-h-[44px] min-w-[64px] px-2 flex items-center justify-end text-sm font-bold text-[#EC6B56] hover:text-[#D95540] transition-colors"
+              className="min-h-[44px] min-w-[64px] px-2 flex items-center justify-end text-sm font-bold text-[#C41E3A] hover:text-[#A3162E] transition-colors"
             >
               Simpan
             </button>
@@ -166,7 +173,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
             {errorMessage && (
               <div
                 role="alert"
-                className="flex items-center gap-2 p-3 rounded-2xl bg-[#FFEAE6] border border-[#FBC7BE] text-xs font-semibold text-[#B91C1C]"
+                className="flex items-center gap-2 p-3 rounded-2xl bg-[#FFE4E6] border border-[#FECDD3] text-xs font-semibold text-[#BE123C]"
               >
                 <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
                 <span>{errorMessage}</span>
@@ -178,15 +185,13 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
               <div className="flex items-center justify-between mb-1.5">
                 <label
                   htmlFor="task-title-input"
-                  className={`block text-xs font-bold ${
-                    isDarkMode ? 'text-[#CBD5E1]' : 'text-[#4A4338]'
-                  }`}
+                  className="block text-xs font-bold"
                 >
                   Judul Tugas
                 </label>
                 <span
                   className={`text-[11px] font-mono tabular-nums ${
-                    isDarkMode ? 'text-[#64748B]' : 'text-[#8C8476]'
+                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                   }`}
                 >
                   {title.length}/100
@@ -205,8 +210,8 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                 placeholder="Contoh: Tugas Pertemuan 6 - Navigasi Layar"
                 className={`w-full min-h-[44px] px-4 py-2.5 rounded-2xl border text-sm outline-none transition-colors ${
                   isDarkMode
-                    ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#EC6B56]'
-                    : 'bg-[#F4EFE6] border-transparent text-[#1E1B18] placeholder:text-[#8C8476] focus:border-[#EC6B56] focus:bg-white'
+                    ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#C41E3A]'
+                    : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] placeholder:text-[#94A3B8] focus:border-[#C41E3A] focus:bg-white'
                 }`}
               />
             </div>
@@ -215,29 +220,35 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
             <div>
               <label
                 htmlFor="task-course-input"
-                className={`block text-xs font-bold mb-1.5 ${
-                  isDarkMode ? 'text-[#CBD5E1]' : 'text-[#4A4338]'
-                }`}
+                className="block text-xs font-bold mb-1.5"
               >
                 Mata Kuliah
               </label>
               <div className="flex flex-wrap gap-1.5 mb-2.5">
-                {SEMESTER_5_COURSES.map((courseOption) => {
-                  const isSelected = course === courseOption;
+                {courses.map((courseItem) => {
+                  const isSelected = course === courseItem.name;
                   return (
                     <button
-                      key={courseOption}
+                      key={courseItem.id}
                       type="button"
-                      onClick={() => setCourse(courseOption)}
-                      className={`min-h-[44px] px-3.5 py-1.5 rounded-2xl text-xs font-semibold transition-colors ${
+                      onClick={() => setCourse(courseItem.name)}
+                      style={
                         isSelected
-                          ? 'bg-[#EC6B56] text-white'
+                          ? {
+                              backgroundColor: courseItem.iconBg,
+                              borderColor: courseItem.iconBg,
+                            }
+                          : undefined
+                      }
+                      className={`min-h-[44px] px-3.5 py-1.5 rounded-2xl text-xs font-bold border transition-colors ${
+                        isSelected
+                          ? 'text-white'
                           : isDarkMode
-                          ? 'bg-[#232934] text-[#CBD5E1] hover:bg-[#2E3440]'
-                          : 'bg-[#F4EFE6] text-[#4A4338] hover:bg-[#EAE2D3]'
+                          ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1] hover:bg-[#2E3440]'
+                          : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] hover:bg-[#F1F5F9]'
                       }`}
                     >
-                      {courseOption}
+                      {courseItem.name}
                     </button>
                   );
                 })}
@@ -250,8 +261,8 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                 placeholder="Ketik atau pilih mata kuliah"
                 className={`w-full min-h-[44px] px-4 py-2.5 rounded-2xl border text-sm outline-none transition-colors ${
                   isDarkMode
-                    ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#EC6B56]'
-                    : 'bg-[#F4EFE6] border-transparent text-[#1E1B18] placeholder:text-[#8C8476] focus:border-[#EC6B56] focus:bg-white'
+                    ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#C41E3A]'
+                    : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] placeholder:text-[#94A3B8] focus:border-[#C41E3A] focus:bg-white'
                 }`}
               />
             </div>
@@ -260,9 +271,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
             <div>
               <label
                 htmlFor="task-desc-input"
-                className={`block text-xs font-bold mb-1.5 ${
-                  isDarkMode ? 'text-[#CBD5E1]' : 'text-[#4A4338]'
-                }`}
+                className="block text-xs font-bold mb-1.5"
               >
                 Deskripsi dan Catatan
               </label>
@@ -277,22 +286,36 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                 placeholder="Tuliskan rincian materi, spesifikasi laporan, atau instruksi praktikum..."
                 className={`w-full px-4 py-2.5 rounded-2xl border text-sm outline-none transition-colors resize-none ${
                   isDarkMode
-                    ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#EC6B56]'
-                    : 'bg-[#F4EFE6] border-transparent text-[#1E1B18] placeholder:text-[#8C8476] focus:border-[#EC6B56] focus:bg-white'
+                    ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#C41E3A]'
+                    : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] placeholder:text-[#94A3B8] focus:border-[#C41E3A] focus:bg-white'
                 }`}
               />
             </div>
 
-            {/* Tenggat Pengumpulan + Quick Date Selection Chips */}
+            {/* Tenggat Pengumpulan + Quick Date Chips + Full Calendar Picker Trigger */}
             <div>
-              <label
-                htmlFor="task-deadline-input"
-                className={`block text-xs font-bold mb-1.5 ${
-                  isDarkMode ? 'text-[#CBD5E1]' : 'text-[#4A4338]'
-                }`}
-              >
-                Tenggat Pengumpulan
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label
+                  htmlFor="task-deadline-input"
+                  className="block text-xs font-bold"
+                >
+                  Tenggat Pengumpulan
+                </label>
+                {onRequestCalendarPicker && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onRequestCalendarPicker(deadline, (picked) =>
+                        setDeadline(picked)
+                      )
+                    }
+                    className="text-xs font-bold text-[#C41E3A] hover:underline flex items-center gap-1"
+                  >
+                    <Calendar className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>Pilih dari Kalender</span>
+                  </button>
+                )}
+              </div>
 
               {/* Quick Date Selection Buttons: Hari Ini, Besok, Senin Depan */}
               <div className="grid grid-cols-3 gap-2 mb-2.5">
@@ -305,10 +328,10 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                       onClick={() => setDeadline(option.value)}
                       className={`min-h-[44px] px-2.5 py-1.5 rounded-2xl text-xs font-bold flex flex-col items-center justify-center transition-colors border ${
                         isSelected
-                          ? 'bg-[#2A9D8F] border-[#2A9D8F] text-white'
+                          ? 'bg-[#C41E3A] border-[#C41E3A] text-white'
                           : isDarkMode
-                          ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1] hover:border-[#2A9D8F]'
-                          : 'bg-[#F4EFE6] border-transparent text-[#4A4338] hover:bg-[#EAE2D3]'
+                          ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1] hover:border-[#C41E3A]'
+                          : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] hover:bg-[#FFF1F2]'
                       }`}
                     >
                       <span>{option.label}</span>
@@ -318,7 +341,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                             ? 'text-white/90'
                             : isDarkMode
                             ? 'text-[#94A3B8]'
-                            : 'text-[#6E6658]'
+                            : 'text-[#64748B]'
                         }`}
                       >
                         {option.value}
@@ -328,25 +351,49 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                 })}
               </div>
 
-              <div className="relative flex items-center">
-                <Calendar
-                  className={`w-4 h-4 absolute left-3.5 pointer-events-none ${
-                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
-                  }`}
-                  aria-hidden="true"
-                />
-                <input
-                  id="task-deadline-input"
-                  type="text"
-                  value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
-                  placeholder="Contoh: 18 Nov 2026"
-                  className={`w-full min-h-[44px] pl-10 pr-4 py-2.5 rounded-2xl border text-sm font-mono tabular-nums outline-none transition-colors ${
-                    isDarkMode
-                      ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#EC6B56]'
-                      : 'bg-[#F4EFE6] border-transparent text-[#1E1B18] placeholder:text-[#8C8476] focus:border-[#EC6B56] focus:bg-white'
-                  }`}
-                />
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1 flex items-center">
+                  <Calendar
+                    className={`w-4 h-4 absolute left-3.5 pointer-events-none ${
+                      isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <input
+                    id="task-deadline-input"
+                    type="text"
+                    value={deadline}
+                    onClick={() => {
+                      if (onRequestCalendarPicker) {
+                        onRequestCalendarPicker(deadline, (picked) =>
+                          setDeadline(picked)
+                        );
+                      }
+                    }}
+                    onChange={(e) => setDeadline(e.target.value)}
+                    placeholder="Contoh: 18 Nov 2026"
+                    className={`w-full min-h-[44px] pl-10 pr-4 py-2.5 rounded-2xl border text-sm font-mono tabular-nums outline-none transition-colors cursor-pointer ${
+                      isDarkMode
+                        ? 'bg-[#232934] border-[#323A48] text-white focus:border-[#C41E3A]'
+                        : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] focus:border-[#C41E3A] focus:bg-white'
+                    }`}
+                  />
+                </div>
+
+                {onRequestCalendarPicker && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onRequestCalendarPicker(deadline, (picked) =>
+                        setDeadline(picked)
+                      )
+                    }
+                    aria-label="Buka kalender bulan"
+                    className="min-w-[44px] min-h-[44px] px-3 rounded-2xl bg-[#FFE4E6] text-[#C41E3A] font-bold text-xs flex items-center justify-center shrink-0 hover:bg-[#FECDD3] transition-colors"
+                  >
+                    <Calendar className="w-4 h-4" aria-hidden="true" />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -358,7 +405,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                 className={`min-h-[44px] px-4 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-colors ${
                   isDarkMode
                     ? 'bg-[#232934] hover:bg-[#2E3440] text-[#CBD5E1]'
-                    : 'bg-[#F4EFE6] hover:bg-[#EAE2D3] text-[#4A4338]'
+                    : 'bg-[#F8FAFC] border border-[#E2E8F0] hover:bg-[#F1F5F9] text-[#0F172A]'
                 }`}
               >
                 <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
@@ -367,7 +414,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
 
               <button
                 type="submit"
-                className="flex-1 min-h-[48px] px-5 rounded-2xl bg-[#EC6B56] hover:bg-[#D95540] text-sm font-bold text-white shadow-sm transition-colors"
+                className="flex-1 min-h-[48px] px-5 rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-sm font-bold text-white shadow-sm transition-colors"
               >
                 Simpan Tugas
               </button>

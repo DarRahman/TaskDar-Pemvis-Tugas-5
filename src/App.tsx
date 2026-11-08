@@ -16,11 +16,6 @@ import {
   PieChart,
   User,
   Flame,
-  Code2,
-  Cpu,
-  Database,
-  ShieldCheck,
-  Layers,
   Clock,
   Terminal,
   Award,
@@ -33,24 +28,30 @@ import {
   ChevronRight,
   CheckCircle2,
   RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import {
   INITIAL_TASKS,
+  INITIAL_COURSES,
+  BENTO_COLOR_THEMES,
   STUDENT_METADATA,
-  COURSE_DIRECTORY,
-  ACHIEVEMENT_BADGES,
+  PODIUM_TROPHY_SHELF,
   taskReducer,
 } from './data/initialTasks';
 import {
   TaskFilterTab,
   MainBottomTab,
   NewTaskPayload,
+  NewCoursePayload,
   TaskMetrics,
   CourseDetail,
-  AchievementBadge,
+  PodiumTrophyItem,
 } from './types/task';
-import { TaskCard } from './components/TaskCard';
+import { TaskCard, renderSubjectIconByKey } from './components/TaskCard';
 import { AddTaskSheet } from './components/AddTaskSheet';
+import { AddCourseSheet } from './components/AddCourseSheet';
+import { CalendarModal } from './components/CalendarModal';
+import { WelcomeSplashModal } from './components/WelcomeSplashModal';
 import {
   StudentMascotAvatar,
   CelebrationMascotIllustration,
@@ -67,7 +68,6 @@ interface WeeklyDayItem {
   dayFull: string;
   dateNumber: string;
   fullDateLabel: string;
-  isToday?: boolean;
 }
 
 const WEEKLY_CALENDAR_DAYS: readonly WeeklyDayItem[] = [
@@ -106,7 +106,6 @@ const WEEKLY_CALENDAR_DAYS: readonly WeeklyDayItem[] = [
     dayFull: 'Sabtu',
     dateNumber: '08',
     fullDateLabel: '08 Nov 2026',
-    isToday: true,
   },
   {
     dayShort: 'Min',
@@ -116,36 +115,19 @@ const WEEKLY_CALENDAR_DAYS: readonly WeeklyDayItem[] = [
   },
 ];
 
-function renderCourseVectorIcon(iconKey: CourseDetail['iconKey']) {
-  switch (iconKey) {
-    case 'code':
-      return <Code2 className="w-5 h-5 text-white" aria-hidden="true" />;
-    case 'cpu':
-      return <Cpu className="w-5 h-5 text-white" aria-hidden="true" />;
-    case 'database':
-      return <Database className="w-5 h-5 text-white" aria-hidden="true" />;
-    case 'shield':
-      return <ShieldCheck className="w-5 h-5 text-white" aria-hidden="true" />;
-    case 'layers':
-      return <Layers className="w-5 h-5 text-white" aria-hidden="true" />;
-  }
-}
-
-function renderBadgeVectorIcon(
-  iconKey: AchievementBadge['iconKey'],
+function renderPodiumVectorIcon(
+  iconKey: PodiumTrophyItem['iconKey'],
   color: string
 ) {
   switch (iconKey) {
     case 'clock':
-      return <Clock className="w-5 h-5" style={{ color }} aria-hidden="true" />;
+      return <Clock className="w-4 h-4" style={{ color }} aria-hidden="true" />;
     case 'flame':
-      return <Flame className="w-5 h-5" style={{ color }} aria-hidden="true" />;
+      return <Flame className="w-4 h-4" style={{ color }} aria-hidden="true" />;
     case 'terminal':
       return (
-        <Terminal className="w-5 h-5" style={{ color }} aria-hidden="true" />
+        <Terminal className="w-4 h-4" style={{ color }} aria-hidden="true" />
       );
-    case 'award':
-      return <Award className="w-5 h-5" style={{ color }} aria-hidden="true" />;
   }
 }
 
@@ -157,10 +139,12 @@ export default function App() {
   const [tasks, dispatch] = useReducer(taskReducer, INITIAL_TASKS);
 
   /*
-   * Hook 2 (useState): Manages active bottom navigation tab, selected weekly
-   * calendar day, search query, status filter tab, course filter, student
-   * settings toggles, and modal sheet visibility.
+   * Hook 2 (useState): Manages welcome splash modal, courses directory,
+   * active bottom navigation tab, selected date, calendar modal state,
+   * search query, status filter tab, student settings toggles, and sheets.
    */
+  const [isSplashOpen, setIsSplashOpen] = useState<boolean>(true);
+  const [courses, setCourses] = useState<CourseDetail[]>(INITIAL_COURSES);
   const [bottomTab, setBottomTab] = useState<MainBottomTab>('tugas');
   const [selectedDayDate, setSelectedDayDate] = useState<string>('08 Nov 2026');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -169,8 +153,18 @@ export default function App() {
   const [selectedCourseFilter, setSelectedCourseFilter] =
     useState<string>('Semua');
   const [preselectedCourseForAdd, setPreselectedCourseForAdd] =
-    useState<string>(COURSE_DIRECTORY[0].name);
+    useState<string>(INITIAL_COURSES[0].name);
+
   const [isAddSheetOpen, setIsAddSheetOpen] = useState<boolean>(false);
+  const [isAddCourseOpen, setIsAddCourseOpen] = useState<boolean>(false);
+  const [isCalendarModalOpen, setIsCalendarModalOpen] =
+    useState<boolean>(false);
+  const [calendarModalMode, setCalendarModalMode] = useState<'view' | 'picker'>(
+    'view'
+  );
+  const [calendarPickerCallback, setCalendarPickerCallback] = useState<
+    ((pickedDate: string) => void) | null
+  >(null);
 
   const [reminderEnabled, setReminderEnabled] = useState<boolean>(true);
   const [googleCalendarSync, setGoogleCalendarSync] = useState<boolean>(true);
@@ -209,6 +203,11 @@ export default function App() {
       total > 0 ? Math.round((completed / total) * 100) : 0;
     return { total, pending, completed, completionRate };
   }, [tasks]);
+
+  const totalCredits = useMemo(
+    () => courses.reduce((sum, item) => sum + item.credits, 0),
+    [courses]
+  );
 
   const filteredTasks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -260,13 +259,40 @@ export default function App() {
     [showToastMessage]
   );
 
+  const handleAddCourse = useCallback(
+    (payload: NewCoursePayload) => {
+      const chosenTheme =
+        BENTO_COLOR_THEMES.find((t) => t.id === payload.colorThemeId) ||
+        BENTO_COLOR_THEMES[0];
+      const nextCodeNumber = 361 + courses.length;
+      const newCourse: CourseDetail = {
+        id: `course-${Date.now()}`,
+        code: `TI${nextCodeNumber}`,
+        name: payload.name,
+        lecturer: payload.lecturer,
+        credits: payload.credits,
+        schedule: payload.schedule,
+        room: payload.room,
+        iconKey: payload.iconKey,
+        pastelBg: chosenTheme.pastelBg,
+        pastelBorder: chosenTheme.pastelBorder,
+        accentColor: chosenTheme.accentColor,
+        iconBg: chosenTheme.iconBg,
+      };
+      setCourses((prev) => [...prev, newCourse]);
+      showToastMessage(`Mata kuliah ${payload.name} berhasil ditambahkan.`);
+    },
+    [courses.length, showToastMessage]
+  );
+
   const handleResetTasks = useCallback(() => {
     dispatch({ type: 'RESET_TASKS' });
+    setCourses(INITIAL_COURSES);
     setSearchQuery('');
     setActiveFilterTab('Semua');
     setSelectedCourseFilter('Semua');
     setSelectedDayDate('08 Nov 2026');
-    showToastMessage('Data tugas diatur ulang ke 5 tugas awal Semester 5.');
+    showToastMessage('Data berhasil diatur ulang ke kondisi awal Semester 5.');
   }, [showToastMessage]);
 
   const handleOpenAddSheet = useCallback((courseName?: string) => {
@@ -279,16 +305,27 @@ export default function App() {
     }, 60);
   }, []);
 
-  const radialRadius = 46;
+  const handleOpenCalendarView = useCallback(() => {
+    setCalendarModalMode('view');
+    setCalendarPickerCallback(null);
+    setIsCalendarModalOpen(true);
+  }, []);
+
+  const handleRequestCalendarPicker = useCallback(
+    (currentDate: string, onPick: (pickedDate: string) => void) => {
+      setSelectedDayDate(currentDate);
+      setCalendarModalMode('picker');
+      setCalendarPickerCallback(() => onPick);
+      setIsCalendarModalOpen(true);
+    },
+    []
+  );
+
+  const radialRadius = 44;
   const radialCircumference = 2 * Math.PI * radialRadius;
   const radialStrokeOffset =
     radialCircumference -
     (taskMetrics.completionRate / 100) * radialCircumference;
-
-  const miniRadius = 21;
-  const miniCircumference = 2 * Math.PI * miniRadius;
-  const miniStrokeOffset =
-    miniCircumference - (taskMetrics.completionRate / 100) * miniCircumference;
 
   const allTasksCompleted =
     taskMetrics.total > 0 && taskMetrics.pending === 0;
@@ -296,22 +333,22 @@ export default function App() {
   return (
     <div
       className={`min-h-screen flex items-center justify-center sm:py-6 sm:px-4 transition-colors duration-200 ${
-        isDarkMode ? 'bg-[#0F1319]' : 'bg-[#DFC59B]'
+        isDarkMode ? 'bg-[#0B0F17]' : 'bg-[#E2E8F0]'
       }`}
     >
       {/* Pure Mobile Application Frame */}
       <main
         aria-label="Aplikasi Mobile Tugas Kuliah STIKOM Poltek Cirebon"
-        className={`w-full max-w-[430px] min-h-screen sm:min-h-[844px] sm:max-h-[890px] sm:rounded-[44px] sm:border-[10px] sm:shadow-2xl flex flex-col relative overflow-hidden transition-colors duration-200 ${
+        className={`w-full max-w-[430px] min-h-screen sm:min-h-[852px] sm:max-h-[900px] sm:rounded-[44px] sm:border-[10px] sm:shadow-2xl flex flex-col relative overflow-hidden transition-colors duration-200 ${
           isDarkMode
-            ? 'bg-[#161A22] sm:border-[#262C3A] text-[#F8FAFC]'
-            : 'bg-[#FDFBF7] sm:border-[#2B2520] text-[#1E1B18]'
+            ? 'bg-[#111622] sm:border-[#1E293B] text-[#F8FAFC]'
+            : 'bg-[#F8FAFC] sm:border-[#0F172A] text-[#0F172A]'
         }`}
       >
         {/* Top Mobile Status Pill (Visible on framed viewports) */}
         <div className="hidden sm:flex items-center justify-between px-7 pt-3 pb-1 text-[11px] font-bold tracking-tight select-none opacity-80">
           <span className="font-mono tabular-nums">09:41</span>
-          <div className="w-24 h-5 rounded-full bg-[#1E1B18] dark:bg-black" />
+          <div className="w-24 h-5 rounded-full bg-[#0F172A]" />
           <span className="font-mono tabular-nums">5G · 100%</span>
         </div>
 
@@ -319,7 +356,7 @@ export default function App() {
         {feedbackToast && (
           <div
             role="status"
-            className="absolute top-12 left-5 right-5 z-40 flex items-center gap-2 px-4 py-3 rounded-2xl bg-[#1E1B18] text-white text-xs font-semibold shadow-lg animate-in fade-in slide-in-from-top-2 duration-150"
+            className="absolute top-12 left-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl bg-[#0F172A] text-white text-xs font-semibold shadow-lg animate-in fade-in slide-in-from-top-2 duration-150"
           >
             <CheckCircle2
               className="w-4 h-4 text-[#34D399] shrink-0"
@@ -335,46 +372,81 @@ export default function App() {
             aria-label="Daftar Tugas Harian"
             className="flex-1 flex flex-col min-h-0 overflow-hidden"
           >
-            {/* Greeting Header with Student Mascot Avatar & 6-Day Streak Badge */}
-            <header className="px-5 pt-3.5 pb-2.5 flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={() => setBottomTab('profil')}
-                className="flex items-center gap-3 min-w-0 min-h-[44px] text-left group"
-              >
-                <StudentMascotAvatar size="sm" />
-                <div className="min-w-0">
-                  <h1 className="text-[16px] font-bold tracking-tight truncate">
-                    Halo, {STUDENT_METADATA.name}
-                  </h1>
-                  <p
-                    className={`text-xs truncate ${
-                      isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
-                    }`}
-                  >
-                    Apa target kuliahmu hari ini?
-                  </p>
+            {/* Prominent Student Hero Card (STIKOM Crimson Red & White Identity) */}
+            <div className="px-4 pt-2.5 pb-2">
+              <div className="rounded-[28px] bg-gradient-to-br from-[#C41E3A] via-[#DC2626] to-[#9F1239] text-white p-4 shadow-md relative overflow-hidden">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <StudentMascotAvatar size="md" />
+                    <div className="min-w-0">
+                      <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/20 text-[10px] font-bold tracking-wide text-white mb-1">
+                        <Sparkles className="w-3 h-3" aria-hidden="true" />
+                        <span>STIKOM Poltek Cirebon · TI-1</span>
+                      </div>
+                      <h1 className="text-[17px] font-extrabold tracking-tight leading-snug truncate">
+                        Semangat Belajar, {STUDENT_METADATA.shortName}!
+                      </h1>
+                      <p className="text-xs text-[#FFE4E6] font-medium truncate mt-0.5">
+                        {taskMetrics.pending > 0
+                          ? `${taskMetrics.pending} tugas menunggu diselesaikan`
+                          : 'Semua tugas minggu ini sudah tuntas!'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </button>
 
-              <button
-                type="button"
-                onClick={() => setBottomTab('progres')}
-                aria-label="Lihat progres dan rentetan hari aktif"
-                className="min-h-[44px] px-3.5 rounded-full bg-[#FFEAE6] hover:bg-[#FCD5CE] text-[#C84332] flex items-center gap-1.5 text-xs font-bold shrink-0 transition-colors"
-              >
-                <Flame
-                  className="w-4 h-4 fill-[#EC6B56] text-[#EC6B56]"
-                  aria-hidden="true"
-                />
-                <span className="font-mono tabular-nums">
-                  {STUDENT_METADATA.streakDays} Hari Aktif
+                {/* Bottom Row inside Hero Card: Motivational Progress Pill + 6-Day Streak Pill */}
+                <div className="mt-3.5 pt-3 border-t border-white/15 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBottomTab('progres')}
+                    className="min-h-[36px] px-3 py-1 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold flex items-center gap-2 transition-colors"
+                  >
+                    <span className="font-mono tabular-nums bg-white text-[#C41E3A] px-1.5 py-0.5 rounded-md text-[11px] font-extrabold">
+                      {taskMetrics.completionRate}%
+                    </span>
+                    <span>Target Semester 5</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setBottomTab('progres')}
+                    aria-label="Lihat rentetan belajar 6 hari aktif"
+                    className="min-h-[36px] px-3 py-1 rounded-xl bg-white text-[#C41E3A] text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-transform active:scale-95"
+                  >
+                    <Flame
+                      className="w-3.5 h-3.5 fill-[#C41E3A] text-[#C41E3A]"
+                      aria-hidden="true"
+                    />
+                    <span className="font-mono tabular-nums">
+                      {STUDENT_METADATA.streakDays} Hari Aktif
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 7-Day Weekly Calendar Strip + Full Month Calendar Modal Button */}
+            <div className="px-4 pb-2">
+              <div className="flex items-center justify-between mb-1.5 px-1">
+                <span
+                  className={`text-xs font-bold ${
+                    isDarkMode ? 'text-[#CBD5E1]' : 'text-[#334155]'
+                  }`}
+                >
+                  Jadwal Minggu Ini ({selectedDayDate})
                 </span>
-              </button>
-            </header>
+                <button
+                  type="button"
+                  onClick={handleOpenCalendarView}
+                  aria-label="Buka kalender bulan penuh"
+                  className="min-h-[36px] px-2.5 py-1 rounded-xl bg-[#FFE4E6] hover:bg-[#FECDD3] text-[#C41E3A] text-xs font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <Calendar className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Kalender Bulan</span>
+                </button>
+              </div>
 
-            {/* Horizontal 7-Day Weekly Calendar Strip (Mon to Sun with Active Day Indicator) */}
-            <div className="px-5 pb-2.5">
               <div
                 aria-label="Kalender Mingguan"
                 className="grid grid-cols-7 gap-1.5"
@@ -392,26 +464,26 @@ export default function App() {
                       onClick={() => setSelectedDayDate(dayItem.fullDateLabel)}
                       aria-label={`${dayItem.dayFull}, ${dayItem.fullDateLabel}`}
                       aria-pressed={isSelected}
-                      className={`min-h-[54px] min-w-[44px] py-1.5 rounded-2xl flex flex-col items-center justify-center transition-all border ${
+                      className={`min-h-[52px] min-w-[44px] py-1.5 rounded-2xl flex flex-col items-center justify-center transition-all border ${
                         isSelected
-                          ? 'bg-[#EC6B56] border-[#EC6B56] text-white shadow-xs'
+                          ? 'bg-[#C41E3A] border-[#C41E3A] text-white shadow-xs'
                           : isDarkMode
-                          ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1] hover:border-[#EC6B56]/60'
-                          : 'bg-white border-[#EFE8DC] text-[#4A4338] hover:border-[#DEC397]'
+                          ? 'bg-[#1F242D] border-[#2E3440] text-[#CBD5E1] hover:border-[#C41E3A]'
+                          : 'bg-white border-[#E2E8F0] text-[#0F172A] hover:border-[#FECDD3]'
                       }`}
                     >
                       <span
-                        className={`text-[10px] font-semibold leading-none ${
+                        className={`text-[10px] font-bold leading-none ${
                           isSelected
                             ? 'text-white/90'
                             : isDarkMode
                             ? 'text-[#94A3B8]'
-                            : 'text-[#8C8476]'
+                            : 'text-[#64748B]'
                         }`}
                       >
                         {dayItem.dayShort}
                       </span>
-                      <span className="mt-1 text-xs font-bold font-mono tabular-nums leading-none">
+                      <span className="mt-1 text-xs font-extrabold font-mono tabular-nums leading-none">
                         {dayItem.dateNumber}
                       </span>
                       <span
@@ -419,7 +491,7 @@ export default function App() {
                           hasDeadlineOnDay
                             ? isSelected
                               ? 'bg-white'
-                              : 'bg-[#2A9D8F]'
+                              : 'bg-[#C41E3A]'
                             : 'bg-transparent'
                         }`}
                         aria-hidden="true"
@@ -430,102 +502,18 @@ export default function App() {
               </div>
             </div>
 
-            {/* Compact Progress Ring Summary Card */}
-            <div className="px-5 pb-2.5">
-              <div
-                onClick={() => setBottomTab('progres')}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    setBottomTab('progres');
-                  }
-                }}
-                className={`rounded-3xl border p-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
-                  isDarkMode
-                    ? 'bg-[#232934] border-[#323A48] hover:border-[#EC6B56]/60'
-                    : 'bg-white border-[#EFE8DC] hover:border-[#DEC397] shadow-xs'
-                }`}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="relative w-12 h-12 flex items-center justify-center shrink-0">
-                    <svg
-                      className="w-12 h-12 -rotate-90"
-                      viewBox="0 0 52 52"
-                      aria-hidden="true"
-                    >
-                      <circle
-                        cx="26"
-                        cy="26"
-                        r={miniRadius}
-                        fill="none"
-                        stroke={isDarkMode ? '#323A48' : '#F4EFE6'}
-                        strokeWidth="5"
-                      />
-                      <circle
-                        cx="26"
-                        cy="26"
-                        r={miniRadius}
-                        fill="none"
-                        stroke="#EC6B56"
-                        strokeWidth="5"
-                        strokeLinecap="round"
-                        strokeDasharray={miniCircumference}
-                        strokeDashoffset={miniStrokeOffset}
-                      />
-                    </svg>
-                    <span className="absolute text-[11px] font-bold font-mono tabular-nums">
-                      {taskMetrics.completionRate}%
-                    </span>
-                  </div>
-
-                  <div className="min-w-0">
-                    <h2 className="text-sm font-bold truncate">
-                      Progres Tugas Semester 5
-                    </h2>
-                    <div
-                      className={`mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs font-medium ${
-                        isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
-                      }`}
-                    >
-                      <span className="font-mono tabular-nums">
-                        {taskMetrics.completed} selesai
-                      </span>
-                      <span aria-hidden="true">·</span>
-                      <span className="font-mono tabular-nums">
-                        {taskMetrics.pending} belum dikerjakan
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 ${
-                    isDarkMode ? 'bg-[#1A1F28]' : 'bg-[#F4EFE6]'
-                  }`}
-                >
-                  <ChevronRight
-                    className={`w-4 h-4 ${
-                      isDarkMode ? 'text-[#CBD5E1]' : 'text-[#5C5549]'
-                    }`}
-                    aria-hidden="true"
-                  />
-                </div>
-              </div>
-            </div>
-
             {/* Real-Time Search Bar (FR-05 + useEffect observer) */}
-            <div className="px-5 pb-2">
+            <div className="px-4 pb-2">
               <div
                 className={`relative flex items-center rounded-2xl border transition-colors ${
                   isDarkMode
-                    ? 'bg-[#232934] border-[#323A48] focus-within:border-[#EC6B56]'
-                    : 'bg-[#F4EFE6] border-transparent focus-within:border-[#EC6B56] focus-within:bg-white'
+                    ? 'bg-[#1F242D] border-[#2E3440] focus-within:border-[#C41E3A]'
+                    : 'bg-white border-[#E2E8F0] focus-within:border-[#C41E3A] shadow-2xs'
                 }`}
               >
                 <Search
                   className={`w-4 h-4 ml-3.5 shrink-0 pointer-events-none ${
-                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                   }`}
                   aria-hidden="true"
                 />
@@ -536,7 +524,7 @@ export default function App() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Cari judul tugas atau mata kuliah..."
                   aria-label="Cari tugas berdasarkan judul atau mata kuliah"
-                  className="w-full min-h-[44px] pl-2.5 pr-11 py-2 bg-transparent text-sm outline-none placeholder:text-[#8C8476]"
+                  className="w-full min-h-[44px] pl-2.5 pr-11 py-2 bg-transparent text-sm outline-none placeholder:text-[#94A3B8]"
                 />
                 {searchQuery.length > 0 && (
                   <button
@@ -546,7 +534,7 @@ export default function App() {
                       searchInputRef.current?.focus();
                     }}
                     aria-label="Bersihkan kata kunci pencarian"
-                    className="absolute right-1 min-w-[44px] min-h-[44px] flex items-center justify-center text-[#8C8476] hover:text-[#EC6B56]"
+                    className="absolute right-1 min-w-[44px] min-h-[44px] flex items-center justify-center text-[#64748B] hover:text-[#C41E3A]"
                   >
                     <X className="w-4 h-4" aria-hidden="true" />
                   </button>
@@ -557,8 +545,8 @@ export default function App() {
             {/* Clean Status Filter Tabs: Semua, Belum Dikerjakan, Selesai */}
             <nav
               aria-label="Filter Status Tugas"
-              className={`px-5 border-b grid grid-cols-3 ${
-                isDarkMode ? 'border-[#2E3440]' : 'border-[#EFE8DC]'
+              className={`px-4 border-b grid grid-cols-3 ${
+                isDarkMode ? 'border-[#262C3A]' : 'border-[#E2E8F0]'
               }`}
             >
               {FILTER_TABS.map((tab) => {
@@ -576,12 +564,12 @@ export default function App() {
                     type="button"
                     onClick={() => setActiveFilterTab(tab)}
                     aria-current={isActive ? 'page' : undefined}
-                    className={`min-h-[44px] px-1 flex items-center justify-center gap-1 border-b-2 text-xs font-bold transition-colors whitespace-nowrap ${
+                    className={`min-h-[44px] px-1 flex items-center justify-center gap-1 border-b-2 text-xs font-extrabold transition-colors whitespace-nowrap ${
                       isActive
-                        ? 'border-[#EC6B56] text-[#EC6B56]'
+                        ? 'border-[#C41E3A] text-[#C41E3A]'
                         : isDarkMode
                         ? 'border-transparent text-[#94A3B8] hover:text-white'
-                        : 'border-transparent text-[#8C8476] hover:text-[#1E1B18]'
+                        : 'border-transparent text-[#64748B] hover:text-[#0F172A]'
                     }`}
                   >
                     <span className="truncate">{tab}</span>
@@ -596,46 +584,46 @@ export default function App() {
             {/* Active Course Filter Indicator */}
             {selectedCourseFilter !== 'Semua' && (
               <div
-                className={`mx-5 mt-2.5 px-3.5 py-1.5 rounded-2xl flex items-center justify-between text-xs ${
+                className={`mx-4 mt-2.5 px-3.5 py-1.5 rounded-2xl flex items-center justify-between text-xs ${
                   isDarkMode
-                    ? 'bg-[#232934] text-[#CBD5E1]'
-                    : 'bg-[#F4EFE6] text-[#4A4338]'
+                    ? 'bg-[#1F242D] text-[#CBD5E1]'
+                    : 'bg-[#FFE4E6] text-[#BE123C]'
                 }`}
               >
                 <span className="truncate">
-                  Filter: <strong>{selectedCourseFilter}</strong>
+                  Mata Kuliah: <strong>{selectedCourseFilter}</strong>
                 </span>
                 <button
                   type="button"
                   onClick={() => setSelectedCourseFilter('Semua')}
-                  className="min-h-[44px] px-2 font-bold text-[#EC6B56] hover:underline shrink-0"
+                  className="min-h-[44px] px-2 font-bold underline shrink-0"
                 >
-                  Hapus Filter
+                  Semua Matkul
                 </button>
               </div>
             )}
 
-            {/* Scrollable TaskCard List & Friendly Mascot Empty/Celebration State */}
-            <div className="flex-1 overflow-y-auto px-5 pt-3 pb-28 space-y-3">
+            {/* Scrollable Colorful Bento TaskCard List */}
+            <div className="flex-1 overflow-y-auto px-4 pt-3 pb-28 space-y-3">
               {allTasksCompleted && activeFilterTab === 'Semua' && (
                 <div
-                  className={`p-4 rounded-3xl border flex items-center gap-3.5 ${
+                  className={`p-3.5 rounded-3xl border-2 flex items-center gap-3 ${
                     isDarkMode
-                      ? 'bg-[#1F2928] border-[#2A9D8F]/40'
-                      : 'bg-[#E6F4F1] border-[#BFE3DC]'
+                      ? 'bg-[#064E3B]/30 border-[#059669]/50'
+                      : 'bg-[#D1FAE5] border-[#A7F3D0]'
                   }`}
                 >
                   <StudentMascotAvatar size="sm" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-[#1E7A68] dark:text-[#34D399]">
-                      Semua tugas kuliah sudah tuntas. Waktunya istirahat!
+                    <p className="text-xs font-extrabold text-[#047857] dark:text-[#34D399]">
+                      Semua tugas kuliah sudah tuntas! Waktunya istirahat.
                     </p>
                     <p
                       className={`text-[11px] mt-0.5 ${
-                        isDarkMode ? 'text-[#CBD5E1]' : 'text-[#3D3830]'
+                        isDarkMode ? 'text-[#CBD5E1]' : 'text-[#065F46]'
                       }`}
                     >
-                      Seluruh {taskMetrics.total} tugas Semester 5 telah selesai dikerjakan.
+                      Seluruh {taskMetrics.total} tugas Semester 5 selesai dikerjakan.
                     </p>
                   </div>
                 </div>
@@ -646,6 +634,7 @@ export default function App() {
                   <TaskCard
                     key={task.id}
                     task={task}
+                    courses={courses}
                     onToggleStatus={handleToggleStatus}
                     onDeleteTask={handleDeleteTask}
                     isDarkMode={isDarkMode}
@@ -653,24 +642,24 @@ export default function App() {
                 ))
               ) : (
                 <div
-                  className={`py-8 px-5 text-center rounded-3xl border ${
+                  className={`py-8 px-5 text-center rounded-3xl border-2 ${
                     isDarkMode
-                      ? 'border-[#323A48] bg-[#232934]/50'
-                      : 'border-[#EFE8DC] bg-white shadow-xs'
+                      ? 'border-[#262C3A] bg-[#1F242D]/50'
+                      : 'border-[#FECDD3] bg-white shadow-xs'
                   }`}
                 >
                   <CelebrationMascotIllustration />
-                  <h3 className="mt-3 text-[15px] font-bold leading-snug max-w-[260px] mx-auto">
-                    Semua tugas kuliah sudah tuntas. Waktunya istirahat!
+                  <h3 className="mt-3 text-[15px] font-extrabold leading-snug max-w-[260px] mx-auto">
+                    Semua tugas kuliah sudah tuntas! Waktunya istirahat.
                   </h3>
                   <p
                     className={`text-xs mt-1.5 max-w-[250px] mx-auto leading-relaxed ${
-                      isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                      isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                     }`}
                   >
                     {searchQuery.trim() !== ''
-                      ? `Tidak ada tugas untuk pencarian "${searchQuery}".`
-                      : 'Tidak ada tugas yang tertunda pada daftar ini.'}
+                      ? `Tidak ditemukan tugas dengan kata kunci "${searchQuery}".`
+                      : 'Tidak ada tugas yang menunggu pada tampilan ini.'}
                   </p>
                   <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                     {(searchQuery !== '' ||
@@ -686,7 +675,7 @@ export default function App() {
                         className={`min-h-[44px] px-4 rounded-2xl text-xs font-bold transition-colors ${
                           isDarkMode
                             ? 'bg-[#232934] text-white border border-[#323A48]'
-                            : 'bg-[#F4EFE6] text-[#1E1B18]'
+                            : 'bg-[#F1F5F9] text-[#0F172A]'
                         }`}
                       >
                         Lihat Semua Tugas
@@ -695,7 +684,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => handleOpenAddSheet()}
-                      className="min-h-[44px] px-4 rounded-2xl bg-[#EC6B56] hover:bg-[#D95540] text-xs font-bold text-white transition-colors"
+                      className="min-h-[44px] px-4 rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-xs font-bold text-white transition-colors"
                     >
                       Tambah Tugas Baru
                     </button>
@@ -710,45 +699,45 @@ export default function App() {
               onClick={() => handleOpenAddSheet()}
               aria-label="Tambah tugas baru"
               title="Tambah Tugas"
-              className="absolute right-5 bottom-22 z-30 w-14 h-14 min-w-[56px] min-h-[56px] rounded-full bg-[#EC6B56] hover:bg-[#D95540] text-white shadow-lg flex items-center justify-center transition-transform active:scale-95"
+              className="absolute right-5 bottom-22 z-30 w-14 h-14 min-w-[56px] min-h-[56px] rounded-full bg-[#C41E3A] hover:bg-[#A3162E] text-white shadow-lg flex items-center justify-center transition-transform active:scale-95"
             >
-              <Plus className="w-6 h-6 stroke-[2.5]" aria-hidden="true" />
+              <Plus className="w-6 h-6 stroke-[2.75]" aria-hidden="true" />
             </button>
           </section>
         )}
 
-        {/* Tab 2: Mata Kuliah (Visual Course Directory) */}
+        {/* Tab 2: Mata Kuliah (Visual Bento Course Directory + "+ Tambah Matkul") */}
         {bottomTab === 'matakuliah' && (
           <section
             aria-label="Direktori Mata Kuliah Semester 5"
             className="flex-1 flex flex-col min-h-0 overflow-hidden"
           >
-            <header className="px-5 pt-4 pb-3 flex items-center justify-between">
+            <header className="px-5 pt-4 pb-3 flex items-center justify-between gap-2">
               <div>
-                <h1 className="text-xl font-bold tracking-tight">
+                <h1 className="text-xl font-extrabold tracking-tight">
                   Mata Kuliah
                 </h1>
                 <p
-                  className={`text-xs mt-0.5 ${
-                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                  className={`text-xs mt-0.5 font-medium ${
+                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                   }`}
                 >
-                  {STUDENT_METADATA.semester} · {STUDENT_METADATA.classGroup} · 15 SKS
+                  {courses.length} Matkul · {totalCredits} SKS Semester 5
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={() => handleOpenAddSheet()}
-                className="min-h-[44px] px-3.5 rounded-2xl bg-[#EC6B56] hover:bg-[#D95540] text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
+                onClick={() => setIsAddCourseOpen(true)}
+                className="min-h-[44px] px-3.5 rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
               >
-                <Plus className="w-4 h-4" aria-hidden="true" />
-                <span>Tugas Baru</span>
+                <Plus className="w-4 h-4 stroke-[2.5]" aria-hidden="true" />
+                <span>Tambah Matkul</span>
               </button>
             </header>
 
-            <div className="flex-1 overflow-y-auto px-5 pt-1 pb-28 space-y-3.5">
-              {COURSE_DIRECTORY.map((course) => {
+            <div className="flex-1 overflow-y-auto px-4 pt-1 pb-28 space-y-3.5">
+              {courses.map((course) => {
                 const courseTasks = tasks.filter(
                   (t) => t.course.toLowerCase() === course.name.toLowerCase()
                 );
@@ -769,48 +758,61 @@ export default function App() {
                             borderColor: course.pastelBorder,
                           }
                     }
-                    className={`rounded-3xl border p-4 transition-all ${
+                    className={`rounded-3xl border-2 p-4 transition-all ${
                       isDarkMode
-                        ? 'bg-[#232934] border-[#323A48]'
+                        ? 'bg-[#1F242D] border-[#2E3440]'
                         : 'shadow-xs'
                     }`}
                   >
-                    <div className="flex items-start gap-3.5">
-                      <div
-                        style={{ backgroundColor: course.iconBg }}
-                        className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-xs"
-                      >
-                        {renderCourseVectorIcon(course.iconKey)}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
+                    {/* Bento Top Row: Large 48x48pt Subject Icon + Title + SKS Badge */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3.5 min-w-0">
                         <div
-                          className={`flex items-center gap-1.5 text-xs font-semibold ${
-                            isDarkMode ? 'text-[#94A3B8]' : 'text-[#5C5549]'
-                          }`}
+                          style={{ backgroundColor: course.iconBg }}
+                          className="w-12 h-12 min-w-[48px] min-h-[48px] rounded-2xl flex items-center justify-center shrink-0 shadow-xs"
                         >
-                          <span className="font-mono">{course.code}</span>
-                          <span aria-hidden="true">·</span>
-                          <span>{course.credits} SKS</span>
-                          <span aria-hidden="true">·</span>
-                          <span className="truncate">{course.room}</span>
+                          {renderSubjectIconByKey(course.iconKey)}
                         </div>
 
-                        <h2
-                          className={`mt-0.5 text-[16px] font-bold leading-snug ${
-                            isDarkMode ? 'text-white' : 'text-[#1E1B18]'
-                          }`}
-                        >
-                          {course.name}
-                        </h2>
+                        <div className="min-w-0">
+                          <span
+                            style={{
+                              color: isDarkMode
+                                ? '#CBD5E1'
+                                : course.accentColor,
+                            }}
+                            className="text-xs font-extrabold font-mono"
+                          >
+                            {course.code}
+                          </span>
+                          <h2
+                            className={`text-[16px] font-extrabold leading-snug ${
+                              isDarkMode ? 'text-white' : 'text-[#0F172A]'
+                            }`}
+                          >
+                            {course.name}
+                          </h2>
+                        </div>
                       </div>
+
+                      <span
+                        style={{
+                          backgroundColor: isDarkMode
+                            ? '#2E3440'
+                            : course.iconBg,
+                        }}
+                        className="px-2.5 py-1 rounded-xl text-white text-xs font-extrabold font-mono tabular-nums shrink-0"
+                      >
+                        {course.credits} SKS
+                      </span>
                     </div>
 
+                    {/* Lecturer, Schedule & Room Bento Sub-box */}
                     <div
                       className={`mt-3 rounded-2xl p-3 space-y-1.5 text-xs ${
                         isDarkMode
-                          ? 'bg-[#1A1F28] text-[#CBD5E1]'
-                          : 'bg-white/75 text-[#3D3830]'
+                          ? 'bg-[#141821] text-[#CBD5E1]'
+                          : 'bg-white/85 text-[#1E293B]'
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -840,8 +842,9 @@ export default function App() {
                       </div>
                     </div>
 
+                    {/* Footer Row: Active Task Counter & Quick Actions */}
                     <div className="mt-3 flex items-center justify-between gap-2">
-                      <div className="text-xs font-bold">
+                      <div className="text-xs font-extrabold">
                         <span
                           style={{
                             color: isDarkMode ? '#F8FAFC' : course.accentColor,
@@ -850,8 +853,8 @@ export default function App() {
                           {activeCourseTasks} Tugas Aktif
                         </span>
                         <span
-                          className={`ml-1.5 font-normal ${
-                            isDarkMode ? 'text-[#94A3B8]' : 'text-[#5C5549]'
+                          className={`ml-1.5 font-semibold ${
+                            isDarkMode ? 'text-[#94A3B8]' : 'text-[#475569]'
                           }`}
                         >
                           · {completedCourseTasks} Selesai
@@ -865,12 +868,12 @@ export default function App() {
                           aria-label={`Tambah tugas untuk ${course.name}`}
                           className={`min-h-[44px] px-3 rounded-2xl text-xs font-bold flex items-center gap-1 transition-colors ${
                             isDarkMode
-                              ? 'bg-[#1A1F28] text-white hover:bg-[#2E3440]'
-                              : 'bg-white/80 text-[#1E1B18] hover:bg-white'
+                              ? 'bg-[#141821] text-white hover:bg-[#2E3440]'
+                              : 'bg-white text-[#0F172A] hover:bg-[#F8FAFC]'
                           }`}
                         >
                           <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-                          <span>Tambah</span>
+                          <span>Tugas</span>
                         </button>
 
                         <button
@@ -880,9 +883,10 @@ export default function App() {
                             setActiveFilterTab('Semua');
                             setBottomTab('tugas');
                           }}
-                          className="min-h-[44px] px-3.5 rounded-2xl bg-[#1E1B18] hover:bg-[#332E27] text-white text-xs font-bold flex items-center gap-1 transition-colors"
+                          style={{ backgroundColor: course.iconBg }}
+                          className="min-h-[44px] px-3.5 rounded-2xl text-white text-xs font-bold flex items-center gap-1 shadow-2xs transition-opacity hover:opacity-95"
                         >
-                          <span>Lihat Tugas</span>
+                          <span>Buka</span>
                           <ChevronRight
                             className="w-3.5 h-3.5"
                             aria-hidden="true"
@@ -897,7 +901,7 @@ export default function App() {
           </section>
         )}
 
-        {/* Tab 3: Progres (Academic Analytics and Badges) */}
+        {/* Tab 3: Progres (Olympiad Radial Gauge, Colorful Stat Tiles & Podium Trophy Shelf) */}
         {bottomTab === 'progres' && (
           <section
             aria-label="Progres Akademik dan Pencapaian"
@@ -905,153 +909,234 @@ export default function App() {
           >
             <header className="px-5 pt-4 pb-3 flex items-center justify-between">
               <div>
-                <h1 className="text-xl font-bold tracking-tight">
-                  Progres Belajar
+                <h1 className="text-xl font-extrabold tracking-tight">
+                  Progres & Statistik
                 </h1>
                 <p
-                  className={`text-xs mt-0.5 ${
-                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                  className={`text-xs mt-0.5 font-medium ${
+                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                   }`}
                 >
-                  Analitik penyelesaian tugas Semester 5
+                  Analitik capaian belajar Semester 5
                 </p>
               </div>
-              <div className="w-10 h-10 rounded-2xl bg-[#FFEAE6] flex items-center justify-center">
+              <div className="px-3 py-1.5 rounded-2xl bg-[#FFE4E6] text-[#C41E3A] text-xs font-extrabold flex items-center gap-1.5">
                 <Flame
-                  className="w-5 h-5 fill-[#EC6B56] text-[#EC6B56]"
+                  className="w-4 h-4 fill-[#C41E3A] text-[#C41E3A]"
                   aria-hidden="true"
                 />
+                <span className="font-mono tabular-nums">
+                  {STUDENT_METADATA.streakDays} Hari
+                </span>
               </div>
             </header>
 
-            <div className="flex-1 overflow-y-auto px-5 pt-1 pb-28 space-y-4">
-              {/* Warm Coral Streak Banner */}
-              <div className="rounded-3xl bg-[#EC6B56] text-white p-4.5 flex items-center gap-4 shadow-sm">
-                <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
-                  <Flame
-                    className="w-6 h-6 fill-white text-white"
-                    aria-hidden="true"
-                  />
+            <div className="flex-1 overflow-y-auto px-4 pt-1 pb-28 space-y-4">
+              {/* 3 Colorful Bento Stat Tiles: Total Tugas, Tugas Selesai, Tugas Menunggu */}
+              <div className="grid grid-cols-3 gap-2.5">
+                <div className="rounded-3xl bg-[#EEF2FF] border-2 border-[#C7D2FE] p-3.5 flex flex-col justify-between">
+                  <span className="text-[11px] font-extrabold text-[#4338CA]">
+                    Total Tugas
+                  </span>
+                  <span className="mt-2 text-2xl font-extrabold font-mono tabular-nums text-[#312E81]">
+                    {taskMetrics.total}
+                  </span>
+                  <span className="mt-1 text-[10px] font-bold text-[#4F46E5]">
+                    {courses.length} Mata Kuliah
+                  </span>
                 </div>
-                <div>
-                  <h2 className="text-base font-bold tracking-tight">
-                    {STUDENT_METADATA.streakDays} Hari Aktif Berturut-turut!
+
+                <div className="rounded-3xl bg-[#D1FAE5] border-2 border-[#A7F3D0] p-3.5 flex flex-col justify-between">
+                  <span className="text-[11px] font-extrabold text-[#047857]">
+                    Tugas Selesai
+                  </span>
+                  <span className="mt-2 text-2xl font-extrabold font-mono tabular-nums text-[#065F46]">
+                    {taskMetrics.completed}
+                  </span>
+                  <span className="mt-1 text-[10px] font-bold text-[#059669]">
+                    Tuntas Dikerjakan
+                  </span>
+                </div>
+
+                <div className="rounded-3xl bg-[#FEE2E2] border-2 border-[#FECACA] p-3.5 flex flex-col justify-between">
+                  <span className="text-[11px] font-extrabold text-[#BE123C]">
+                    Tugas Menunggu
+                  </span>
+                  <span className="mt-2 text-2xl font-extrabold font-mono tabular-nums text-[#9F1239]">
+                    {taskMetrics.pending}
+                  </span>
+                  <span className="mt-1 text-[10px] font-bold text-[#C41E3A]">
+                    Prioritas Aktif
+                  </span>
+                </div>
+              </div>
+
+              {/* Olympiad-Style Circular Radial Completion Gauge Card */}
+              <div
+                className={`rounded-3xl border-2 p-5 flex items-center gap-5 ${
+                  isDarkMode
+                    ? 'bg-[#1F242D] border-[#2E3440]'
+                    : 'bg-white border-[#E2E8F0] shadow-xs'
+                }`}
+              >
+                <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
+                  <svg
+                    className="w-28 h-28 -rotate-90"
+                    viewBox="0 0 108 108"
+                    aria-hidden="true"
+                  >
+                    <circle
+                      cx="54"
+                      cy="54"
+                      r={radialRadius}
+                      fill="none"
+                      stroke={isDarkMode ? '#2E3440' : '#FFE4E6'}
+                      strokeWidth="10"
+                    />
+                    <circle
+                      cx="54"
+                      cy="54"
+                      r={radialRadius}
+                      fill="none"
+                      stroke="#C41E3A"
+                      strokeWidth="10"
+                      strokeLinecap="round"
+                      strokeDasharray={radialCircumference}
+                      strokeDashoffset={radialStrokeOffset}
+                    />
+                  </svg>
+                  <div className="absolute flex flex-col items-center justify-center">
+                    <span className="text-xl font-extrabold font-mono tabular-nums">
+                      {taskMetrics.completionRate}%
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold ${
+                        isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
+                      }`}
+                    >
+                      Tuntas
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <span className="text-[11px] font-extrabold text-[#C41E3A] uppercase tracking-wider">
+                    Skor Ketuntasan
+                  </span>
+                  <h2 className="text-base font-extrabold mt-0.5 leading-snug">
+                    Performa Akademik Semester 5
                   </h2>
-                  <p className="text-xs text-[#FFEAE6] mt-0.5 leading-relaxed">
-                    Pertahankan ritme pengerjaan tugas kuliahmu minggu ini.
+                  <p
+                    className={`text-xs mt-1 leading-relaxed ${
+                      isDarkMode ? 'text-[#94A3B8]' : 'text-[#475569]'
+                    }`}
+                  >
+                    {taskMetrics.completed} dari {taskMetrics.total} tugas telah diselesaikan tepat waktu.
                   </p>
                 </div>
               </div>
 
-              {/* Circular Radial Progress Gauge + Metrics Breakdown (useMemo) */}
+              {/* Olympiad-Style Podium Trophy Shelf (01, 02, 03 Badges) */}
               <div
-                className={`rounded-3xl border p-5 ${
+                className={`rounded-3xl border-2 p-5 ${
                   isDarkMode
-                    ? 'bg-[#232934] border-[#323A48]'
-                    : 'bg-white border-[#EFE8DC] shadow-xs'
+                    ? 'bg-[#1F242D] border-[#2E3440]'
+                    : 'bg-white border-[#E2E8F0] shadow-xs'
                 }`}
               >
-                <div className="flex items-center gap-5">
-                  <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
-                    <svg
-                      className="w-28 h-28 -rotate-90"
-                      viewBox="0 0 112 112"
-                      aria-hidden="true"
+                <div className="flex items-center justify-between mb-3.5">
+                  <div>
+                    <h3 className="text-sm font-extrabold">
+                      Podium Pencapaian Semester
+                    </h3>
+                    <p
+                      className={`text-[11px] mt-0.5 ${
+                        isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
+                      }`}
                     >
-                      <circle
-                        cx="56"
-                        cy="56"
-                        r={radialRadius}
-                        fill="none"
-                        stroke={isDarkMode ? '#323A48' : '#F4EFE6'}
-                        strokeWidth="10"
-                      />
-                      <circle
-                        cx="56"
-                        cy="56"
-                        r={radialRadius}
-                        fill="none"
-                        stroke="#2A9D8F"
-                        strokeWidth="10"
-                        strokeLinecap="round"
-                        strokeDasharray={radialCircumference}
-                        strokeDashoffset={radialStrokeOffset}
-                      />
-                    </svg>
-                    <div className="absolute flex flex-col items-center justify-center">
-                      <span className="text-xl font-bold font-mono tabular-nums">
-                        {taskMetrics.completionRate}%
-                      </span>
-                      <span
-                        className={`text-[10px] font-semibold ${
-                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
-                        }`}
-                      >
-                        Tuntas
-                      </span>
-                    </div>
+                      Peringkat ketuntasan belajar mahasiswa TI-1
+                    </p>
                   </div>
+                  <Award
+                    className="w-5 h-5 text-[#C41E3A]"
+                    aria-hidden="true"
+                  />
+                </div>
 
-                  <div className="flex-1 space-y-2.5">
+                <div className="space-y-2.5">
+                  {PODIUM_TROPHY_SHELF.map((podium) => (
                     <div
-                      className={`p-2.5 rounded-2xl flex items-center justify-between ${
-                        isDarkMode ? 'bg-[#1A1F28]' : 'bg-[#FDFBF7]'
+                      key={podium.id}
+                      style={
+                        isDarkMode
+                          ? undefined
+                          : {
+                              backgroundColor: podium.cardBg,
+                              borderColor: podium.cardBorder,
+                            }
+                      }
+                      className={`rounded-2xl border-2 p-3 flex items-center justify-between gap-3 ${
+                        isDarkMode ? 'bg-[#141821] border-[#2E3440]' : ''
                       }`}
                     >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          style={{ backgroundColor: podium.rankBg }}
+                          className="w-11 h-11 rounded-2xl text-white font-mono font-extrabold text-sm flex items-center justify-center shrink-0 shadow-xs"
+                        >
+                          #{podium.rank}
+                        </div>
+                        <div className="min-w-0">
+                          <h4
+                            className={`text-xs font-extrabold truncate flex items-center gap-1.5 ${
+                              isDarkMode ? 'text-white' : 'text-[#0F172A]'
+                            }`}
+                          >
+                            <span>
+                              {podium.rank} {podium.title}
+                            </span>
+                            {renderPodiumVectorIcon(
+                              podium.iconKey,
+                              isDarkMode ? '#CBD5E1' : podium.accentColor
+                            )}
+                          </h4>
+                          <p
+                            className={`text-[11px] mt-0.5 truncate ${
+                              isDarkMode ? 'text-[#94A3B8]' : 'text-[#475569]'
+                            }`}
+                          >
+                            {podium.subtitle}
+                          </p>
+                        </div>
+                      </div>
+
                       <span
-                        className={`text-xs font-semibold ${
-                          isDarkMode ? 'text-[#CBD5E1]' : 'text-[#5C5549]'
-                        }`}
+                        style={{
+                          backgroundColor: isDarkMode ? '#1F242D' : '#FFFFFF',
+                          color: isDarkMode ? '#F8FAFC' : podium.accentColor,
+                        }}
+                        className="px-2.5 py-1 rounded-xl text-[11px] font-mono font-extrabold shrink-0 shadow-2xs"
                       >
-                        Total Tugas
-                      </span>
-                      <span className="text-sm font-bold font-mono tabular-nums">
-                        {taskMetrics.total}
+                        {podium.metricBadge}
                       </span>
                     </div>
-
-                    <div
-                      className={`p-2.5 rounded-2xl flex items-center justify-between ${
-                        isDarkMode ? 'bg-[#1A1F28]' : 'bg-[#E6F4F1]/70'
-                      }`}
-                    >
-                      <span className="text-xs font-semibold text-[#1E7A68]">
-                        Tugas Selesai
-                      </span>
-                      <span className="text-sm font-bold font-mono tabular-nums text-[#1E7A68]">
-                        {taskMetrics.completed}
-                      </span>
-                    </div>
-
-                    <div
-                      className={`p-2.5 rounded-2xl flex items-center justify-between ${
-                        isDarkMode ? 'bg-[#1A1F28]' : 'bg-[#FFF3E0]/80'
-                      }`}
-                    >
-                      <span className="text-xs font-semibold text-[#C25E00]">
-                        Tugas Tertunda
-                      </span>
-                      <span className="text-sm font-bold font-mono tabular-nums text-[#C25E00]">
-                        {taskMetrics.pending}
-                      </span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Per-Subject Progress Breakdown */}
+              {/* Per-Subject Colorful Progress Bars */}
               <div
-                className={`rounded-3xl border p-5 ${
+                className={`rounded-3xl border-2 p-5 ${
                   isDarkMode
-                    ? 'bg-[#232934] border-[#323A48]'
-                    : 'bg-white border-[#EFE8DC] shadow-xs'
+                    ? 'bg-[#1F242D] border-[#2E3440]'
+                    : 'bg-white border-[#E2E8F0] shadow-xs'
                 }`}
               >
-                <h3 className="text-sm font-bold mb-3.5">
-                  Progres per Mata Kuliah
+                <h3 className="text-sm font-extrabold mb-3.5">
+                  Capaian per Mata Kuliah
                 </h3>
                 <div className="space-y-3.5">
-                  {COURSE_DIRECTORY.map((course) => {
+                  {courses.map((course) => {
                     const totalForCourse = tasks.filter(
                       (t) =>
                         t.course.toLowerCase() === course.name.toLowerCase()
@@ -1070,9 +1155,9 @@ export default function App() {
                       <div key={course.id} className="flex items-center gap-3">
                         <div
                           style={{ backgroundColor: course.iconBg }}
-                          className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
                         >
-                          {renderCourseVectorIcon(course.iconKey)}
+                          {renderSubjectIconByKey(course.iconKey)}
                         </div>
 
                         <div className="flex-1 min-w-0">
@@ -1080,13 +1165,13 @@ export default function App() {
                             <span className="font-bold truncate">
                               {course.name}
                             </span>
-                            <span className="font-mono tabular-nums font-semibold opacity-80">
+                            <span className="font-mono tabular-nums font-extrabold">
                               {doneForCourse}/{totalForCourse} ({rate}%)
                             </span>
                           </div>
                           <div
-                            className={`h-2 rounded-full overflow-hidden ${
-                              isDarkMode ? 'bg-[#1A1F28]' : 'bg-[#F4EFE6]'
+                            className={`h-2.5 rounded-full overflow-hidden ${
+                              isDarkMode ? 'bg-[#141821]' : 'bg-[#F1F5F9]'
                             }`}
                           >
                             <div
@@ -1103,67 +1188,11 @@ export default function App() {
                   })}
                 </div>
               </div>
-
-              {/* Academic Achievement Badges Shelf */}
-              <div>
-                <h3 className="text-sm font-bold mb-2.5 px-1">
-                  Pencapaian Akademik
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {ACHIEVEMENT_BADGES.map((badge) => {
-                    const isUnlocked =
-                      badge.id === 'badge-semester'
-                        ? taskMetrics.total > 0 && taskMetrics.pending === 0
-                        : true;
-
-                    return (
-                      <div
-                        key={badge.id}
-                        className={`rounded-3xl border p-4 flex flex-col justify-between transition-opacity ${
-                          isDarkMode
-                            ? 'bg-[#232934] border-[#323A48]'
-                            : 'bg-white border-[#EFE8DC] shadow-xs'
-                        } ${isUnlocked ? 'opacity-100' : 'opacity-65'}`}
-                      >
-                        <div className="flex items-center justify-between mb-2.5">
-                          <div
-                            style={{ backgroundColor: badge.tintBg }}
-                            className="w-10 h-10 rounded-2xl flex items-center justify-center"
-                          >
-                            {renderBadgeVectorIcon(
-                              badge.iconKey,
-                              badge.tintColor
-                            )}
-                          </div>
-                          <span
-                            className={`text-[11px] font-bold ${
-                              isUnlocked ? 'text-[#1E7A68]' : 'text-[#8C8476]'
-                            }`}
-                          >
-                            {isUnlocked ? 'Tercapai' : 'Proses'}
-                          </span>
-                        </div>
-
-                        <div>
-                          <h4 className="text-xs font-bold">{badge.title}</h4>
-                          <p
-                            className={`text-[11px] mt-0.5 leading-snug ${
-                              isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
-                            }`}
-                          >
-                            {badge.subtitle}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
             </div>
           </section>
         )}
 
-        {/* Tab 4: Profil (Student Identity and Settings) */}
+        {/* Tab 4: Profil (Student Identity & Operational Settings) */}
         {bottomTab === 'profil' && (
           <section
             aria-label="Profil Mahasiswa dan Pengaturan"
@@ -1171,128 +1200,146 @@ export default function App() {
           >
             <header className="px-5 pt-4 pb-3 flex items-center justify-between">
               <div>
-                <h1 className="text-xl font-bold tracking-tight">
+                <h1 className="text-xl font-extrabold tracking-tight">
                   Profil Mahasiswa
                 </h1>
                 <p
-                  className={`text-xs mt-0.5 ${
-                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                  className={`text-xs mt-0.5 font-medium ${
+                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                   }`}
                 >
-                  Identitas akademik dan preferensi belajar
+                  Kartu identitas akademik STIKOM Poltek Cirebon
                 </p>
               </div>
             </header>
 
-            <div className="flex-1 overflow-y-auto px-5 pt-1 pb-28 space-y-4">
-              {/* Student Identity Card with Mascot Avatar */}
+            <div className="flex-1 overflow-y-auto px-4 pt-1 pb-28 space-y-4">
+              {/* STIKOM Crimson Red & White Student Identity Card */}
               <div
-                className={`rounded-3xl border p-5 text-center ${
+                className={`rounded-3xl border-2 overflow-hidden ${
                   isDarkMode
-                    ? 'bg-[#232934] border-[#323A48]'
-                    : 'bg-white border-[#EFE8DC] shadow-xs'
+                    ? 'bg-[#1F242D] border-[#2E3440]'
+                    : 'bg-white border-[#E2E8F0] shadow-xs'
                 }`}
               >
-                <div className="flex justify-center">
-                  <StudentMascotAvatar size="lg" />
+                <div className="bg-gradient-to-r from-[#C41E3A] to-[#DC2626] px-5 pt-5 pb-10 text-white text-center">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full">
+                    {STUDENT_METADATA.institution}
+                  </span>
                 </div>
 
-                <h2 className="mt-3 text-lg font-bold tracking-tight">
-                  {STUDENT_METADATA.name}
-                </h2>
-                <p className="text-xs font-mono tabular-nums font-semibold text-[#EC6B56] mt-0.5">
-                  NIM {STUDENT_METADATA.nim}
-                </p>
-                <p
-                  className={`text-xs mt-1 ${
-                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#5C5549]'
-                  }`}
-                >
-                  {STUDENT_METADATA.classGroup} · {STUDENT_METADATA.semester} ·{' '}
-                  {STUDENT_METADATA.program}
-                </p>
-                <p
-                  className={`text-xs font-semibold mt-0.5 ${
-                    isDarkMode ? 'text-[#CBD5E1]' : 'text-[#1E1B18]'
-                  }`}
-                >
-                  {STUDENT_METADATA.institution}
-                </p>
-
-                {/* Academic Semester Stats Summary Row */}
-                <div
-                  className={`mt-4 pt-4 border-t grid grid-cols-3 ${
-                    isDarkMode ? 'border-[#323A48]' : 'border-[#EFE8DC]'
-                  }`}
-                >
-                  <div>
-                    <span className="block text-base font-bold font-mono tabular-nums">
-                      {COURSE_DIRECTORY.length}
-                    </span>
-                    <span
-                      className={`text-[11px] ${
-                        isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
-                      }`}
-                    >
-                      Mata Kuliah
-                    </span>
+                <div className="px-5 pb-5 -mt-8 text-center">
+                  <div className="flex justify-center">
+                    <StudentMascotAvatar size="lg" />
                   </div>
-                  <div
-                    className={`border-x ${
-                      isDarkMode ? 'border-[#323A48]' : 'border-[#EFE8DC]'
+
+                  <h2 className="mt-2.5 text-lg font-extrabold tracking-tight">
+                    {STUDENT_METADATA.name}
+                  </h2>
+                  <p className="text-xs font-mono tabular-nums font-extrabold text-[#C41E3A] mt-0.5">
+                    NIM {STUDENT_METADATA.nim}
+                  </p>
+                  <p
+                    className={`text-xs font-medium mt-1 ${
+                      isDarkMode ? 'text-[#94A3B8]' : 'text-[#475569]'
                     }`}
                   >
-                    <span className="block text-base font-bold font-mono tabular-nums">
-                      {taskMetrics.completed}/{taskMetrics.total}
-                    </span>
-                    <span
-                      className={`text-[11px] ${
-                        isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                    Kelas {STUDENT_METADATA.classGroup} {STUDENT_METADATA.semester}{' '}
+                    · {STUDENT_METADATA.program}
+                  </p>
+
+                  {/* Academic Stats Bar: 15 SKS | 5 Mata Kuliah Aktif | Kehadiran 100% */}
+                  <div
+                    className={`mt-4 pt-4 border-t grid grid-cols-3 ${
+                      isDarkMode ? 'border-[#2E3440]' : 'border-[#F1F5F9]'
+                    }`}
+                  >
+                    <div>
+                      <span className="block text-base font-extrabold font-mono tabular-nums">
+                        {totalCredits} SKS
+                      </span>
+                      <span
+                        className={`text-[11px] font-medium ${
+                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
+                        }`}
+                      >
+                        Beban Studi
+                      </span>
+                    </div>
+                    <div
+                      className={`border-x ${
+                        isDarkMode ? 'border-[#2E3440]' : 'border-[#F1F5F9]'
                       }`}
                     >
-                      Tugas Selesai
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-base font-bold font-mono tabular-nums">
-                      {STUDENT_METADATA.streakDays}
-                    </span>
-                    <span
-                      className={`text-[11px] ${
-                        isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
-                      }`}
-                    >
-                      Hari Aktif
-                    </span>
+                      <span className="block text-base font-extrabold font-mono tabular-nums text-[#C41E3A]">
+                        {courses.length} Matkul
+                      </span>
+                      <span
+                        className={`text-[11px] font-medium ${
+                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
+                        }`}
+                      >
+                        Mata Kuliah Aktif
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-base font-extrabold font-mono tabular-nums text-[#059669]">
+                        100%
+                      </span>
+                      <span
+                        className={`text-[11px] font-medium ${
+                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
+                        }`}
+                      >
+                        Kehadiran
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Student-Focused Settings List */}
-              <div
-                className={`rounded-3xl border p-3 space-y-1 ${
+              {/* Preview Welcome Splash Screen Button */}
+              <button
+                type="button"
+                onClick={() => setIsSplashOpen(true)}
+                className={`w-full min-h-[48px] px-4 rounded-3xl border-2 text-xs font-extrabold flex items-center justify-between transition-colors ${
                   isDarkMode
-                    ? 'bg-[#232934] border-[#323A48]'
-                    : 'bg-white border-[#EFE8DC] shadow-xs'
+                    ? 'bg-[#1F242D] border-[#2E3440] text-white hover:border-[#C41E3A]'
+                    : 'bg-[#FEE2E2] border-[#FECACA] text-[#C41E3A] hover:bg-[#FECDD3]'
                 }`}
               >
-                {/* Setting 1: Pengingat Tugas */}
+                <span className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" aria-hidden="true" />
+                  <span>Buka Layar Sambutan</span>
+                </span>
+                <ChevronRight className="w-4 h-4" aria-hidden="true" />
+              </button>
+
+              {/* Student-Focused Settings List */}
+              <div
+                className={`rounded-3xl border-2 p-3 space-y-1 ${
+                  isDarkMode
+                    ? 'bg-[#1F242D] border-[#2E3440]'
+                    : 'bg-white border-[#E2E8F0] shadow-xs'
+                }`}
+              >
+                {/* Setting 1: Pengingat Tugas H-1 */}
                 <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-2xl bg-[#FFEAE6] text-[#EC6B56] flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 rounded-2xl bg-[#FEE2E2] text-[#C41E3A] flex items-center justify-center shrink-0">
                       <Bell className="w-4 h-4" aria-hidden="true" />
                     </div>
                     <div>
                       <span className="text-sm font-bold block">
-                        Pengingat Tugas
+                        Pengingat Tugas H-1
                       </span>
                       <span
                         className={`text-[11px] block ${
-                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                         }`}
                       >
                         {reminderEnabled
-                          ? 'Notifikasi H-1 sebelum tenggat aktif'
+                          ? 'Notifikasi sehari sebelum tenggat aktif'
                           : 'Notifikasi pengingat dinonaktifkan'}
                       </span>
                     </div>
@@ -1302,14 +1349,14 @@ export default function App() {
                     type="button"
                     role="switch"
                     aria-checked={reminderEnabled}
-                    aria-label="Aktifkan atau nonaktifkan pengingat tugas"
+                    aria-label="Aktifkan atau nonaktifkan pengingat tugas H-1"
                     onClick={() => {
                       const next = !reminderEnabled;
                       setReminderEnabled(next);
                       showToastMessage(
                         next
-                          ? 'Pengingat tugas diaktifkan.'
-                          : 'Pengingat tugas dinonaktifkan.'
+                          ? 'Pengingat Tugas H-1 diaktifkan.'
+                          : 'Pengingat Tugas H-1 dinonaktifkan.'
                       );
                     }}
                     className="min-w-[48px] min-h-[44px] flex items-center justify-end"
@@ -1317,10 +1364,10 @@ export default function App() {
                     <span
                       className={`w-12 h-7 rounded-full p-1 transition-colors flex items-center ${
                         reminderEnabled
-                          ? 'bg-[#2A9D8F] justify-end'
+                          ? 'bg-[#C41E3A] justify-end'
                           : isDarkMode
                           ? 'bg-[#323A48] justify-start'
-                          : 'bg-[#DDD5C7] justify-start'
+                          : 'bg-[#CBD5E1] justify-start'
                       }`}
                     >
                       <span className="w-5 h-5 rounded-full bg-white shadow-xs" />
@@ -1331,7 +1378,7 @@ export default function App() {
                 {/* Setting 2: Sinkronisasi Google Calendar */}
                 <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-2xl bg-[#E6F4F1] text-[#1E7A68] flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 rounded-2xl bg-[#D1FAE5] text-[#059669] flex items-center justify-center shrink-0">
                       <Calendar className="w-4 h-4" aria-hidden="true" />
                     </div>
                     <div>
@@ -1340,7 +1387,7 @@ export default function App() {
                       </span>
                       <span
                         className={`text-[11px] block ${
-                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                         }`}
                       >
                         {googleCalendarSync
@@ -1369,10 +1416,10 @@ export default function App() {
                     <span
                       className={`w-12 h-7 rounded-full p-1 transition-colors flex items-center ${
                         googleCalendarSync
-                          ? 'bg-[#2A9D8F] justify-end'
+                          ? 'bg-[#C41E3A] justify-end'
                           : isDarkMode
                           ? 'bg-[#323A48] justify-start'
-                          : 'bg-[#DDD5C7] justify-start'
+                          : 'bg-[#CBD5E1] justify-start'
                       }`}
                     >
                       <span className="w-5 h-5 rounded-full bg-white shadow-xs" />
@@ -1383,7 +1430,7 @@ export default function App() {
                 {/* Setting 3: Pembaruan SIAKAD Otomatis */}
                 <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-2xl bg-[#F3EEFF] text-[#6D28D9] flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 rounded-2xl bg-[#EEF2FF] text-[#4F46E5] flex items-center justify-center shrink-0">
                       <RefreshCw className="w-4 h-4" aria-hidden="true" />
                     </div>
                     <div>
@@ -1392,11 +1439,11 @@ export default function App() {
                       </span>
                       <span
                         className={`text-[11px] block ${
-                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                         }`}
                       >
                         {siakadAutoUpdate
-                          ? 'Terhubung dengan portal akademik kampus'
+                          ? 'Terhubung dengan portal SIAKAD STIKOM'
                           : 'Pembaruan otomatis SIAKAD dimatikan'}
                       </span>
                     </div>
@@ -1421,10 +1468,10 @@ export default function App() {
                     <span
                       className={`w-12 h-7 rounded-full p-1 transition-colors flex items-center ${
                         siakadAutoUpdate
-                          ? 'bg-[#2A9D8F] justify-end'
+                          ? 'bg-[#C41E3A] justify-end'
                           : isDarkMode
                           ? 'bg-[#323A48] justify-start'
-                          : 'bg-[#DDD5C7] justify-start'
+                          : 'bg-[#CBD5E1] justify-start'
                       }`}
                     >
                       <span className="w-5 h-5 rounded-full bg-white shadow-xs" />
@@ -1435,7 +1482,7 @@ export default function App() {
                 {/* Setting 4: Mode Tampilan */}
                 <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-2xl bg-[#EAF2FF] text-[#2563EB] flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 rounded-2xl bg-[#CFFAFE] text-[#0891B2] flex items-center justify-center shrink-0">
                       {isDarkMode ? (
                         <Moon className="w-4 h-4" aria-hidden="true" />
                       ) : (
@@ -1448,10 +1495,10 @@ export default function App() {
                       </span>
                       <span
                         className={`text-[11px] block ${
-                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                         }`}
                       >
-                        {isDarkMode ? 'Mode Gelap Aktif' : 'Mode Hangat (Krem)'}
+                        {isDarkMode ? 'Mode Gelap Aktif' : 'Mode Terang STIKOM'}
                       </span>
                     </div>
                   </div>
@@ -1467,7 +1514,7 @@ export default function App() {
                       showToastMessage(
                         next
                           ? 'Mode tampilan gelap diaktifkan.'
-                          : 'Mode tampilan hangat diaktifkan.'
+                          : 'Mode tampilan terang STIKOM diaktifkan.'
                       );
                     }}
                     className="min-w-[48px] min-h-[44px] flex items-center justify-end"
@@ -1475,8 +1522,8 @@ export default function App() {
                     <span
                       className={`w-12 h-7 rounded-full p-1 transition-colors flex items-center ${
                         isDarkMode
-                          ? 'bg-[#EC6B56] justify-end'
-                          : 'bg-[#DDD5C7] justify-start'
+                          ? 'bg-[#C41E3A] justify-end'
+                          : 'bg-[#CBD5E1] justify-start'
                       }`}
                     >
                       <span className="w-5 h-5 rounded-full bg-white shadow-xs" />
@@ -1489,7 +1536,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={handleResetTasks}
-                className="w-full min-h-[50px] rounded-3xl bg-[#EC6B56] hover:bg-[#D95540] text-white text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-colors"
+                className="w-full min-h-[50px] rounded-3xl bg-[#C41E3A] hover:bg-[#A3162E] text-white text-sm font-extrabold flex items-center justify-center gap-2 shadow-sm transition-colors"
               >
                 <RotateCcw className="w-4 h-4" aria-hidden="true" />
                 <span>Atur Ulang Data</span>
@@ -1498,13 +1545,13 @@ export default function App() {
           </section>
         )}
 
-        {/* Persistent 4-Tab Bottom Navigation Bar */}
+        {/* Persistent 4-Tab Bottom Navigation Bar (STIKOM Crimson Red Active Capsule) */}
         <nav
           aria-label="Navigasi Utama Aplikasi"
-          className={`absolute bottom-3 left-4 right-4 z-30 rounded-[28px] border p-1.5 flex items-center justify-between shadow-lg transition-colors ${
+          className={`absolute bottom-3 left-4 right-4 z-30 rounded-[28px] border-2 p-1.5 flex items-center justify-between shadow-lg transition-colors ${
             isDarkMode
-              ? 'bg-[#1F242D]/95 border-[#323A48] backdrop-blur-md'
-              : 'bg-white/95 border-[#EFE8DC] backdrop-blur-md'
+              ? 'bg-[#1F242D]/95 border-[#2E3440] backdrop-blur-md'
+              : 'bg-white/95 border-[#E2E8F0] backdrop-blur-md'
           }`}
         >
           {(
@@ -1541,12 +1588,12 @@ export default function App() {
                 onClick={() => setBottomTab(item.key)}
                 aria-current={isSelected ? 'page' : undefined}
                 aria-label={item.label}
-                className={`min-h-[44px] min-w-[48px] px-3.5 rounded-[22px] flex items-center justify-center gap-1.5 text-xs font-bold transition-all duration-150 ${
+                className={`min-h-[44px] min-w-[48px] px-3.5 rounded-[22px] flex items-center justify-center gap-1.5 text-xs font-extrabold transition-all duration-150 ${
                   isSelected
-                    ? 'bg-[#EC6B56] text-white shadow-xs flex-1 max-w-[140px]'
+                    ? 'bg-[#C41E3A] text-white shadow-xs flex-1 max-w-[140px]'
                     : isDarkMode
                     ? 'text-[#94A3B8] hover:text-white'
-                    : 'text-[#8C8476] hover:text-[#1E1B18]'
+                    : 'text-[#64748B] hover:text-[#0F172A]'
                 }`}
               >
                 <IconComponent
@@ -1562,15 +1609,49 @@ export default function App() {
             );
           })}
         </nav>
+
+        {/* Screen 0: Welcome Brand Splash Modal (STIKOM Poltek Cirebon) */}
+        <WelcomeSplashModal
+          isOpen={isSplashOpen}
+          onStartLearning={() => setIsSplashOpen(false)}
+          pendingCount={taskMetrics.pending}
+          totalCourses={courses.length}
+        />
       </main>
 
-      {/* Slide-Up Add Task Bottom Sheet Modal (with useRef auto-focus & quick date chips) */}
+      {/* Slide-Up Add Task Bottom Sheet Modal */}
       <AddTaskSheet
         isOpen={isAddSheetOpen}
         onClose={() => setIsAddSheetOpen(false)}
         onAddTask={handleAddTask}
         titleInputRef={titleInputRef}
+        courses={courses}
         initialCourse={preselectedCourseForAdd}
+        onRequestCalendarPicker={handleRequestCalendarPicker}
+        isDarkMode={isDarkMode}
+      />
+
+      {/* Slide-Up Add Course Bottom Sheet Modal */}
+      <AddCourseSheet
+        isOpen={isAddCourseOpen}
+        onClose={() => setIsAddCourseOpen(false)}
+        onAddCourse={handleAddCourse}
+        isDarkMode={isDarkMode}
+      />
+
+      {/* Full Interactive Month & Year Calendar Modal */}
+      <CalendarModal
+        isOpen={isCalendarModalOpen}
+        onClose={() => setIsCalendarModalOpen(false)}
+        selectedDateLabel={selectedDayDate}
+        onSelectDate={(dateLabel) => {
+          setSelectedDayDate(dateLabel);
+          if (calendarPickerCallback) {
+            calendarPickerCallback(dateLabel);
+          }
+        }}
+        tasks={tasks}
+        mode={calendarModalMode}
         isDarkMode={isDarkMode}
       />
     </div>

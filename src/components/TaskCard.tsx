@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Check,
   Trash2,
@@ -6,157 +6,241 @@ import {
   Cpu,
   Database,
   ShieldCheck,
-  Layers,
+  Terminal,
   BookOpen,
+  BarChart2,
+  Layers,
+  Globe,
+  Smartphone,
+  Palette,
+  Briefcase,
   Calendar,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
-import { AcademicTask } from '../types/task';
-import { COURSE_DIRECTORY } from '../data/initialTasks';
+import { AcademicTask, CourseDetail, CourseIconKey } from '../types/task';
+import { INITIAL_COURSES } from '../data/initialTasks';
 
 export interface TaskCardProps {
   task: AcademicTask;
   onToggleStatus: (id: string) => void;
   onDeleteTask: (id: string) => void;
+  courses?: readonly CourseDetail[];
   isDarkMode?: boolean;
 }
 
-function getCourseStyleAndIcon(courseName: string) {
-  const matched = COURSE_DIRECTORY.find(
+export function renderSubjectIconByKey(
+  iconKey: CourseIconKey,
+  className = 'w-6 h-6 text-white'
+) {
+  switch (iconKey) {
+    case 'code':
+      return <Code2 className={className} aria-hidden="true" />;
+    case 'cpu':
+      return <Cpu className={className} aria-hidden="true" />;
+    case 'database':
+      return <Database className={className} aria-hidden="true" />;
+    case 'shield':
+      return <ShieldCheck className={className} aria-hidden="true" />;
+    case 'terminal':
+      return <Terminal className={className} aria-hidden="true" />;
+    case 'book-open':
+      return <BookOpen className={className} aria-hidden="true" />;
+    case 'bar-chart-2':
+      return <BarChart2 className={className} aria-hidden="true" />;
+    case 'layers':
+      return <Layers className={className} aria-hidden="true" />;
+    case 'globe':
+      return <Globe className={className} aria-hidden="true" />;
+    case 'smartphone':
+      return <Smartphone className={className} aria-hidden="true" />;
+    case 'palette':
+      return <Palette className={className} aria-hidden="true" />;
+    case 'briefcase':
+      return <Briefcase className={className} aria-hidden="true" />;
+    default:
+      return <BookOpen className={className} aria-hidden="true" />;
+  }
+}
+
+function getCourseBentoStyle(
+  courseName: string,
+  courses: readonly CourseDetail[]
+) {
+  const matched = courses.find(
     (c) => c.name.toLowerCase() === courseName.toLowerCase()
   );
-  const normalized = courseName.toLowerCase();
 
-  let icon = <BookOpen className="w-4 h-4 text-white" aria-hidden="true" />;
+  if (matched) {
+    return {
+      icon: renderSubjectIconByKey(matched.iconKey, 'w-6 h-6 text-white'),
+      iconBg: matched.iconBg,
+      pastelBg: matched.pastelBg,
+      pastelBorder: matched.pastelBorder,
+      accentColor: matched.accentColor,
+    };
+  }
+
+  const normalized = courseName.toLowerCase();
+  let fallbackKey: CourseIconKey = 'book-open';
   if (normalized.includes('visual') || normalized.includes('mobile')) {
-    icon = <Code2 className="w-4 h-4 text-white" aria-hidden="true" />;
+    fallbackKey = 'code';
   } else if (normalized.includes('robot')) {
-    icon = <Cpu className="w-4 h-4 text-white" aria-hidden="true" />;
+    fallbackKey = 'cpu';
   } else if (normalized.includes('data') || normalized.includes('warehouse')) {
-    icon = <Database className="w-4 h-4 text-white" aria-hidden="true" />;
+    fallbackKey = 'database';
   } else if (normalized.includes('keamanan') || normalized.includes('jaringan')) {
-    icon = <ShieldCheck className="w-4 h-4 text-white" aria-hidden="true" />;
+    fallbackKey = 'shield';
   } else if (normalized.includes('objek') || normalized.includes('pbo')) {
-    icon = <Layers className="w-4 h-4 text-white" aria-hidden="true" />;
+    fallbackKey = 'layers';
   }
 
   return {
-    icon,
-    iconBg: matched?.iconBg ?? '#EC6B56',
-    pastelBg: matched?.pastelBg ?? '#FFEAE6',
-    accentColor: matched?.accentColor ?? '#C84332',
+    icon: renderSubjectIconByKey(fallbackKey, 'w-6 h-6 text-white'),
+    iconBg: '#C41E3A',
+    pastelBg: '#FEE2E2',
+    pastelBorder: '#FECACA',
+    accentColor: '#C41E3A',
   };
 }
 
 /*
- * Pure child component receiving task data and action callbacks via Props.
- * Maintains 44x44pt minimum touch hitboxes and WCAG AA contrast ratios.
+ * Compact Bento TaskCard component receiving data and action callbacks via Props.
+ * Description text is collapsed by default and expands smoothly on card tap
+ * so the primary feed stays clean and scannable.
  */
 export const TaskCard: React.FC<TaskCardProps> = React.memo(
-  ({ task, onToggleStatus, onDeleteTask, isDarkMode = false }) => {
+  ({
+    task,
+    onToggleStatus,
+    onDeleteTask,
+    courses = INITIAL_COURSES,
+    isDarkMode = false,
+  }) => {
+    const [isExpanded, setIsExpanded] = useState<boolean>(false);
     const isCompleted = task.status === 'Selesai';
-    const { icon, iconBg } = getCourseStyleAndIcon(task.course);
+    const { icon, iconBg, pastelBg, pastelBorder, accentColor } =
+      getCourseBentoStyle(task.course, courses);
 
     return (
       <article
-        className={`relative rounded-3xl border transition-all duration-150 p-4 ${
+        style={
+          isDarkMode
+            ? undefined
+            : {
+                backgroundColor: isCompleted ? '#F8FAFC' : pastelBg,
+                borderColor: isCompleted ? '#E2E8F0' : pastelBorder,
+              }
+        }
+        className={`relative rounded-3xl border-2 transition-all duration-150 p-3.5 ${
           isDarkMode
             ? isCompleted
               ? 'bg-[#1F242D]/60 border-[#2E3440]'
               : 'bg-[#232934] border-[#323A48]'
-            : isCompleted
-            ? 'bg-[#F4EFE6]/85 border-[#E6DEC8]'
-            : 'bg-white border-[#EFE8DC] shadow-xs'
+            : 'shadow-xs'
         }`}
       >
-        <div className="flex items-start gap-3.5">
-          {/* Subject Vector Icon Badge */}
+        <div className="flex items-center gap-3.5">
+          {/* Left: 48x48pt Rounded Container in Course Accent Color */}
           <div
             style={{ backgroundColor: iconBg }}
-            className={`mt-0.5 w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 transition-opacity ${
-              isCompleted ? 'opacity-55' : 'opacity-100'
+            onClick={() => setIsExpanded((prev) => !prev)}
+            className={`w-12 h-12 min-w-[48px] min-h-[48px] rounded-2xl flex items-center justify-center shrink-0 shadow-xs cursor-pointer transition-opacity ${
+              isCompleted ? 'opacity-50' : 'opacity-100'
             }`}
           >
             {icon}
           </div>
 
-          {/* Task Content Column */}
+          {/* Center: 1-Line Bold Assignment Title, Course Subtitle & Deadline */}
           <div
             className="flex-1 min-w-0 cursor-pointer select-none"
-            onClick={() => onToggleStatus(task.id)}
+            onClick={() => setIsExpanded((prev) => !prev)}
+            role="button"
+            tabIndex={0}
+            aria-expanded={isExpanded}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setIsExpanded((prev) => !prev);
+              }
+            }}
           >
-            {/* Unboxed Course & Status Line */}
-            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs font-semibold">
+            <div className="flex items-center gap-1.5 text-[11px] font-extrabold">
               <span
-                className={`truncate ${
-                  isDarkMode ? 'text-[#CBD5E1]' : 'text-[#5C5549]'
-                }`}
+                style={{
+                  color: isDarkMode ? '#CBD5E1' : accentColor,
+                }}
+                className="truncate"
               >
                 {task.course}
               </span>
               <span
                 aria-hidden="true"
-                className={isDarkMode ? 'text-[#64748B]' : 'text-[#A39B8B]'}
+                className={isDarkMode ? 'text-[#64748B]' : 'text-[#64748B]'}
               >
                 ·
               </span>
               <span
                 className={
                   isCompleted
-                    ? isDarkMode
-                      ? 'text-[#34D399]'
-                      : 'text-[#1E7A68]'
+                    ? 'text-[#059669]'
                     : isDarkMode
                     ? 'text-[#FBBF24]'
-                    : 'text-[#C25E00]'
+                    : 'text-[#0F172A]'
                 }
               >
                 {task.status}
               </span>
             </div>
 
-            {/* Task Title */}
+            {/* 1-Line Bold Assignment Title */}
             <h3
-              className={`mt-1 text-[15px] font-bold leading-snug transition-colors ${
+              className={`mt-0.5 text-sm font-extrabold leading-snug ${
+                isExpanded ? '' : 'truncate'
+              } ${
                 isCompleted
-                  ? isDarkMode
-                    ? 'line-through text-[#64748B]'
-                    : 'line-through text-[#8C8476]'
+                  ? 'line-through text-[#64748B]'
                   : isDarkMode
-                  ? 'text-[#F8FAFC]'
-                  : 'text-[#1E1B18]'
+                  ? 'text-white'
+                  : 'text-[#0F172A]'
               }`}
             >
               {task.title}
             </h3>
 
-            {/* Task Description */}
-            <p
-              className={`mt-1.5 text-xs leading-relaxed ${
-                isCompleted
-                  ? isDarkMode
+            {/* High-Contrast Deadline Row + Expand Indicator */}
+            <div className="mt-1.5 flex items-center justify-between gap-2">
+              <div
+                className={`inline-flex items-center gap-1 text-[11px] font-mono tabular-nums font-bold ${
+                  isCompleted
                     ? 'text-[#64748B]'
-                    : 'text-[#968E80]'
-                  : isDarkMode
-                  ? 'text-[#94A3B8]'
-                  : 'text-[#5C5549]'
-              }`}
-            >
-              {task.description}
-            </p>
+                    : isDarkMode
+                    ? 'text-[#CBD5E1]'
+                    : 'text-[#0F172A]'
+                }`}
+              >
+                <Calendar className="w-3 h-3 shrink-0" aria-hidden="true" />
+                <span>{task.deadline}</span>
+              </div>
 
-            {/* Unboxed Footer Deadline */}
-            <div
-              className={`mt-2.5 flex items-center gap-1.5 text-xs font-mono tabular-nums ${
-                isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-              <span>Tenggat: {task.deadline}</span>
+              <span
+                className={`inline-flex items-center gap-0.5 text-[10px] font-bold ${
+                  isDarkMode ? 'text-[#94A3B8]' : 'text-[#475569]'
+                }`}
+              >
+                <span>{isExpanded ? 'Tutup' : 'Rincian'}</span>
+                {isExpanded ? (
+                  <ChevronUp className="w-3 h-3" aria-hidden="true" />
+                ) : (
+                  <ChevronDown className="w-3 h-3" aria-hidden="true" />
+                )}
+              </span>
             </div>
           </div>
 
-          {/* Right Action Controls: 44x44pt minimum touch targets */}
-          <div className="flex items-center gap-0.5 shrink-0 -mr-1.5 -mt-1">
+          {/* Right: 44x44pt Tactile Checkmark Toggle & Delete Button */}
+          <div className="flex items-center gap-0.5 shrink-0 -mr-1.5">
             <button
               type="button"
               onClick={() => onToggleStatus(task.id)}
@@ -171,10 +255,10 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(
               <span
                 className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors duration-150 ${
                   isCompleted
-                    ? 'bg-[#2A9D8F] border-[#2A9D8F] text-white'
+                    ? 'bg-[#059669] border-[#059669] text-white'
                     : isDarkMode
-                    ? 'bg-transparent border-[#64748B] hover:border-[#EC6B56]'
-                    : 'bg-transparent border-[#B5AC9C] hover:border-[#EC6B56]'
+                    ? 'bg-transparent border-[#94A3B8] hover:border-[#C41E3A]'
+                    : 'bg-white border-[#0F172A]/40 hover:border-[#C41E3A]'
                 }`}
               >
                 {isCompleted && (
@@ -191,13 +275,26 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(
               className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-2xl transition-colors ${
                 isDarkMode
                   ? 'text-[#94A3B8] hover:text-[#F87171] hover:bg-[#3B2329]'
-                  : 'text-[#8C8476] hover:text-[#C84332] hover:bg-[#FFEAE6]'
+                  : 'text-[#475569] hover:text-[#C41E3A] hover:bg-white/70'
               }`}
             >
               <Trash2 className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         </div>
+
+        {/* Expandable Accordion Instructions */}
+        {isExpanded && (
+          <div
+            className={`mt-3 pt-2.5 border-t text-xs leading-relaxed ${
+              isDarkMode
+                ? 'border-[#323A48] text-[#CBD5E1]'
+                : 'border-black/10 text-[#1E293B]'
+            }`}
+          >
+            {task.description}
+          </div>
+        )}
       </article>
     );
   }

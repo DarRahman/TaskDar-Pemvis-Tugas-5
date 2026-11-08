@@ -2,22 +2,85 @@ import {
   AcademicTask,
   TaskAction,
   CourseDetail,
-  AchievementBadge,
+  CourseColorTheme,
+  CourseIconKey,
+  PodiumTrophyItem,
 } from '../types/task';
 
 export const STUDENT_METADATA = {
   name: 'Badar Rahman',
+  shortName: 'Badar',
   nim: '14524303',
   classGroup: 'Kelas TI-1',
   semester: 'Semester 5',
   program: 'Teknik Informatika',
   institution: 'STIKOM Poltek Cirebon',
-  academicYear: 'Tahun Akademik 2026/2027',
+  attendanceRate: '100%',
   streakDays: 6,
-  repository: 'DarRahman/pemvis-tugas5-task-manager',
 } as const;
 
-export const COURSE_DIRECTORY: readonly CourseDetail[] = [
+export const SUBJECT_ICON_OPTIONS: readonly {
+  key: CourseIconKey;
+  label: string;
+}[] = [
+  { key: 'code', label: 'Kode' },
+  { key: 'cpu', label: 'Robotik' },
+  { key: 'database', label: 'Basis Data' },
+  { key: 'shield', label: 'Keamanan' },
+  { key: 'terminal', label: 'Terminal' },
+  { key: 'book-open', label: 'Teori' },
+  { key: 'bar-chart-2', label: 'Analitik' },
+  { key: 'layers', label: 'Arsitektur' },
+  { key: 'globe', label: 'Jaringan' },
+  { key: 'smartphone', label: 'Mobile' },
+  { key: 'palette', label: 'Desain' },
+  { key: 'briefcase', label: 'Proyek' },
+];
+
+export const BENTO_COLOR_THEMES: readonly CourseColorTheme[] = [
+  {
+    id: 'crimson',
+    name: 'Merah Koral',
+    pastelBg: '#FEE2E2',
+    pastelBorder: '#FECACA',
+    accentColor: '#C41E3A',
+    iconBg: '#C41E3A',
+  },
+  {
+    id: 'indigo',
+    name: 'Indigo Tekno',
+    pastelBg: '#EEF2FF',
+    pastelBorder: '#C7D2FE',
+    accentColor: '#4F46E5',
+    iconBg: '#4F46E5',
+  },
+  {
+    id: 'amber',
+    name: 'Jingga Amber',
+    pastelBg: '#FEF3C7',
+    pastelBorder: '#FDE68A',
+    accentColor: '#D97706',
+    iconBg: '#D97706',
+  },
+  {
+    id: 'emerald',
+    name: 'Hijau Zamrud',
+    pastelBg: '#D1FAE5',
+    pastelBorder: '#A7F3D0',
+    accentColor: '#059669',
+    iconBg: '#059669',
+  },
+  {
+    id: 'cyan',
+    name: 'Sian Elektrik',
+    pastelBg: '#CFFAFE',
+    pastelBorder: '#A5F3FC',
+    accentColor: '#0891B2',
+    iconBg: '#0891B2',
+  },
+];
+
+export const INITIAL_COURSES: CourseDetail[] = [
   {
     id: 'course-ti361',
     code: 'TI361',
@@ -27,10 +90,10 @@ export const COURSE_DIRECTORY: readonly CourseDetail[] = [
     room: 'Lab Mobile 1',
     credits: 3,
     iconKey: 'code',
-    pastelBg: '#E6F4F1',
-    pastelBorder: '#BFE3DC',
-    accentColor: '#1E7A68',
-    iconBg: '#2A9D8F',
+    pastelBg: '#FEE2E2',
+    pastelBorder: '#FECACA',
+    accentColor: '#C41E3A',
+    iconBg: '#C41E3A',
   },
   {
     id: 'course-ti362',
@@ -41,10 +104,10 @@ export const COURSE_DIRECTORY: readonly CourseDetail[] = [
     room: 'Lab IoT & Robotika',
     credits: 3,
     iconKey: 'cpu',
-    pastelBg: '#EAF2FF',
-    pastelBorder: '#C5DCFA',
-    accentColor: '#2563EB',
-    iconBg: '#3B82F6',
+    pastelBg: '#EEF2FF',
+    pastelBorder: '#C7D2FE',
+    accentColor: '#4F46E5',
+    iconBg: '#4F46E5',
   },
   {
     id: 'course-ti363',
@@ -55,10 +118,10 @@ export const COURSE_DIRECTORY: readonly CourseDetail[] = [
     room: 'Ruang 304',
     credits: 3,
     iconKey: 'database',
-    pastelBg: '#F3EEFF',
-    pastelBorder: '#D9C8FF',
-    accentColor: '#6D28D9',
-    iconBg: '#7C3AED',
+    pastelBg: '#FEF3C7',
+    pastelBorder: '#FDE68A',
+    accentColor: '#D97706',
+    iconBg: '#D97706',
   },
   {
     id: 'course-ti364',
@@ -69,10 +132,10 @@ export const COURSE_DIRECTORY: readonly CourseDetail[] = [
     room: 'Lab Jaringan',
     credits: 3,
     iconKey: 'shield',
-    pastelBg: '#FFF3E0',
-    pastelBorder: '#FCD9A8',
-    accentColor: '#C25E00',
-    iconBg: '#EA8C28',
+    pastelBg: '#D1FAE5',
+    pastelBorder: '#A7F3D0',
+    accentColor: '#059669',
+    iconBg: '#059669',
   },
   {
     id: 'course-ti365',
@@ -83,59 +146,65 @@ export const COURSE_DIRECTORY: readonly CourseDetail[] = [
     room: 'Lab Pemrograman 2',
     credits: 3,
     iconKey: 'layers',
-    pastelBg: '#FFEAE6',
-    pastelBorder: '#FBC7BE',
-    accentColor: '#C84332',
-    iconBg: '#EC6B56',
+    pastelBg: '#CFFAFE',
+    pastelBorder: '#A5F3FC',
+    accentColor: '#0891B2',
+    iconBg: '#0891B2',
   },
 ];
 
-export const SEMESTER_5_COURSES: readonly string[] = COURSE_DIRECTORY.map(
+export const COURSE_DIRECTORY = INITIAL_COURSES;
+
+export const SEMESTER_5_COURSES: readonly string[] = INITIAL_COURSES.map(
   (course) => course.name
 );
 
-export const ACHIEVEMENT_BADGES: readonly AchievementBadge[] = [
+export const PODIUM_TROPHY_SHELF: readonly PodiumTrophyItem[] = [
   {
-    id: 'badge-ontime',
+    id: 'trophy-01',
+    rank: '01',
     title: 'Tepat Waktu',
-    subtitle: 'Menyelesaikan tugas sebelum tenggat',
+    subtitle: 'Menuntaskan pengumpulan tugas sebelum batas waktu berakhir',
+    metricBadge: '100% Disiplin',
     iconKey: 'clock',
-    tintBg: '#E6F4F1',
-    tintColor: '#1E7A68',
+    cardBg: '#FEE2E2',
+    cardBorder: '#FECACA',
+    rankBg: '#C41E3A',
+    accentColor: '#991B1B',
   },
   {
-    id: 'badge-consistent',
-    title: 'Konsisten',
-    subtitle: 'Aktif belajar 6 hari berturut-turut',
-    iconKey: 'flame',
-    tintBg: '#FFEAE6',
-    tintColor: '#EC6B56',
-  },
-  {
-    id: 'badge-lab',
-    title: 'Modul Praktikum',
-    subtitle: 'Menuntaskan latihan lab & jaringan',
+    id: 'trophy-02',
+    rank: '02',
+    title: 'Pejuang Praktikum',
+    subtitle: 'Menyelesaikan modul laboratorium jaringan dan robotika',
+    metricBadge: 'Lab Tuntas',
     iconKey: 'terminal',
-    tintBg: '#EAF2FF',
-    tintColor: '#2563EB',
+    cardBg: '#EEF2FF',
+    cardBorder: '#C7D2FE',
+    rankBg: '#4F46E5',
+    accentColor: '#3730A3',
   },
   {
-    id: 'badge-semester',
-    title: 'Tuntas Semester',
-    subtitle: 'Selesaikan seluruh tugas aktif',
-    iconKey: 'award',
-    tintBg: '#FFF3E0',
-    tintColor: '#C25E00',
+    id: 'trophy-03',
+    rank: '03',
+    title: 'Konsisten Semester',
+    subtitle: 'Mempertahankan ritme belajar aktif setiap hari tanpa putus',
+    metricBadge: '6 Hari Aktif',
+    iconKey: 'flame',
+    cardBg: '#FEF3C7',
+    cardBorder: '#FDE68A',
+    rankBg: '#D97706',
+    accentColor: '#92400E',
   },
 ];
 
 export const INITIAL_TASKS: AcademicTask[] = [
   {
     id: 'task-ti361-01',
-    title: 'Tugas Pertemuan 5 - Implementasi React Native Hooks',
+    title: 'Tugas Pertemuan 5 - Aplikasi Manajemen Tugas Mahasiswa',
     course: 'Pemrograman Visual I',
     description:
-      'Membangun aplikasi to-do dengan Props, useState, useEffect, useMemo, useCallback, useRef, dan useReducer.',
+      'Merancang antarmuka aplikasi daftar tugas mahasiswa dengan fitur pencarian langsung, filter status penyelesaian, dan ringkasan progres.',
     deadline: '09 Nov 2026',
     status: 'Belum Dikerjakan',
   },
@@ -153,7 +222,7 @@ export const INITIAL_TASKS: AcademicTask[] = [
     title: 'Analisis 3V Big Data Tokopedia dan Shopee',
     course: 'Data Warehouse & Data Mining',
     description:
-      'Arsitektur data lake, streaming kafka, dan pemisahan sistem OLTP vs OLAP.',
+      'Arsitektur data lake, pemrosesan aliran data, dan pemisahan sistem transaksi dengan analitik.',
     deadline: '07 Nov 2026',
     status: 'Selesai',
   },
@@ -162,7 +231,7 @@ export const INITIAL_TASKS: AcademicTask[] = [
     title: 'Praktikum Modul 1.4.1 - Uji Port Nmap Kali Linux',
     course: 'Keamanan Informasi & Jaringan',
     description:
-      'Pengujian network scanner Nmap 7.99 pada subsistem WSL Kali Linux.',
+      'Pengujian pemindaian port jaringan menggunakan Nmap 7.99 pada lingkungan Kali Linux.',
     deadline: '05 Nov 2026',
     status: 'Selesai',
   },
@@ -171,7 +240,7 @@ export const INITIAL_TASKS: AcademicTask[] = [
     title: 'Analisis OOM Perancangan Sistem Pasar Cirebon',
     course: 'Pemodelan Berorientasi Objek',
     description:
-      'Pemodelan class diagram dan use case spesifikasi harga pangan Cirebon.',
+      'Pemodelan diagram kelas dan skenario kebutuhan spesifikasi harga pangan daerah Cirebon.',
     deadline: '14 Nov 2026',
     status: 'Belum Dikerjakan',
   },
