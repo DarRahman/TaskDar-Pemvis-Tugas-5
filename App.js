@@ -24,6 +24,7 @@ import {
   Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { registerRootComponent } from 'expo';
 
 /*
  * Paket Aset Visual Lokal TaskDar (Tersedia di folder /public/assets/ proyek ini):
@@ -1989,3 +1990,5 @@ const styles = StyleSheet.create({
   navTabBtnActive: { backgroundColor: '#C41E3A', flex: 1 },
   navTabLabel: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
 });
+
+registerRootComponent(App);
