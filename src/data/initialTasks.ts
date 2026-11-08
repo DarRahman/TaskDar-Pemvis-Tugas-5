@@ -17,7 +17,7 @@ export const STUDENT_METADATA = {
   program: 'Teknik Informatika',
   institution: 'STIKOM Poltek Cirebon',
   email: 'badarrahman1905@gmail.com',
-  avatarUrl: '/assets/mascot-splash.jpg',
+  avatarUrl: '/assets/mascot-splash.webp',
   attendanceRate: '100%',
   streakDays: 6,
 } as const;
@@ -59,9 +59,6 @@ export const WEEKDAY_FILTER_ITEMS = [
   { dayShort: 'Min', dayFull: 'Minggu' },
 ] as const;
 
-/*
- * Formats any JavaScript Date object into the standard Indonesian date label (e.g. '08 Nov 2026').
- */
 export function formatDateToIndonesianLabel(dateObj: Date): string {
   const day = dateObj.getDate();
   const dayPadded = day < 10 ? `0${day}` : `${day}`;
@@ -70,14 +67,8 @@ export function formatDateToIndonesianLabel(dateObj: Date): string {
   return `${dayPadded} ${monthShort} ${year}`;
 }
 
-/*
- * Parses an Indonesian date string (e.g. '08 Nov 2026', '18 Nov 2026', '04 Des 2026')
- * using accurate JavaScript Date math and returns its Indonesian day of the week
- * ('Senin' .. 'Minggu').
- */
-export function getIndonesianDayFromDateLabel(
-  dateLabel: string
-): string | null {
+export function parseIndonesianDateLabel(dateLabel: string): Date | null {
+  if (!dateLabel) return null;
   const parts = dateLabel.trim().split(/\s+/);
   if (parts.length >= 3) {
     const dayNum = parseInt(parts[0], 10);
@@ -90,18 +81,144 @@ export function getIndonesianDayFromDateLabel(
 
     if (!Number.isNaN(dayNum) && monthIndex >= 0 && !Number.isNaN(yearNum)) {
       const dateObj = new Date(yearNum, monthIndex, dayNum);
+      dateObj.setHours(0, 0, 0, 0);
       if (!Number.isNaN(dateObj.getTime())) {
-        return INDONESIAN_DAY_NAMES_JS_ORDER[dateObj.getDay()] ?? null;
+        return dateObj;
       }
     }
   }
   return null;
 }
 
-/*
- * Extracts the scheduled day of the week from a course schedule string
- * (e.g. 'Senin, 08:00 - 10:30 WIB' -> 'Senin').
- */
+export function getIndonesianDayFromDateLabel(
+  dateLabel: string
+): string | null {
+  const parsed = parseIndonesianDateLabel(dateLabel);
+  if (!parsed) return null;
+  return INDONESIAN_DAY_NAMES_JS_ORDER[parsed.getDay()] ?? null;
+}
+
+export function getDaysUntilDeadline(
+  dateLabel: string,
+  referenceDate: Date = new Date()
+): number | null {
+  const target = parseIndonesianDateLabel(dateLabel);
+  if (!target) return null;
+  const today = new Date(
+    referenceDate.getFullYear(),
+    referenceDate.getMonth(),
+    referenceDate.getDate()
+  );
+  today.setHours(0, 0, 0, 0);
+  const diffMs = target.getTime() - today.getTime();
+  return Math.round(diffMs / (1000 * 60 * 60 * 24));
+}
+
+export function isTaskUrgent(
+  task: AcademicTask,
+  referenceDate: Date = new Date()
+): boolean {
+  if (task.status === 'Selesai') return false;
+  const diffDays = getDaysUntilDeadline(task.deadline, referenceDate);
+  if (diffDays === null) return true;
+  return diffDays <= 3;
+}
+
+export function getTaskUrgencyMeta(
+  task: AcademicTask,
+  referenceDate: Date = new Date()
+): {
+  isUrgent: boolean;
+  isOverdue: boolean;
+  diffDays: number | null;
+  badgeText: string | null;
+} {
+  if (task.status === 'Selesai') {
+    return {
+      isUrgent: false,
+      isOverdue: false,
+      diffDays: null,
+      badgeText: null,
+    };
+  }
+
+  const diffDays = getDaysUntilDeadline(task.deadline, referenceDate);
+  if (diffDays === null) {
+    return {
+      isUrgent: false,
+      isOverdue: false,
+      diffDays: null,
+      badgeText: null,
+    };
+  }
+
+  if (diffDays < 0) {
+    return {
+      isUrgent: true,
+      isOverdue: true,
+      diffDays,
+      badgeText: 'Terlewat',
+    };
+  }
+
+  if (diffDays === 0) {
+    return {
+      isUrgent: true,
+      isOverdue: false,
+      diffDays,
+      badgeText: 'Hari Ini',
+    };
+  }
+
+  if (diffDays === 1) {
+    return {
+      isUrgent: true,
+      isOverdue: false,
+      diffDays,
+      badgeText: 'Besok (H-1)',
+    };
+  }
+
+  if (diffDays <= 3) {
+    return {
+      isUrgent: true,
+      isOverdue: false,
+      diffDays,
+      badgeText: `H-${diffDays}`,
+    };
+  }
+
+  return {
+    isUrgent: false,
+    isOverdue: false,
+    diffDays,
+    badgeText: null,
+  };
+}
+
+export function getDynamicQuickDateChips(
+  referenceDate: Date = new Date()
+): { label: string; value: string }[] {
+  const base = new Date(
+    referenceDate.getFullYear(),
+    referenceDate.getMonth(),
+    referenceDate.getDate()
+  );
+
+  const addDays = (days: number) => {
+    const next = new Date(base);
+    next.setDate(base.getDate() + days);
+    return formatDateToIndonesianLabel(next);
+  };
+
+  return [
+    { label: 'Hari Ini', value: addDays(0) },
+    { label: 'Besok', value: addDays(1) },
+    { label: '3 Hari Lagi', value: addDays(3) },
+    { label: 'Minggu Depan', value: addDays(7) },
+  ];
+}
+
 export function getCourseScheduledDay(schedule: string): string {
   const firstSegment = schedule.split(',')[0]?.trim() || '';
   const matched = WEEKDAY_FILTER_ITEMS.find(
@@ -114,49 +231,49 @@ export const COURSE_STICKER_GALLERY: readonly CourseStickerOption[] = [
   {
     id: 'sticker-coding',
     label: 'Karakter Koding',
-    imageUrl: '/assets/sticker-coding.jpg',
+    imageUrl: '/assets/sticker-coding.webp',
     defaultIconKey: 'code',
   },
   {
     id: 'sticker-robotics',
     label: 'Karakter Robotik',
-    imageUrl: '/assets/sticker-robotics.jpg',
+    imageUrl: '/assets/sticker-robotics.webp',
     defaultIconKey: 'cpu',
   },
   {
     id: 'sticker-data',
     label: 'Karakter Data',
-    imageUrl: '/assets/sticker-data.jpg',
+    imageUrl: '/assets/sticker-data.webp',
     defaultIconKey: 'database',
   },
   {
     id: 'sticker-security',
     label: 'Karakter Siber',
-    imageUrl: '/assets/sticker-security.jpg',
+    imageUrl: '/assets/sticker-security.webp',
     defaultIconKey: 'shield',
   },
   {
     id: 'sticker-oop',
     label: 'Karakter Sistem',
-    imageUrl: '/assets/sticker-oop.jpg',
+    imageUrl: '/assets/sticker-oop.webp',
     defaultIconKey: 'layers',
   },
   {
     id: 'sticker-ai',
     label: 'Karakter Pintar',
-    imageUrl: '/assets/sticker-ai.jpg',
+    imageUrl: '/assets/sticker-ai.webp',
     defaultIconKey: 'book-open',
   },
   {
     id: 'sticker-design',
     label: 'Karakter Visual',
-    imageUrl: '/assets/sticker-design.jpg',
+    imageUrl: '/assets/sticker-design.webp',
     defaultIconKey: 'palette',
   },
   {
     id: 'sticker-mascot',
     label: 'Karakter Maskot',
-    imageUrl: '/assets/mascot-splash.jpg',
+    imageUrl: '/assets/mascot-splash.webp',
     defaultIconKey: 'briefcase',
   },
 ];
@@ -295,7 +412,7 @@ export const INITIAL_COURSES: CourseDetail[] = [
     room: 'Lab Mobile 1',
     credits: 3,
     iconKey: 'code',
-    stickerUrl: '/assets/sticker-coding.jpg',
+    stickerUrl: '/assets/sticker-coding.webp',
     pastelBg: '#FEE2E2',
     pastelBorder: '#FECACA',
     accentColor: '#C41E3A',
@@ -310,7 +427,7 @@ export const INITIAL_COURSES: CourseDetail[] = [
     room: 'Lab IoT & Robotika',
     credits: 3,
     iconKey: 'cpu',
-    stickerUrl: '/assets/sticker-robotics.jpg',
+    stickerUrl: '/assets/sticker-robotics.webp',
     pastelBg: '#EEF2FF',
     pastelBorder: '#C7D2FE',
     accentColor: '#4F46E5',
@@ -325,7 +442,7 @@ export const INITIAL_COURSES: CourseDetail[] = [
     room: 'Ruang 304',
     credits: 3,
     iconKey: 'database',
-    stickerUrl: '/assets/sticker-data.jpg',
+    stickerUrl: '/assets/sticker-data.webp',
     pastelBg: '#FEF3C7',
     pastelBorder: '#FDE68A',
     accentColor: '#D97706',
@@ -340,7 +457,7 @@ export const INITIAL_COURSES: CourseDetail[] = [
     room: 'Lab Jaringan',
     credits: 3,
     iconKey: 'shield',
-    stickerUrl: '/assets/sticker-security.jpg',
+    stickerUrl: '/assets/sticker-security.webp',
     pastelBg: '#D1FAE5',
     pastelBorder: '#A7F3D0',
     accentColor: '#059669',
@@ -355,7 +472,7 @@ export const INITIAL_COURSES: CourseDetail[] = [
     room: 'Lab Pemrograman 2',
     credits: 3,
     iconKey: 'layers',
-    stickerUrl: '/assets/sticker-oop.jpg',
+    stickerUrl: '/assets/sticker-oop.webp',
     pastelBg: '#CFFAFE',
     pastelBorder: '#A5F3FC',
     accentColor: '#0891B2',
@@ -476,7 +593,7 @@ export function taskReducer(
         id: `task-${Date.now()}`,
         title: action.payload.title.trim(),
         course: action.payload.course.trim(),
-        category: action.payload.category || 'Praktikum',
+        category: action.payload.category.trim() || 'Praktikum',
         description: action.payload.description.trim(),
         deadline: action.payload.deadline.trim(),
         status: 'Belum Dikerjakan',
@@ -492,7 +609,7 @@ export function taskReducer(
               ...task,
               title: action.payload.title.trim(),
               course: action.payload.course.trim(),
-              category: action.payload.category,
+              category: action.payload.category.trim() || 'Praktikum',
               description: action.payload.description.trim(),
               deadline: action.payload.deadline.trim(),
               attachments: action.payload.attachments ?? task.attachments ?? [],

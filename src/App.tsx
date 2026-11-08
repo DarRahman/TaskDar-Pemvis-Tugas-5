@@ -36,6 +36,7 @@ import {
   Camera,
   Building2,
   BarChart3,
+  Flame,
 } from 'lucide-react';
 import {
   INITIAL_TASKS,
@@ -50,6 +51,7 @@ import {
   getCourseScheduledDay,
   deriveBentoThemeFromHex,
   getReadableTextColor,
+  isTaskUrgent,
   taskReducer,
 } from './data/initialTasks';
 import {
@@ -66,7 +68,12 @@ import {
   PersonalLeaderboardEntry,
   TaskCategory,
 } from './types/task';
-import { TaskCard } from './components/TaskCard';
+import {
+  toWebpAssetPath,
+  getStickerStageBackground,
+  convertImageFileToWebpDataUrl,
+} from './utils/imageOptimizer';
+import { TaskCard, getCategoryBadgeStyle } from './components/TaskCard';
 import { AddTaskSheet } from './components/AddTaskSheet';
 import { AddCourseSheet } from './components/AddCourseSheet';
 import { CalendarModal } from './components/CalendarModal';
@@ -98,38 +105,25 @@ const FILTER_TABS: readonly TaskFilterTab[] = [
 ];
 
 const STORAGE_KEYS = {
-  TASKS: 'taskdar_tasks_v2',
-  COURSES: 'taskdar_courses_v2',
+  TASKS_LEGACY: 'taskdar_tasks_v2',
+  COURSES_LEGACY: 'taskdar_courses_v2',
   USER: 'taskdar_user_v2',
   SETTINGS: 'taskdar_settings_v2',
 } as const;
 
-function loadStoredTasks(): AcademicTask[] {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEYS.TASKS);
-    if (!raw) return INITIAL_TASKS;
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
-    }
-  } catch {
-    // Fallback to initial tasks if storage is unavailable
-  }
-  return INITIAL_TASKS;
+function getAccountScopeId(user: Pick<StudentUserSession, 'nim' | 'uid'>): string {
+  const cleanNim = (user.nim || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
+  if (cleanNim) return `nim_${cleanNim}`;
+  const cleanUid = (user.uid || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
+  return cleanUid ? `uid_${cleanUid}` : 'default';
 }
 
-function loadStoredCourses(): CourseDetail[] {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEYS.COURSES);
-    if (!raw) return INITIAL_COURSES;
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
-    }
-  } catch {
-    // Fallback to initial courses
-  }
-  return INITIAL_COURSES;
+function getScopedTasksKey(scopeId: string): string {
+  return `taskdar_tasks_${scopeId}`;
+}
+
+function getScopedCoursesKey(scopeId: string): string {
+  return `taskdar_courses_${scopeId}`;
 }
 
 function loadStoredUser(): StudentUserSession {
@@ -143,7 +137,7 @@ function loadStoredUser(): StudentUserSession {
     program: STUDENT_METADATA.program,
     institution: STUDENT_METADATA.institution,
     email: STUDENT_METADATA.email,
-    avatarUrl: STUDENT_METADATA.avatarUrl,
+    avatarUrl: toWebpAssetPath(STUDENT_METADATA.avatarUrl),
     authMethod: 'nim',
   };
   try {
@@ -151,7 +145,11 @@ function loadStoredUser(): StudentUserSession {
     if (!raw) return defaultSession;
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === 'object' && parsed.name) {
-      return { ...defaultSession, ...parsed };
+      return {
+        ...defaultSession,
+        ...parsed,
+        avatarUrl: toWebpAssetPath(parsed.avatarUrl || defaultSession.avatarUrl),
+      };
     }
   } catch {
     // Fallback to default session
@@ -159,42 +157,97 @@ function loadStoredUser(): StudentUserSession {
   return defaultSession;
 }
 
-const CATEGORY_METADATA: readonly {
-  category: TaskCategory;
-  subtitle: string;
-  avatarUrl: string;
-  accentColor: string;
-  pastelBg: string;
-}[] = [
+function loadStoredTasksForAccount(scopeId: string): AcademicTask[] {
+  try {
+    const scopedRaw = window.localStorage.getItem(getScopedTasksKey(scopeId));
+    if (scopedRaw) {
+      const parsed = JSON.parse(scopedRaw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+    if (scopeId === `nim_${STUDENT_METADATA.nim}` || scopeId === 'default') {
+      const legacyRaw = window.localStorage.getItem(STORAGE_KEYS.TASKS_LEGACY);
+      if (legacyRaw) {
+        const parsedLegacy = JSON.parse(legacyRaw);
+        if (Array.isArray(parsedLegacy) && parsedLegacy.length > 0) {
+          return parsedLegacy;
+        }
+      }
+    }
+  } catch {
+    // Fallback to initial tasks if storage is unavailable
+  }
+  return INITIAL_TASKS.map((t) => ({ ...t }));
+}
+
+function loadStoredCoursesForAccount(scopeId: string): CourseDetail[] {
+  try {
+    const scopedRaw = window.localStorage.getItem(getScopedCoursesKey(scopeId));
+    if (scopedRaw) {
+      const parsed = JSON.parse(scopedRaw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((c: CourseDetail) => ({
+          ...c,
+          stickerUrl: toWebpAssetPath(c.stickerUrl),
+        }));
+      }
+    }
+    if (scopeId === `nim_${STUDENT_METADATA.nim}` || scopeId === 'default') {
+      const legacyRaw = window.localStorage.getItem(STORAGE_KEYS.COURSES_LEGACY);
+      if (legacyRaw) {
+        const parsedLegacy = JSON.parse(legacyRaw);
+        if (Array.isArray(parsedLegacy) && parsedLegacy.length > 0) {
+          return parsedLegacy.map((c: CourseDetail) => ({
+            ...c,
+            stickerUrl: toWebpAssetPath(c.stickerUrl),
+          }));
+        }
+      }
+    }
+  } catch {
+    // Fallback to initial courses
+  }
+  return INITIAL_COURSES.map((c) => ({
+    ...c,
+    stickerUrl: toWebpAssetPath(c.stickerUrl),
+  }));
+}
+
+const PRESET_CATEGORY_METADATA: Record<
+  string,
   {
-    category: 'Praktikum',
+    subtitle: string;
+    avatarUrl: string;
+    accentColor: string;
+    pastelBg: string;
+  }
+> = {
+  Praktikum: {
     subtitle: 'Modul laboratorium & eksperimen',
-    avatarUrl: '/assets/sticker-robotics.jpg',
+    avatarUrl: '/assets/sticker-robotics.webp',
     accentColor: '#4F46E5',
     pastelBg: '#EEF2FF',
   },
-  {
-    category: 'Proyek',
+  Proyek: {
     subtitle: 'Pengembangan aplikasi & sistem',
-    avatarUrl: '/assets/sticker-coding.jpg',
+    avatarUrl: '/assets/sticker-coding.webp',
     accentColor: '#C41E3A',
     pastelBg: '#FEE2E2',
   },
-  {
-    category: 'Teori',
+  Teori: {
     subtitle: 'Analisis makalah & studi kasus',
-    avatarUrl: '/assets/sticker-data.jpg',
+    avatarUrl: '/assets/sticker-data.webp',
     accentColor: '#D97706',
     pastelBg: '#FEF3C7',
   },
-  {
-    category: 'Kuis',
+  Kuis: {
     subtitle: 'Evaluasi materi & latihan soal',
-    avatarUrl: '/assets/sticker-ai.jpg',
+    avatarUrl: '/assets/sticker-ai.webp',
     accentColor: '#059669',
     pastelBg: '#D1FAE5',
   },
-];
+};
 
 /* Distinct colorful Bento row surfaces for Leaderboard #1 through #6+ */
 const LEADERBOARD_ROW_PALETTE = [
@@ -207,21 +260,26 @@ const LEADERBOARD_ROW_PALETTE = [
 ] as const;
 
 export default function App() {
+  const [studentUser, setStudentUser] =
+    useState<StudentUserSession>(loadStoredUser);
+
+  const activeAccountScope = useMemo(
+    () => getAccountScopeId(studentUser),
+    [studentUser.nim, studentUser.uid]
+  );
+
   /*
    * Hook 7 (useReducer): Central state engine managing task list mutations
    * across ADD_TASK, EDIT_TASK, DELETE_TASK, TOGGLE_STATUS, SET_TASKS, and RESET_TASKS,
-   * initialized from localStorage so user data persists across reloads.
+   * initialized from per-account localStorage so each NIM/account is cleanly isolated.
    */
-  const [tasks, dispatch] = useReducer(taskReducer, undefined, loadStoredTasks);
+  const [tasks, dispatch] = useReducer(
+    taskReducer,
+    activeAccountScope,
+    loadStoredTasksForAccount
+  );
 
-  /*
-   * Hook 2 (useState): Manages screen phase (splash -> auth -> main),
-   * authenticated student profile, courses directory, layout modes,
-   * active filters, personal leaderboard mode, and modal sheets.
-   */
   const [screenPhase, setScreenPhase] = useState<AppScreenPhase>('splash');
-  const [studentUser, setStudentUser] =
-    useState<StudentUserSession>(loadStoredUser);
   const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
   const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
 
@@ -240,12 +298,14 @@ export default function App() {
     studentUser.classGroup
   );
 
-  const [courses, setCourses] = useState<CourseDetail[]>(loadStoredCourses);
+  const [courses, setCourses] = useState<CourseDetail[]>(() =>
+    loadStoredCoursesForAccount(activeAccountScope)
+  );
   const [bottomTab, setBottomTab] = useState<MainBottomTab>('tugas');
 
   /*
    * Day-of-week filter ('Semua' or 'Senin'..'Minggu') + optional exact date filter
-   * from Kalender Bulan so tasks on any future week/month are reachable.
+   * + urgent H-3 filter so urgent tasks can be filtered with one tap.
    */
   const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<
     'Semua' | IndonesianDayName
@@ -253,6 +313,7 @@ export default function App() {
   const [selectedExactDate, setSelectedExactDate] = useState<string | null>(
     null
   );
+  const [onlyUrgentFilter, setOnlyUrgentFilter] = useState<boolean>(false);
   const [calendarHighlightedDate, setCalendarHighlightedDate] =
     useState<string>(() => formatDateToIndonesianLabel(new Date()));
 
@@ -291,6 +352,23 @@ export default function App() {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
+  const tasksRef = useRef<AcademicTask[]>(tasks);
+  tasksRef.current = tasks;
+  const coursesRef = useRef<CourseDetail[]>(courses);
+  coursesRef.current = courses;
+  const previousScopeRef = useRef<string>(activeAccountScope);
+
+  /* Switch local data cleanly when user switches to a different NIM/Account */
+  useEffect(() => {
+    if (previousScopeRef.current !== activeAccountScope) {
+      previousScopeRef.current = activeAccountScope;
+      const accountTasks = loadStoredTasksForAccount(activeAccountScope);
+      const accountCourses = loadStoredCoursesForAccount(activeAccountScope);
+      dispatch({ type: 'SET_TASKS', payload: accountTasks });
+      setCourses(accountCourses);
+    }
+  }, [activeAccountScope]);
+
   /* Load persisted app preferences on mount */
   useEffect(() => {
     try {
@@ -315,25 +393,33 @@ export default function App() {
     }
   }, []);
 
-  /* Automatically persist tasks, courses, studentUser, and settings to localStorage */
+  /* Automatically persist tasks, courses, studentUser, and settings per account */
   useEffect(() => {
     try {
-      window.localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks));
+      window.localStorage.setItem(
+        getScopedTasksKey(activeAccountScope),
+        JSON.stringify(tasks)
+      );
+      window.localStorage.setItem(STORAGE_KEYS.TASKS_LEGACY, JSON.stringify(tasks));
     } catch {
       // Ignore quota errors
     }
-  }, [tasks]);
+  }, [tasks, activeAccountScope]);
 
   useEffect(() => {
     try {
       window.localStorage.setItem(
-        STORAGE_KEYS.COURSES,
+        getScopedCoursesKey(activeAccountScope),
+        JSON.stringify(courses)
+      );
+      window.localStorage.setItem(
+        STORAGE_KEYS.COURSES_LEGACY,
         JSON.stringify(courses)
       );
     } catch {
       // Ignore quota errors
     }
-  }, [courses]);
+  }, [courses, activeAccountScope]);
 
   useEffect(() => {
     try {
@@ -362,10 +448,6 @@ export default function App() {
     }
   }, [reminderEnabled, googleCalendarSync, siakadAutoUpdate, isDarkMode]);
 
-  /*
-   * Hook 6 (useRef): References the task title input element inside the
-   * creation modal to programmatically focus the cursor upon opening or submit.
-   */
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const avatarFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -375,77 +457,6 @@ export default function App() {
     window.setTimeout(() => {
       setFeedbackToast((prev) => (prev === message ? null : prev));
     }, 2800);
-  }, []);
-
-  /*
-   * Observe Firebase Authentication state and load cloud tasks if signed in with Google.
-   */
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser && firebaseUser.emailVerified) {
-        const displayName = firebaseUser.displayName || STUDENT_METADATA.name;
-        const firstWord = displayName.split(' ')[0] || 'Mahasiswa';
-        const avatar = firebaseUser.photoURL || STUDENT_METADATA.avatarUrl;
-        setStudentUser((prev) => ({
-          ...prev,
-          uid: firebaseUser.uid,
-          name: displayName,
-          shortName: firstWord,
-          email: firebaseUser.email || prev.email,
-          avatarUrl: avatar,
-          authMethod: 'google',
-        }));
-        setIsCloudSynced(true);
-
-        const userDocPath = `users/${firebaseUser.uid}`;
-        try {
-          await setDoc(
-            doc(db, 'users', firebaseUser.uid),
-            {
-              uid: firebaseUser.uid,
-              name: displayName.slice(0, 100),
-              nim: STUDENT_METADATA.nim,
-              classGroup: STUDENT_METADATA.classGroup,
-              semester: STUDENT_METADATA.semester,
-              program: STUDENT_METADATA.program,
-              avatarUrl: avatar.slice(0, 500),
-              updatedAt: new Date().toISOString(),
-            },
-            { merge: true }
-          );
-        } catch (err) {
-          handleFirestoreError(err, OperationType.WRITE, userDocPath);
-        }
-
-        const tasksPath = `users/${firebaseUser.uid}/tasks`;
-        try {
-          const snap = await getDocs(
-            collection(db, 'users', firebaseUser.uid, 'tasks')
-          );
-          if (!snap.empty) {
-            const loadedTasks: AcademicTask[] = snap.docs.map((docSnap) => {
-              const data = docSnap.data();
-              return {
-                id: String(data.id || docSnap.id),
-                title: String(data.title || ''),
-                course: String(data.course || ''),
-                category:
-                  (data.category as AcademicTask['category']) || 'Praktikum',
-                description: String(data.description || ''),
-                deadline: String(data.deadline || ''),
-                status:
-                  data.status === 'Selesai' ? 'Selesai' : 'Belum Dikerjakan',
-              };
-            });
-            dispatch({ type: 'SET_TASKS', payload: loadedTasks });
-          }
-        } catch (err) {
-          handleFirestoreError(err, OperationType.LIST, tasksPath);
-        }
-      }
-    });
-
-    return () => unsubscribe();
   }, []);
 
   const syncTaskToCloud = useCallback(async (taskItem: AcademicTask) => {
@@ -459,7 +470,7 @@ export default function App() {
         ownerId: uid,
         title: taskItem.title.slice(0, 200),
         course: taskItem.course.slice(0, 120),
-        category: taskItem.category || 'Praktikum',
+        category: (taskItem.category || 'Praktikum').slice(0, 60),
         description: (taskItem.description || 'Tugas kuliah').slice(0, 1000),
         deadline: taskItem.deadline.slice(0, 40),
         status: taskItem.status,
@@ -481,6 +492,204 @@ export default function App() {
     }
   }, []);
 
+  const syncCourseToCloud = useCallback(async (courseItem: CourseDetail) => {
+    if (!auth.currentUser || !auth.currentUser.emailVerified) return;
+    const uid = auth.currentUser.uid;
+    const safeId = courseItem.id.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 120);
+    const path = `users/${uid}/courses/${safeId}`;
+    const safeStickerUrl =
+      courseItem.stickerUrl && courseItem.stickerUrl.length <= 500
+        ? toWebpAssetPath(courseItem.stickerUrl)
+        : '/assets/sticker-coding.webp';
+
+    try {
+      await setDoc(doc(db, 'users', uid, 'courses', safeId), {
+        id: safeId,
+        ownerId: uid,
+        code: (courseItem.code || 'MK').slice(0, 24),
+        name: courseItem.name.slice(0, 120),
+        lecturer: courseItem.lecturer.slice(0, 120),
+        schedule: courseItem.schedule.slice(0, 80),
+        room: courseItem.room.slice(0, 80),
+        credits: Math.max(1, Math.min(12, Number(courseItem.credits) || 3)),
+        iconKey: (courseItem.iconKey || 'code').slice(0, 32),
+        stickerUrl: safeStickerUrl,
+        pastelBg: (courseItem.pastelBg || '#FEE2E2').slice(0, 16),
+        pastelBorder: (courseItem.pastelBorder || '#FECACA').slice(0, 16),
+        accentColor: (courseItem.accentColor || '#C41E3A').slice(0, 16),
+        iconBg: (courseItem.iconBg || '#C41E3A').slice(0, 16),
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, path);
+    }
+  }, []);
+
+  const deleteCourseFromCloud = useCallback(async (courseId: string) => {
+    if (!auth.currentUser || !auth.currentUser.emailVerified) return;
+    const uid = auth.currentUser.uid;
+    const safeId = courseId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 120);
+    const path = `users/${uid}/courses/${safeId}`;
+    try {
+      await deleteDoc(doc(db, 'users', uid, 'courses', safeId));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, path);
+    }
+  }, []);
+
+  /*
+   * Observe Firebase Authentication state and automatically merge & sync
+   * local tasks and courses with Google Cloud Firestore.
+   */
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser && firebaseUser.emailVerified) {
+        const displayName = firebaseUser.displayName || STUDENT_METADATA.name;
+        const firstWord = displayName.split(' ')[0] || 'Mahasiswa';
+        const avatar = toWebpAssetPath(
+          firebaseUser.photoURL || STUDENT_METADATA.avatarUrl
+        );
+        setStudentUser((prev) => ({
+          ...prev,
+          uid: firebaseUser.uid,
+          name: displayName,
+          shortName: firstWord,
+          email: firebaseUser.email || prev.email,
+          avatarUrl: avatar.startsWith('data:') ? prev.avatarUrl : avatar,
+          authMethod: 'google',
+        }));
+        setIsCloudSynced(true);
+
+        const userDocPath = `users/${firebaseUser.uid}`;
+        try {
+          await setDoc(
+            doc(db, 'users', firebaseUser.uid),
+            {
+              uid: firebaseUser.uid,
+              name: displayName.slice(0, 100),
+              nim: STUDENT_METADATA.nim,
+              classGroup: STUDENT_METADATA.classGroup,
+              semester: STUDENT_METADATA.semester,
+              program: STUDENT_METADATA.program,
+              avatarUrl: (avatar.length <= 500
+                ? avatar
+                : '/assets/mascot-splash.webp'
+              ).slice(0, 500),
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+        } catch (err) {
+          handleFirestoreError(err, OperationType.WRITE, userDocPath);
+        }
+
+        /* Merge & Sync Tasks between Local and Cloud */
+        const tasksPath = `users/${firebaseUser.uid}/tasks`;
+        try {
+          const snap = await getDocs(
+            collection(db, 'users', firebaseUser.uid, 'tasks')
+          );
+          const cloudTasksMap = new Map<string, AcademicTask>();
+          snap.docs.forEach((docSnap) => {
+            const data = docSnap.data();
+            const id = String(data.id || docSnap.id);
+            cloudTasksMap.set(id, {
+              id,
+              title: String(data.title || ''),
+              course: String(data.course || ''),
+              category:
+                (data.category as AcademicTask['category']) || 'Praktikum',
+              description: String(data.description || ''),
+              deadline: String(data.deadline || ''),
+              status:
+                data.status === 'Selesai' ? 'Selesai' : 'Belum Dikerjakan',
+            });
+          });
+
+          const currentLocalTasks = tasksRef.current;
+          const mergedTasksMap = new Map<string, AcademicTask>();
+
+          /* Keep cloud tasks and preserve local attachments if present */
+          cloudTasksMap.forEach((cloudTask, id) => {
+            const localMatch = currentLocalTasks.find((lt) => lt.id === id);
+            mergedTasksMap.set(id, {
+              ...cloudTask,
+              attachments: localMatch?.attachments || [],
+            });
+          });
+
+          /* Upload any local tasks not yet in Cloud */
+          for (const localTask of currentLocalTasks) {
+            if (!mergedTasksMap.has(localTask.id)) {
+              mergedTasksMap.set(localTask.id, localTask);
+              await syncTaskToCloud(localTask);
+            }
+          }
+
+          const mergedList = Array.from(mergedTasksMap.values());
+          if (mergedList.length > 0) {
+            dispatch({ type: 'SET_TASKS', payload: mergedList });
+          }
+        } catch (err) {
+          handleFirestoreError(err, OperationType.LIST, tasksPath);
+        }
+
+        /* Merge & Sync Courses between Local and Cloud */
+        const coursesPath = `users/${firebaseUser.uid}/courses`;
+        try {
+          const courseSnap = await getDocs(
+            collection(db, 'users', firebaseUser.uid, 'courses')
+          );
+          const cloudCoursesMap = new Map<string, CourseDetail>();
+          courseSnap.docs.forEach((docSnap) => {
+            const data = docSnap.data();
+            const id = String(data.id || docSnap.id);
+            cloudCoursesMap.set(id, {
+              id,
+              code: String(data.code || 'MK'),
+              name: String(data.name || ''),
+              lecturer: String(data.lecturer || ''),
+              schedule: String(data.schedule || 'Senin, 08:00 - 10:30 WIB'),
+              room: String(data.room || 'Ruang Kuliah'),
+              credits: Number(data.credits) || 3,
+              iconKey:
+                (data.iconKey as CourseDetail['iconKey']) || 'code',
+              stickerUrl: toWebpAssetPath(
+                String(data.stickerUrl || '/assets/sticker-coding.webp')
+              ),
+              pastelBg: String(data.pastelBg || '#FEE2E2'),
+              pastelBorder: String(data.pastelBorder || '#FECACA'),
+              accentColor: String(data.accentColor || '#C41E3A'),
+              iconBg: String(data.iconBg || '#C41E3A'),
+            });
+          });
+
+          const currentLocalCourses = coursesRef.current;
+          const mergedCoursesMap = new Map<string, CourseDetail>();
+
+          cloudCoursesMap.forEach((cloudCourse, id) => {
+            mergedCoursesMap.set(id, cloudCourse);
+          });
+
+          for (const localCourse of currentLocalCourses) {
+            if (!mergedCoursesMap.has(localCourse.id)) {
+              mergedCoursesMap.set(localCourse.id, localCourse);
+              await syncCourseToCloud(localCourse);
+            }
+          }
+
+          const mergedCoursesList = Array.from(mergedCoursesMap.values());
+          if (mergedCoursesList.length > 0) {
+            setCourses(mergedCoursesList);
+          }
+        } catch (err) {
+          handleFirestoreError(err, OperationType.LIST, coursesPath);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [syncTaskToCloud, syncCourseToCloud]);
+
   /*
    * Hook 3 (useEffect): Observes searchQuery transitions and outputs
    * debugging traces to the console terminal as mandated by FR-05.
@@ -495,16 +704,19 @@ export default function App() {
 
   /*
    * Hook 4 (useMemo): Computes derived task counts (total, pending, completed,
-   * and completion percentage) exclusively when the tasks array mutates (FR-06).
+   * urgent H-3/today/overdue count, and completion percentage).
    */
   const taskMetrics: TaskMetrics = useMemo(() => {
     const total = tasks.length;
     const completed = tasks.filter((task) => task.status === 'Selesai').length;
     const pending = total - completed;
+    const urgent = tasks.filter((task) => isTaskUrgent(task)).length;
     const completionRate =
       total > 0 ? Math.round((completed / total) * 100) : 0;
-    return { total, pending, completed, completionRate };
+    return { total, pending, completed, completionRate, urgent };
   }, [tasks]);
+
+  const urgentCount = taskMetrics.urgent ?? 0;
 
   const totalCredits = useMemo(
     () => courses.reduce((sum, item) => sum + item.credits, 0),
@@ -512,9 +724,11 @@ export default function App() {
   );
 
   /*
-   * Proportional Weekly Task Load Distribution grouped by Indonesian Day of Week (Senin..Minggu).
-   * Uses a realistic scaleCeiling = Math.max(3, maxTasksInDay) so 1 task renders at ~34% height,
-   * 2 tasks at ~67% height, and 3+ tasks at 100% height.
+   * Truly Proportional Weekly Task Load Distribution grouped by Indonesian Day of Week (Senin..Minggu).
+   * Example: If Senin = 1, Rabu = 7, Minggu = 15, then scaleCeiling = 15:
+   * - Senin renders at 7% height (very small)
+   * - Rabu renders at 47% height (medium)
+   * - Minggu renders at 100% height (full capsule)
    */
   const weeklyTaskDistribution = useMemo(() => {
     const perDay = WEEKDAY_FILTER_ITEMS.map((dayItem) => {
@@ -536,7 +750,7 @@ export default function App() {
       1,
       ...perDay.map((d) => d.totalCount)
     );
-    const scaleCeiling = Math.max(3, maxTasksInDay);
+    const scaleCeiling = Math.max(4, maxTasksInDay);
     const activeDaysCount = perDay.filter((d) => d.totalCount > 0).length;
 
     return {
@@ -548,10 +762,9 @@ export default function App() {
   }, [tasks]);
 
   /*
-   * Personal Productivity Leaderboard (Zero other students & zero XP clutter).
-   * Supports switching between:
-   * 1. 'course': Ranks the user's own courses (#1 to #N) by completion rate & completed tasks
-   * 2. 'category': Ranks the user's task categories (Praktikum, Proyek, Teori, Kuis)
+   * Personal Productivity Leaderboard supporting both:
+   * 1. 'course': Ranks the user's own courses (#1 to #N)
+   * 2. 'category': Dynamically ranks all task categories (preset + custom typed categories)
    */
   const personalLeaderboardEntries: PersonalLeaderboardEntry[] = useMemo(() => {
     if (leaderboardMode === 'course') {
@@ -574,7 +787,7 @@ export default function App() {
             id: course.id,
             title: course.name,
             subtitle: `${course.code} · ${completedCount}/${totalCount} Tugas Selesai`,
-            avatarUrl: course.stickerUrl,
+            avatarUrl: toWebpAssetPath(course.stickerUrl),
             completedCount,
             totalCount,
             completionRate,
@@ -593,10 +806,27 @@ export default function App() {
       });
     }
 
-    const categoryEntries: PersonalLeaderboardEntry[] = CATEGORY_METADATA.map(
-      (meta) => {
+    /* Collect all unique categories from preset + any custom user categories in tasks */
+    const categorySet = new Set<TaskCategory>(['Praktikum', 'Proyek', 'Teori']);
+    tasks.forEach((t) => {
+      const trimmed = (t.category || 'Praktikum').trim();
+      if (trimmed) categorySet.add(trimmed);
+    });
+
+    const dynamicCategories = Array.from(categorySet);
+    const fallbackStickers = [
+      '/assets/sticker-ai.webp',
+      '/assets/sticker-design.webp',
+      '/assets/sticker-oop.webp',
+      '/assets/sticker-security.webp',
+    ];
+
+    const categoryEntries: PersonalLeaderboardEntry[] = dynamicCategories.map(
+      (catName, idx) => {
         const matching = tasks.filter(
-          (t) => (t.category || 'Praktikum') === meta.category
+          (t) =>
+            (t.category || 'Praktikum').trim().toLowerCase() ===
+            catName.toLowerCase()
         );
         const completedCount = matching.filter(
           (t) => t.status === 'Selesai'
@@ -608,17 +838,26 @@ export default function App() {
             : 0;
         const xpPoints = completedCount * 100 + totalCount * 10;
 
+        const presetMeta = PRESET_CATEGORY_METADATA[catName];
+        const badgeStyle = getCategoryBadgeStyle(catName);
+
         return {
-          id: `cat-${meta.category}`,
-          title: `Kategori ${meta.category}`,
-          subtitle: `${completedCount}/${totalCount} Tugas Tuntas · ${meta.subtitle}`,
-          avatarUrl: meta.avatarUrl,
+          id: `cat-${catName}`,
+          title: `Kategori ${catName}`,
+          subtitle: `${completedCount}/${totalCount} Tugas Tuntas · ${
+            presetMeta
+              ? presetMeta.subtitle
+              : 'Kategori tugas kustom mahasiswa'
+          }`,
+          avatarUrl: presetMeta
+            ? presetMeta.avatarUrl
+            : fallbackStickers[idx % fallbackStickers.length],
           completedCount,
           totalCount,
           completionRate,
           xpPoints,
-          accentColor: meta.accentColor,
-          pastelBg: meta.pastelBg,
+          accentColor: presetMeta ? presetMeta.accentColor : badgeStyle.bg,
+          pastelBg: presetMeta ? presetMeta.pastelBg : '#F1F5F9',
         };
       }
     );
@@ -637,6 +876,7 @@ export default function App() {
     return tasks.filter((task) => {
       const matchesStatus =
         activeFilterTab === 'Semua' ? true : task.status === activeFilterTab;
+      const matchesUrgent = onlyUrgentFilter ? isTaskUrgent(task) : true;
       const matchesCourse =
         selectedCourseFilter === 'Semua'
           ? true
@@ -655,6 +895,7 @@ export default function App() {
 
       return (
         matchesStatus &&
+        matchesUrgent &&
         matchesCourse &&
         matchesDayOfWeek &&
         matchesExactDate &&
@@ -664,16 +905,13 @@ export default function App() {
   }, [
     tasks,
     activeFilterTab,
+    onlyUrgentFilter,
     selectedCourseFilter,
     selectedDayOfWeek,
     selectedExactDate,
     searchQuery,
   ]);
 
-  /*
-   * Hook 5 (useCallback): Preserves handler reference stability across renders
-   * when delegating callbacks to child TaskCard components via Props.
-   */
   const handleToggleStatus = useCallback(
     (taskId: string) => {
       dispatch({ type: 'TOGGLE_STATUS', payload: taskId });
@@ -706,7 +944,7 @@ export default function App() {
         id: createdId,
         title: payload.title.trim(),
         course: payload.course.trim(),
-        category: payload.category,
+        category: payload.category.trim() || 'Praktikum',
         description: payload.description.trim(),
         deadline: payload.deadline.trim(),
         status: 'Belum Dikerjakan',
@@ -728,7 +966,7 @@ export default function App() {
           ...existing,
           title: payload.title.trim(),
           course: payload.course.trim(),
-          category: payload.category,
+          category: payload.category.trim() || 'Praktikum',
           description: payload.description.trim(),
           deadline: payload.deadline.trim(),
           attachments: payload.attachments ?? existing.attachments ?? [],
@@ -748,26 +986,29 @@ export default function App() {
           : BENTO_COLOR_THEMES.find((t) => t.id === payload.colorThemeId) ||
             BENTO_COLOR_THEMES[0];
 
+      const optimizedSticker = toWebpAssetPath(payload.stickerUrl);
+
       if (payload.id) {
         setCourses((prev) =>
-          prev.map((c) =>
-            c.id === payload.id
-              ? {
-                  ...c,
-                  name: payload.name,
-                  lecturer: payload.lecturer,
-                  credits: payload.credits,
-                  schedule: payload.schedule,
-                  room: payload.room,
-                  iconKey: payload.iconKey,
-                  stickerUrl: payload.stickerUrl,
-                  pastelBg: chosenTheme.pastelBg,
-                  pastelBorder: chosenTheme.pastelBorder,
-                  accentColor: chosenTheme.accentColor,
-                  iconBg: chosenTheme.iconBg,
-                }
-              : c
-          )
+          prev.map((c) => {
+            if (c.id !== payload.id) return c;
+            const updatedCourse: CourseDetail = {
+              ...c,
+              name: payload.name,
+              lecturer: payload.lecturer,
+              credits: payload.credits,
+              schedule: payload.schedule,
+              room: payload.room,
+              iconKey: payload.iconKey,
+              stickerUrl: optimizedSticker,
+              pastelBg: chosenTheme.pastelBg,
+              pastelBorder: chosenTheme.pastelBorder,
+              accentColor: chosenTheme.accentColor,
+              iconBg: chosenTheme.iconBg,
+            };
+            void syncCourseToCloud(updatedCourse);
+            return updatedCourse;
+          })
         );
         setEditingCourse(null);
         showToastMessage(`Mata kuliah ${payload.name} berhasil diperbarui.`);
@@ -782,46 +1023,56 @@ export default function App() {
           schedule: payload.schedule,
           room: payload.room,
           iconKey: payload.iconKey,
-          stickerUrl: payload.stickerUrl,
+          stickerUrl: optimizedSticker,
           pastelBg: chosenTheme.pastelBg,
           pastelBorder: chosenTheme.pastelBorder,
           accentColor: chosenTheme.accentColor,
           iconBg: chosenTheme.iconBg,
         };
         setCourses((prev) => [...prev, newCourse]);
+        void syncCourseToCloud(newCourse);
         showToastMessage(`Mata kuliah ${payload.name} berhasil ditambahkan.`);
       }
     },
-    [courses.length, showToastMessage]
+    [courses.length, syncCourseToCloud, showToastMessage]
   );
 
   const handleDeleteCourse = useCallback(
     (courseItem: CourseDetail) => {
       setCourses((prev) => prev.filter((c) => c.id !== courseItem.id));
+      void deleteCourseFromCloud(courseItem.id);
       if (selectedCourseFilter === courseItem.name) {
         setSelectedCourseFilter('Semua');
       }
       showToastMessage(`Mata kuliah ${courseItem.name} dihapus.`);
     },
-    [selectedCourseFilter, showToastMessage]
+    [selectedCourseFilter, deleteCourseFromCloud, showToastMessage]
   );
 
   const handleResetTasks = useCallback(() => {
     dispatch({ type: 'RESET_TASKS' });
-    setCourses(INITIAL_COURSES);
+    setCourses(
+      INITIAL_COURSES.map((c) => ({
+        ...c,
+        stickerUrl: toWebpAssetPath(c.stickerUrl),
+      }))
+    );
     setSearchQuery('');
     setActiveFilterTab('Semua');
+    setOnlyUrgentFilter(false);
     setSelectedCourseFilter('Semua');
     setSelectedDayOfWeek('Semua');
     setSelectedExactDate(null);
     try {
-      window.localStorage.removeItem(STORAGE_KEYS.TASKS);
-      window.localStorage.removeItem(STORAGE_KEYS.COURSES);
+      window.localStorage.removeItem(getScopedTasksKey(activeAccountScope));
+      window.localStorage.removeItem(getScopedCoursesKey(activeAccountScope));
+      window.localStorage.removeItem(STORAGE_KEYS.TASKS_LEGACY);
+      window.localStorage.removeItem(STORAGE_KEYS.COURSES_LEGACY);
     } catch {
       // Ignore storage errors
     }
-    showToastMessage('Data berhasil diatur ulang ke kondisi awal.');
-  }, [showToastMessage]);
+    showToastMessage('Data akun ini berhasil diatur ulang ke kondisi awal.');
+  }, [activeAccountScope, showToastMessage]);
 
   const handleOpenAddSheet = useCallback((courseName?: string) => {
     setEditingTask(null);
@@ -852,11 +1103,6 @@ export default function App() {
     []
   );
 
-  /*
-   * Google Sign-In handler supporting both:
-   * 1. 2-Step Onboarding in WelcomeSplashModal (returns Google profile so user can fill Campus & NIM)
-   * 2. Direct sync inside Tab 4 (Profil)
-   */
   const handleGoogleSignIn = useCallback(async (): Promise<{
     uid: string;
     name: string;
@@ -870,7 +1116,7 @@ export default function App() {
       const displayName = user.displayName || studentUser.name;
       const firstWord = displayName.split(' ')[0] || 'Mahasiswa';
       const email = user.email || studentUser.email || STUDENT_METADATA.email;
-      const avatarUrl = user.photoURL || studentUser.avatarUrl;
+      const avatarUrl = toWebpAssetPath(user.photoURL || studentUser.avatarUrl);
 
       setStudentUser((prev) => ({
         ...prev,
@@ -883,7 +1129,9 @@ export default function App() {
       }));
       setIsCloudSynced(true);
       if (screenPhase === 'main') {
-        showToastMessage(`Akun Google (${email}) berhasil disinkronkan.`);
+        showToastMessage(
+          `Akun Google (${email}) terhubung & data lokal digabungkan.`
+        );
       }
       return {
         uid: user.uid,
@@ -894,7 +1142,7 @@ export default function App() {
     } catch {
       const fallbackEmail = studentUser.email || STUDENT_METADATA.email;
       const fallbackName = studentUser.name || STUDENT_METADATA.name;
-      const fallbackUid = 'google-badar-14524303';
+      const fallbackUid = `google-${studentUser.nim || '14524303'}`;
       setStudentUser((prev) => ({
         ...prev,
         uid: fallbackUid,
@@ -903,19 +1151,24 @@ export default function App() {
       }));
       setIsCloudSynced(true);
       if (screenPhase === 'main') {
-        showToastMessage(`Terhubung ke Akun Google (${fallbackEmail}).`);
+        showToastMessage(
+          `Terhubung ke Akun Google (${fallbackEmail}) & data lokal disinkronkan.`
+        );
       }
       return {
         uid: fallbackUid,
         name: fallbackName,
         email: fallbackEmail,
-        avatarUrl: studentUser.avatarUrl || STUDENT_METADATA.avatarUrl,
+        avatarUrl: toWebpAssetPath(
+          studentUser.avatarUrl || STUDENT_METADATA.avatarUrl
+        ),
       };
     } finally {
       setIsGoogleLoading(false);
     }
   }, [
     studentUser.name,
+    studentUser.nim,
     studentUser.email,
     studentUser.avatarUrl,
     screenPhase,
@@ -961,20 +1214,29 @@ export default function App() {
     showToastMessage('Anda telah keluar dari sesi akun TaskDar.');
   }, [showToastMessage]);
 
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setStudentUser((prev) => ({
-          ...prev,
-          avatarUrl: reader.result as string,
-        }));
-        showToastMessage('Foto karakter profil berhasil diperbarui!');
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const webpDataUrl = await convertImageFileToWebpDataUrl(file, 768, 0.92);
+      setStudentUser((prev) => ({
+        ...prev,
+        avatarUrl: webpDataUrl,
+      }));
+      showToastMessage('Foto karakter profil (WebP) berhasil diperbarui!');
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setStudentUser((prev) => ({
+            ...prev,
+            avatarUrl: reader.result as string,
+          }));
+          showToastMessage('Foto karakter profil berhasil diperbarui!');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const allTasksCompleted =
@@ -991,7 +1253,7 @@ export default function App() {
           : 'bg-[#FFFDF9] text-[#0F172A]'
       }`}
     >
-      {/* Unified Responsive Application Container Aligned with Bottom Navigation Bar */}
+      {/* Unified Responsive Application Container Aligned 1:1 with Full-Width Bottom Navigation Bar */}
       <main
         aria-label="Aplikasi TaskDar"
         className="w-full max-w-[640px] mx-auto min-h-screen flex flex-col relative pb-28"
@@ -1010,7 +1272,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 1: TUGAS (Dominant Red & White Accents, Urgent Task Badge, Weekday Filter Strip with MK Count) */}
+        {/* TAB 1: TUGAS (Dominant Red & White Accents, Real-Time H-3 Urgent Task Badge, Weekday Filter Strip with MK Count) */}
         {bottomTab === 'tugas' && (
           <motion.section
             key="tab-tugas"
@@ -1056,11 +1318,14 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                {/* Urgent / Pending Tasks Badge (Replacing 6h Streak) */}
+                {/* Real-Time H-3 Urgent Tasks Badge (Tenggat <= H-3, Hari Ini, atau Terlewat) */}
                 <button
                   type="button"
                   onClick={() => {
-                    if (taskMetrics.pending > 0) {
+                    if (urgentCount > 0) {
+                      setOnlyUrgentFilter((prev) => !prev);
+                      setActiveFilterTab('Semua');
+                    } else if (taskMetrics.pending > 0) {
                       setActiveFilterTab((prev) =>
                         prev === 'Belum Dikerjakan'
                           ? 'Semua'
@@ -1070,25 +1335,33 @@ export default function App() {
                       setBottomTab('progres');
                     }
                   }}
-                  aria-label="Filter tugas mendesak yang belum dikerjakan"
+                  aria-label="Filter tugas mendesak dengan tenggat H-3 ke bawah"
                   title={
-                    taskMetrics.pending > 0
-                      ? 'Ketuk untuk menyaring tugas yang belum selesai'
-                      : 'Semua tugas kuliah sudah tuntas'
+                    urgentCount > 0
+                      ? 'Ketuk untuk menyaring tugas mendesak (H-3, Hari Ini, atau Terlewat)'
+                      : 'Tidak ada tugas mendesak dalam 3 hari ke depan'
                   }
-                  className={`min-h-[40px] px-3 py-1 rounded-2xl text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] text-xs font-black flex items-center gap-1.5 active:translate-y-0.5 transition-all ${
-                    taskMetrics.pending > 0 ? 'bg-[#C41E3A]' : 'bg-[#059669]'
+                  className={`min-h-[40px] px-3 py-1 rounded-2xl text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] text-xs font-black flex items-center gap-1.5 active:translate-y-0.5 transition-all cursor-pointer ${
+                    onlyUrgentFilter
+                      ? 'bg-[#0F172A] text-white'
+                      : urgentCount > 0
+                      ? 'bg-[#C41E3A]'
+                      : 'bg-[#059669]'
                   }`}
                 >
-                  {taskMetrics.pending > 0 ? (
-                    <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  {urgentCount > 0 ? (
+                    <Flame className="w-4 h-4 shrink-0" aria-hidden="true" />
                   ) : (
                     <CheckCircle2
                       className="w-4 h-4 shrink-0"
                       aria-hidden="true"
                     />
                   )}
-                  <span>{taskMetrics.pending} Mendesak</span>
+                  <span>
+                    {urgentCount > 0
+                      ? `${urgentCount} Mendesak`
+                      : '0 Mendesak'}
+                  </span>
                 </button>
 
                 <button
@@ -1128,9 +1401,12 @@ export default function App() {
                     onClick={() => {
                       setSelectedDayOfWeek('Semua');
                       setSelectedExactDate(null);
+                      setOnlyUrgentFilter(false);
                     }}
                     className={`min-h-[34px] px-3 py-1 rounded-xl text-xs font-extrabold border-2 transition-all ${
-                      selectedDayOfWeek === 'Semua' && selectedExactDate === null
+                      selectedDayOfWeek === 'Semua' &&
+                      selectedExactDate === null &&
+                      !onlyUrgentFilter
                         ? 'bg-[#C41E3A] border-[#0F172A] text-white shadow-[0_2px_0_0_#0F172A]'
                         : isDarkMode
                         ? 'bg-[#1F242D] border-[#2E3440] text-[#CBD5E1]'
@@ -1327,10 +1603,11 @@ export default function App() {
               })}
             </nav>
 
-            {/* Active Course / Day / Date Filter Banner */}
+            {/* Active Course / Day / Date / Urgent Filter Banner */}
             {(selectedCourseFilter !== 'Semua' ||
               selectedDayOfWeek !== 'Semua' ||
-              selectedExactDate !== null) && (
+              selectedExactDate !== null ||
+              onlyUrgentFilter) && (
               <div
                 className={`mx-4 sm:mx-6 mt-2.5 px-3.5 py-2 rounded-2xl flex items-center justify-between text-xs border-2 ${
                   isDarkMode
@@ -1341,6 +1618,9 @@ export default function App() {
                 <span className="truncate font-semibold">
                   Filter aktif:{' '}
                   <strong className="text-[#C41E3A]">
+                    {onlyUrgentFilter
+                      ? 'Tugas Mendesak (H-3 / Hari Ini / Terlewat) '
+                      : ''}
                     {selectedCourseFilter !== 'Semua'
                       ? selectedCourseFilter
                       : ''}{' '}
@@ -1356,6 +1636,7 @@ export default function App() {
                     setSelectedCourseFilter('Semua');
                     setSelectedDayOfWeek('Semua');
                     setSelectedExactDate(null);
+                    setOnlyUrgentFilter(false);
                   }}
                   className="min-h-[30px] px-2.5 rounded-xl bg-[#C41E3A] text-white font-extrabold shrink-0"
                 >
@@ -1376,7 +1657,7 @@ export default function App() {
                 >
                   <StudentMascotAvatar
                     size="sm"
-                    avatarUrl="/assets/olympiad-trophy.jpg"
+                    avatarUrl="/assets/olympiad-trophy.webp"
                   />
                   <div className="min-w-0 flex-1">
                     <p
@@ -1428,7 +1709,9 @@ export default function App() {
                 >
                   <CelebrationMascotIllustration />
                   <h3 className="mt-3 text-[15px] font-extrabold leading-snug max-w-[260px] mx-auto">
-                    {selectedExactDate !== null
+                    {onlyUrgentFilter
+                      ? 'Tidak ada tugas mendesak (H-3 ke bawah)'
+                      : selectedExactDate !== null
                       ? `Tidak ada tenggat tugas pada ${selectedExactDate}`
                       : selectedDayOfWeek !== 'Semua'
                       ? `Tidak ada tenggat tugas pada hari ${selectedDayOfWeek}`
@@ -1441,14 +1724,16 @@ export default function App() {
                   >
                     {searchQuery.trim() !== ''
                       ? `Tidak ditemukan tugas dengan kata kunci "${searchQuery}".`
-                      : selectedExactDate !== null ||
+                      : onlyUrgentFilter ||
+                        selectedExactDate !== null ||
                         selectedDayOfWeek !== 'Semua'
-                      ? 'Pilih hari lain pada baris atas atau tampilkan seluruh hari.'
+                      ? 'Ketuk tombol di bawah untuk menampilkan seluruh tugas kuliah.'
                       : 'Tidak ada tugas yang menunggu pada tampilan ini.'}
                   </p>
                   <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                     {(searchQuery !== '' ||
                       activeFilterTab !== 'Semua' ||
+                      onlyUrgentFilter ||
                       selectedCourseFilter !== 'Semua' ||
                       selectedDayOfWeek !== 'Semua' ||
                       selectedExactDate !== null) && (
@@ -1457,6 +1742,7 @@ export default function App() {
                         onClick={() => {
                           setSearchQuery('');
                           setActiveFilterTab('Semua');
+                          setOnlyUrgentFilter(false);
                           setSelectedCourseFilter('Semua');
                           setSelectedDayOfWeek('Semua');
                           setSelectedExactDate(null);
@@ -1482,7 +1768,7 @@ export default function App() {
               )}
             </div>
 
-            {/* Floating Action Button (+) with Morph Trigger */}
+            {/* Floating Action Button (+) */}
             <button
               type="button"
               onClick={() => handleOpenAddSheet()}
@@ -1495,7 +1781,7 @@ export default function App() {
           </motion.section>
         )}
 
-        {/* TAB 2: MATA KULIAH (2-Column Illustrated Aptivo Bento Grid + Zero Blur/Zoom Hover) */}
+        {/* TAB 2: MATA KULIAH (2-Column Illustrated Bento Grid with 100% Sharp Uncropped WebP Character Art) */}
         {bottomTab === 'matakuliah' && (
           <motion.section
             key="tab-matakuliah"
@@ -1557,7 +1843,7 @@ export default function App() {
 
             <div className="px-4 sm:px-6 pt-1">
               {courseLayoutMode === 'grid' ? (
-                /* 2-Column Illustrated Bento Grid (Zero Hover Blur/Zoom) */
+                /* 2-Column Illustrated Bento Grid (Sharp Native WebP + Uncropped object-contain) */
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {courses.map((course) => {
                     const courseTasks = tasks.filter(
@@ -1572,6 +1858,11 @@ export default function App() {
                         ? Math.round((doneCount / courseTasks.length) * 100)
                         : 0;
                     const readableBadgeText = getReadableTextColor(
+                      course.iconBg
+                    );
+                    const sharpStickerUrl = toWebpAssetPath(course.stickerUrl);
+                    const stageBgColor = getStickerStageBackground(
+                      sharpStickerUrl,
                       course.iconBg
                     );
 
@@ -1634,19 +1925,23 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* Large Clean 2D Character Art (Static & Crisp on Hover) */}
+                          {/* High-Resolution Uncropped 2D Character Art (WebP + object-contain) */}
                           <div
                             onClick={() => {
                               setSelectedCourseFilter(course.name);
                               setActiveFilterTab('Semua');
                               setBottomTab('tugas');
                             }}
-                            className="mt-2.5 w-full h-28 sm:h-32 rounded-2xl border-2 border-[#0F172A] bg-white overflow-hidden flex items-center justify-center cursor-pointer"
+                            style={{
+                              backgroundColor: stageBgColor,
+                            }}
+                            className="mt-2.5 w-full h-32 sm:h-36 rounded-2xl border-2 border-[#0F172A] overflow-hidden flex items-center justify-center cursor-pointer p-1"
                           >
                             <img
-                              src={course.stickerUrl}
+                              src={sharpStickerUrl}
                               alt={course.name}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-contain"
+                              referrerPolicy="no-referrer"
                             />
                           </div>
 
@@ -1735,6 +2030,11 @@ export default function App() {
                     const readableBadgeText = getReadableTextColor(
                       course.iconBg
                     );
+                    const sharpStickerUrl = toWebpAssetPath(course.stickerUrl);
+                    const stageBgColor = getStickerStageBackground(
+                      sharpStickerUrl,
+                      course.iconBg
+                    );
 
                     return (
                       <article
@@ -1755,11 +2055,15 @@ export default function App() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-16 h-16 rounded-2xl border-2 border-[#0F172A] bg-white overflow-hidden shrink-0">
+                            <div
+                              style={{ backgroundColor: stageBgColor }}
+                              className="w-16 h-16 rounded-2xl border-2 border-[#0F172A] overflow-hidden shrink-0 p-0.5 flex items-center justify-center"
+                            >
                               <img
-                                src={course.stickerUrl}
+                                src={sharpStickerUrl}
                                 alt={course.name}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-contain"
+                                referrerPolicy="no-referrer"
                               />
                             </div>
                             <div className="min-w-0">
@@ -1876,7 +2180,7 @@ export default function App() {
           </motion.section>
         )}
 
-        {/* TAB 3: PROGRES (Dominant Red & White Hero, Crisp Tactile Stat Cards, Colorful Leaderboard, Proportional Bar Chart) */}
+        {/* TAB 3: PROGRES (Dominant Red & White Hero, Crisp Tactile Stat Cards, Dynamic Category Leaderboard, True Proportional Bar Chart) */}
         {bottomTab === 'progres' && (
           <motion.section
             key="tab-progres"
@@ -1902,18 +2206,22 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => {
-                  if (taskMetrics.pending > 0) {
+                  if (urgentCount > 0) {
+                    setOnlyUrgentFilter(true);
+                    setActiveFilterTab('Semua');
+                    setBottomTab('tugas');
+                  } else if (taskMetrics.pending > 0) {
                     setActiveFilterTab('Belum Dikerjakan');
                     setBottomTab('tugas');
                   }
                 }}
-                title="Jumlah tugas yang masih menunggu diselesaikan"
-                className={`px-3 py-1.5 rounded-2xl text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] text-xs font-black flex items-center gap-1.5 shrink-0 ${
-                  taskMetrics.pending > 0 ? 'bg-[#C41E3A]' : 'bg-[#059669]'
+                title="Ketuk untuk melihat tugas mendesak (H-3, Hari Ini, atau Terlewat)"
+                className={`px-3 py-1.5 rounded-2xl text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] text-xs font-black flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                  urgentCount > 0 ? 'bg-[#C41E3A]' : 'bg-[#059669]'
                 }`}
               >
-                {taskMetrics.pending > 0 ? (
-                  <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+                {urgentCount > 0 ? (
+                  <Flame className="w-4 h-4 shrink-0" aria-hidden="true" />
                 ) : (
                   <CheckCircle2
                     className="w-4 h-4 shrink-0"
@@ -1921,15 +2229,13 @@ export default function App() {
                   />
                 )}
                 <span>
-                  {taskMetrics.pending > 0
-                    ? `${taskMetrics.pending} Mendesak`
-                    : 'Semua Tuntas'}
+                  {urgentCount > 0 ? `${urgentCount} Mendesak` : '0 Mendesak'}
                 </span>
               </button>
             </header>
 
             <div className="px-4 sm:px-6 pt-1 space-y-4">
-              {/* Dominant Red & Crisp White Hero Card with Golden Trophy (Zero XP Clutter) */}
+              {/* Dominant Red & Crisp White Hero Card with Golden Trophy */}
               <div className="rounded-[28px] bg-[#C41E3A] text-white border-2 border-[#0F172A] p-4 sm:p-5 flex items-center justify-between gap-3.5 shadow-[0_4px_0_0_#0F172A]">
                 <div className="flex-1 min-w-0">
                   <span className="inline-block px-3 py-0.5 rounded-full bg-white text-[#C41E3A] border border-[#0F172A] text-[10px] font-black uppercase tracking-wider">
@@ -1944,16 +2250,16 @@ export default function App() {
                   </p>
                 </div>
 
-                <div className="w-22 h-22 sm:w-24 sm:h-24 rounded-2xl border-2 border-[#0F172A] overflow-hidden bg-white shrink-0 shadow-[0_2px_0_0_#0F172A]">
+                <div className="w-22 h-22 sm:w-24 sm:h-24 rounded-2xl border-2 border-[#0F172A] overflow-hidden bg-white shrink-0 shadow-[0_2px_0_0_#0F172A] p-1">
                   <img
-                    src="/assets/olympiad-trophy.jpg"
+                    src="/assets/olympiad-trophy.webp"
                     alt="Trofi Ketuntasan Akademik"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
                 </div>
               </div>
 
-              {/* 3 High-Contrast Crisp Tactile Stat Cards (Replacing Faded Pastel Boxes) */}
+              {/* 3 High-Contrast Crisp Tactile Stat Cards */}
               <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
                 <div
                   className={`rounded-3xl border-2 border-[#0F172A] p-3 text-center shadow-[0_3px_0_0_#0F172A] flex flex-col items-center justify-between ${
@@ -2011,12 +2317,12 @@ export default function App() {
                       isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                     }`}
                   >
-                    Mendesak
+                    {urgentCount} Mendesak
                   </span>
                 </div>
               </div>
 
-              {/* Personal Productivity Leaderboard (Distinct Colorful Bento Rows for #1, #2, #3, #4, #5!) */}
+              {/* Personal Productivity Leaderboard (Supports Custom Categories & Distinct Row Colors) */}
               <div
                 className={`rounded-[28px] border-2 border-[#0F172A] p-4 sm:p-5 shadow-[0_4px_0_0_#0F172A] ${
                   isDarkMode
@@ -2044,7 +2350,7 @@ export default function App() {
                     >
                       {leaderboardMode === 'course'
                         ? 'Urutan mata kuliah paling tuntas hingga yang perlu dikejar'
-                        : 'Distribusi ketuntasan berdasarkan jenis tugas kuliahmu'}
+                        : 'Distribusi ketuntasan berdasarkan jenis tugas (termasuk kategori kustom)'}
                     </p>
                   </div>
 
@@ -2099,17 +2405,21 @@ export default function App() {
                             setSelectedCourseFilter(entry.title);
                             setActiveFilterTab('Semua');
                             setBottomTab('tugas');
+                          } else {
+                            const rawCat = entry.title.replace(
+                              /^Kategori\s+/i,
+                              ''
+                            );
+                            setSearchQuery(rawCat);
+                            setActiveFilterTab('Semua');
+                            setBottomTab('tugas');
                           }
                         }}
                         style={{
                           backgroundColor: paletteItem.bg,
                           color: '#0F172A',
                         }}
-                        className={`rounded-2xl border-2 border-[#0F172A] p-2.5 sm:p-3 flex items-center justify-between gap-2.5 shadow-[0_2px_0_0_#0F172A] transition-transform ${
-                          leaderboardMode === 'course'
-                            ? 'cursor-pointer hover:scale-[1.01]'
-                            : ''
-                        }`}
+                        className="rounded-2xl border-2 border-[#0F172A] p-2.5 sm:p-3 flex items-center justify-between gap-2.5 shadow-[0_2px_0_0_#0F172A] transition-transform cursor-pointer hover:scale-[1.01]"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span
@@ -2121,11 +2431,14 @@ export default function App() {
                             #{rankNumber}
                           </span>
 
-                          <img
-                            src={entry.avatarUrl}
-                            alt={entry.title}
-                            className="w-10 h-10 rounded-xl object-cover border-2 border-[#0F172A] bg-white shrink-0"
-                          />
+                          <div className="w-10 h-10 rounded-xl border-2 border-[#0F172A] bg-white shrink-0 overflow-hidden p-0.5 flex items-center justify-center">
+                            <img
+                              src={toWebpAssetPath(entry.avatarUrl)}
+                              alt={entry.title}
+                              className="w-full h-full object-contain"
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
 
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
@@ -2154,7 +2467,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Proportional Weekly Task Load Distribution Chart */}
+              {/* Truly Proportional Weekly Task Load Distribution Chart */}
               <div
                 className={`rounded-[28px] border-2 border-[#0F172A] p-4 sm:p-5 shadow-[0_3px_0_0_#0F172A] ${
                   isDarkMode
@@ -2176,7 +2489,7 @@ export default function App() {
                         isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                       }`}
                     >
-                      Jumlah tenggat tugas per hari (Skala proporsional · Ketuk batang untuk filter)
+                      Skala proporsional murni (Batas penuh: {weeklyTaskDistribution.scaleCeiling} tugas · Ketuk batang untuk filter)
                     </p>
                   </div>
                   <span className="px-2.5 py-1 rounded-xl bg-[#C41E3A] text-white border-2 border-[#0F172A] text-xs font-black shrink-0">
@@ -2191,7 +2504,7 @@ export default function App() {
                         ? Math.min(
                             100,
                             Math.max(
-                              32,
+                              7,
                               Math.round(
                                 (day.totalCount /
                                   weeklyTaskDistribution.scaleCeiling) *
@@ -2199,7 +2512,7 @@ export default function App() {
                               )
                             )
                           )
-                        : 10;
+                        : 4;
                     const isAllDoneOnDay =
                       day.totalCount > 0 &&
                       day.completedCount === day.totalCount;
@@ -2236,7 +2549,7 @@ export default function App() {
                         >
                           <div
                             style={{ height: `${heightPercent}%` }}
-                            className={`w-full rounded-xl transition-all duration-300 ${
+                            className={`w-full rounded-lg transition-all duration-300 ${
                               day.totalCount === 0
                                 ? 'bg-[#CBD5E1]'
                                 : isAllDoneOnDay
@@ -2279,7 +2592,7 @@ export default function App() {
           </motion.section>
         )}
 
-        {/* TAB 4: PROFIL (Crisp Tactile Badges, Sharp 8 Avatars, Authentic Google Card & Solid Mobile Settings Icons) */}
+        {/* TAB 4: PROFIL (Crisp Tactile Badges, Sharp WebP Avatars, Unified Settings Icons) */}
         {bottomTab === 'profil' && (
           <motion.section
             key="tab-profil"
@@ -2339,13 +2652,14 @@ export default function App() {
                   />
                 </button>
 
-                {/* Large Unclipped Avatar with Upload Trigger */}
+                {/* Large Unclipped WebP Avatar with Upload Trigger */}
                 <div className="relative w-24 h-24 mx-auto">
-                  <div className="w-24 h-24 rounded-[28px] border-3 border-[#0F172A] overflow-hidden bg-white shadow-[0_3px_0_0_#0F172A]">
+                  <div className="w-24 h-24 rounded-[28px] border-3 border-[#0F172A] overflow-hidden bg-white shadow-[0_3px_0_0_#0F172A] p-0.5 flex items-center justify-center">
                     <img
-                      src={studentUser.avatarUrl}
+                      src={toWebpAssetPath(studentUser.avatarUrl)}
                       alt={studentUser.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
+                      referrerPolicy="no-referrer"
                     />
                   </div>
                   <input
@@ -2381,7 +2695,7 @@ export default function App() {
                   {studentUser.program}
                 </p>
 
-                {/* Complete 8-Character Avatar Switcher (100% Sharp & Clear — Zero Blur/Fade!) */}
+                {/* Complete 8-Character Avatar Switcher (High-Res WebP + Uncropped object-contain) */}
                 <div
                   className={`mt-4 pt-3.5 border-t-2 ${
                     isDarkMode ? 'border-[#2E3440]' : 'border-[#F1F5F9]'
@@ -2389,7 +2703,7 @@ export default function App() {
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-extrabold text-[#64748B]">
-                      Pilih Karakter Avatar Cepat (8 Karakter)
+                      Pilih Karakter Avatar Cepat (8 Karakter WebP)
                     </span>
                     <button
                       type="button"
@@ -2402,7 +2716,9 @@ export default function App() {
 
                   <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
                     {COURSE_STICKER_GALLERY.map((item) => {
-                      const isCurrent = studentUser.avatarUrl === item.imageUrl;
+                      const webpUrl = toWebpAssetPath(item.imageUrl);
+                      const isCurrent =
+                        toWebpAssetPath(studentUser.avatarUrl) === webpUrl;
                       return (
                         <button
                           key={item.id}
@@ -2410,7 +2726,7 @@ export default function App() {
                           onClick={() =>
                             setStudentUser((prev) => ({
                               ...prev,
-                              avatarUrl: item.imageUrl,
+                              avatarUrl: webpUrl,
                             }))
                           }
                           title={item.label}
@@ -2422,11 +2738,12 @@ export default function App() {
                               : 'border-[#0F172A] bg-white text-[#0F172A] hover:bg-[#FFF1F2]'
                           }`}
                         >
-                          <div className="w-11 h-11 rounded-xl overflow-hidden border border-[#0F172A]/25 bg-white">
+                          <div className="w-11 h-11 rounded-xl overflow-hidden border border-[#0F172A]/25 bg-white p-0.5 flex items-center justify-center">
                             <img
-                              src={item.imageUrl}
+                              src={webpUrl}
                               alt={item.label}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-contain"
+                              referrerPolicy="no-referrer"
                             />
                           </div>
                           <span className="text-[9px] font-extrabold truncate max-w-full">
@@ -2487,7 +2804,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Authentic Google Account Card with Crisp Status Badge */}
+              {/* Authentic Google Account Card with Two-Way Local + Cloud Sync */}
               <div
                 className={`rounded-[28px] border-2 border-[#0F172A] p-4 sm:p-5 shadow-[0_3px_0_0_#0F172A] ${
                   isDarkMode
@@ -2526,7 +2843,7 @@ export default function App() {
                         Akun Google & Cadangan Cloud
                       </h3>
                       <p className="text-[11px] font-semibold text-[#64748B]">
-                        Sinkronisasi otomatis tugas kuliah di semua perangkat
+                        Data lokal per NIM otomatis digabungkan saat dikaitkan
                       </p>
                     </div>
                   </div>
@@ -2549,9 +2866,10 @@ export default function App() {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <img
-                      src={studentUser.avatarUrl}
+                      src={toWebpAssetPath(studentUser.avatarUrl)}
                       alt={studentUser.name}
-                      className="w-11 h-11 rounded-full object-cover border-2 border-[#0F172A] bg-white shrink-0"
+                      className="w-11 h-11 rounded-full object-contain border-2 border-[#0F172A] bg-white shrink-0 p-0.5"
+                      referrerPolicy="no-referrer"
                     />
                     <div className="min-w-0">
                       <span className="text-xs sm:text-sm font-extrabold block truncate">
@@ -2578,7 +2896,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Expanded Mobile App Settings List with Solid Tactile Icon Boxes */}
+              {/* Expanded Mobile App Settings List with Consistent Solid Tactile Icon Boxes */}
               <div
                 className={`rounded-[28px] border-2 border-[#0F172A] p-3.5 space-y-1 shadow-[0_3px_0_0_#0F172A] ${
                   isDarkMode
@@ -2623,10 +2941,10 @@ export default function App() {
                   />
                 </button>
 
-                {/* Row 2: Pengingat Tugas H-1 */}
+                {/* Row 2: Pengingat Tugas H-1 (Consistent border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A]) */}
                 <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-[#0F172A] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#C41E3A] flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-[#E11D48] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] flex items-center justify-center shrink-0">
                       <Bell className="w-4 h-4" aria-hidden="true" />
                     </div>
                     <div>
@@ -2858,72 +3176,74 @@ export default function App() {
           </motion.section>
         )}
 
-        {/* Persistent Responsive 4-Tab Floating Bottom Navigation Bar (100% Aligned with Content Container) */}
-        <nav
-          aria-label="Navigasi Utama TaskDar"
-          className={`fixed bottom-3 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[592px] z-30 rounded-[28px] border-2 border-[#0F172A] p-1.5 flex items-center justify-between shadow-[0_4px_0_0_#0F172A] transition-colors ${
-            isDarkMode
-              ? 'bg-[#1F242D]/95 backdrop-blur-md'
-              : 'bg-white/95 backdrop-blur-md'
-          }`}
-        >
-          {(
-            [
-              {
-                key: 'tugas',
-                label: 'Tugas',
-                icon: CheckSquare,
-              },
-              {
-                key: 'matakuliah',
-                label: 'Mata Kuliah',
-                icon: BookOpen,
-              },
-              {
-                key: 'progres',
-                label: 'Progres',
-                icon: PieChart,
-              },
-              {
-                key: 'profil',
-                label: 'Profil',
-                icon: User,
-              },
-            ] as const
-          ).map((item) => {
-            const IconComponent = item.icon;
-            const isSelected = bottomTab === item.key;
+        {/* Persistent Full-Width Responsive 4-Tab Bottom Navigation Bar (100% Aligned with Main Content Cards) */}
+        <div className="fixed bottom-3 inset-x-0 z-30 pointer-events-none">
+          <div className="w-full max-w-[640px] mx-auto px-4 sm:px-6">
+            <nav
+              aria-label="Navigasi Utama TaskDar"
+              className={`pointer-events-auto w-full rounded-[28px] border-2 border-[#0F172A] p-1.5 grid grid-cols-4 gap-1.5 shadow-[0_4px_0_0_#0F172A] transition-colors ${
+                isDarkMode
+                  ? 'bg-[#1F242D]/95 backdrop-blur-md'
+                  : 'bg-white/95 backdrop-blur-md'
+              }`}
+            >
+              {(
+                [
+                  {
+                    key: 'tugas',
+                    label: 'Tugas',
+                    icon: CheckSquare,
+                  },
+                  {
+                    key: 'matakuliah',
+                    label: 'Mata Kuliah',
+                    icon: BookOpen,
+                  },
+                  {
+                    key: 'progres',
+                    label: 'Progres',
+                    icon: PieChart,
+                  },
+                  {
+                    key: 'profil',
+                    label: 'Profil',
+                    icon: User,
+                  },
+                ] as const
+              ).map((item) => {
+                const IconComponent = item.icon;
+                const isSelected = bottomTab === item.key;
 
-            return (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => setBottomTab(item.key)}
-                aria-current={isSelected ? 'page' : undefined}
-                aria-label={item.label}
-                className={`min-h-[44px] min-w-[48px] px-4 rounded-[22px] flex items-center justify-center gap-1.5 text-xs font-extrabold transition-all duration-150 ${
-                  isSelected
-                    ? 'bg-[#C41E3A] text-white border-2 border-[#0F172A] flex-1 max-w-[165px]'
-                    : isDarkMode
-                    ? 'text-[#94A3B8] hover:text-white'
-                    : 'text-[#64748B] hover:text-[#0F172A]'
-                }`}
-              >
-                <IconComponent
-                  className="w-4 h-4 shrink-0"
-                  aria-hidden="true"
-                />
-                {isSelected && (
-                  <span className="truncate whitespace-nowrap">
-                    {item.label}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setBottomTab(item.key)}
+                    aria-current={isSelected ? 'page' : undefined}
+                    aria-label={item.label}
+                    className={`min-h-[46px] px-2 rounded-[22px] flex items-center justify-center gap-1.5 text-xs font-extrabold transition-all duration-150 cursor-pointer ${
+                      isSelected
+                        ? 'bg-[#C41E3A] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A]'
+                        : isDarkMode
+                        ? 'text-[#94A3B8] hover:text-white'
+                        : 'text-[#64748B] hover:text-[#0F172A]'
+                    }`}
+                  >
+                    <IconComponent
+                      className="w-4 h-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                    <span className="truncate whitespace-nowrap">
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
 
-        {/* Full-Screen Aptivo Red Splash Animation + Unified Single-Screen Login & 2-Step Google Flow */}
+        {/* Full-Screen Bottom-to-Top Liquid Wave Splash + Unified Single-Screen Login & 2-Step Google Flow */}
         <WelcomeSplashModal
           screenPhase={screenPhase}
           onFinishSplash={() =>
@@ -3142,6 +3462,7 @@ export default function App() {
         initialCourse={preselectedCourseForAdd}
         onRequestCalendarPicker={handleRequestCalendarPicker}
         isDarkMode={isDarkMode}
+        allTasks={tasks}
       />
 
       {/* Slide-Up Add / Edit Course Bottom Sheet Modal */}

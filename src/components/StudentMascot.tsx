@@ -1,4 +1,5 @@
 import React from 'react';
+import { toWebpAssetPath } from '../utils/imageOptimizer';
 
 export interface MascotAvatarProps {
   size?: 'sm' | 'md' | 'lg';
@@ -7,11 +8,11 @@ export interface MascotAvatarProps {
 
 /*
  * Expressive 2D character avatar in Aptivo and Charmi style,
- * properly framed so the graduation cap and character are never clipped.
+ * properly framed in high-resolution WebP so the graduation cap and character are never clipped.
  */
 export const StudentMascotAvatar: React.FC<MascotAvatarProps> = ({
   size = 'md',
-  avatarUrl = '/assets/mascot-splash.jpg',
+  avatarUrl = '/assets/mascot-splash.webp',
 }) => {
   const dimensionClass =
     size === 'lg'
@@ -26,9 +27,10 @@ export const StudentMascotAvatar: React.FC<MascotAvatarProps> = ({
       aria-hidden="true"
     >
       <img
-        src={avatarUrl}
+        src={toWebpAssetPath(avatarUrl)}
         alt="Karakter Mahasiswa"
-        className="w-full h-full object-cover"
+        className="w-full h-full object-contain"
+        referrerPolicy="no-referrer"
       />
     </div>
   );
@@ -44,9 +46,10 @@ export const WelcomeSplashMascot: React.FC = () => {
       aria-hidden="true"
     >
       <img
-        src="/assets/mascot-splash.jpg"
+        src="/assets/mascot-splash.webp"
         alt="Maskot Sambutan TaskDar"
-        className="w-full h-full object-cover"
+        className="w-full h-full object-contain"
+        referrerPolicy="no-referrer"
       />
     </div>
   );
@@ -63,9 +66,10 @@ export const CelebrationMascotIllustration: React.FC = () => {
       aria-hidden="true"
     >
       <img
-        src="/assets/olympiad-trophy.jpg"
+        src="/assets/olympiad-trophy.webp"
         alt="Trofi Pencapaian Tugas"
-        className="w-full h-full object-cover"
+        className="w-full h-full object-contain"
+        referrerPolicy="no-referrer"
       />
     </div>
   );

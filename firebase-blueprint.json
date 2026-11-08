@@ -2,7 +2,7 @@
   "entities": {
     "StudentProfile": {
       "title": "StudentProfile",
-      "description": "Profil identitas mahasiswa STIKOM Poltek Cirebon",
+      "description": "Profil identitas mahasiswa TaskDar",
       "type": "object",
       "properties": {
         "uid": {
@@ -50,7 +50,7 @@
     },
     "AcademicTaskDoc": {
       "title": "AcademicTaskDoc",
-      "description": "Dokumen tugas kuliah mahasiswa",
+      "description": "Dokumen tugas kuliah mahasiswa dengan dukungan kategori kustom",
       "type": "object",
       "properties": {
         "id": {
@@ -71,8 +71,7 @@
         },
         "category": {
           "type": "string",
-          "enum": ["Praktikum", "Proyek", "Teori", "Kuis"],
-          "maxLength": 32
+          "maxLength": 60
         },
         "description": {
           "type": "string",
@@ -89,6 +88,84 @@
         }
       },
       "required": ["id", "ownerId", "title", "course", "category", "description", "deadline", "status"]
+    },
+    "AcademicCourseDoc": {
+      "title": "AcademicCourseDoc",
+      "description": "Dokumen mata kuliah mahasiswa",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "ownerId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "code": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "lecturer": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "schedule": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "room": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "credits": {
+          "type": "number"
+        },
+        "iconKey": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "stickerUrl": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "pastelBg": {
+          "type": "string",
+          "maxLength": 16
+        },
+        "pastelBorder": {
+          "type": "string",
+          "maxLength": 16
+        },
+        "accentColor": {
+          "type": "string",
+          "maxLength": 16
+        },
+        "iconBg": {
+          "type": "string",
+          "maxLength": 16
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "code",
+        "name",
+        "lecturer",
+        "schedule",
+        "room",
+        "credits",
+        "iconKey",
+        "stickerUrl",
+        "pastelBg",
+        "pastelBorder",
+        "accentColor",
+        "iconBg"
+      ]
     }
   },
   "firestore": {
@@ -99,6 +176,10 @@
     "/users/{userId}/tasks/{taskId}": {
       "schema": { "$ref": "#/entities/AcademicTaskDoc" },
       "description": "Subkoleksi tugas kuliah milik mahasiswa"
+    },
+    "/users/{userId}/courses/{courseId}": {
+      "schema": { "$ref": "#/entities/AcademicCourseDoc" },
+      "description": "Subkoleksi mata kuliah milik mahasiswa"
     }
   }
 }

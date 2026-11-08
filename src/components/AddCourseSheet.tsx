@@ -20,6 +20,10 @@ import {
   deriveBentoThemeFromHex,
   getReadableTextColor,
 } from '../data/initialTasks';
+import {
+  convertImageFileToWebpDataUrl,
+  toWebpAssetPath,
+} from '../utils/imageOptimizer';
 
 export interface AddCourseSheetProps {
   isOpen: boolean;
@@ -151,18 +155,23 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
     }
   }, [editingCourse, isOpen]);
 
-  const handleCustomStickerUpload = (
+  const handleCustomStickerUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setSelectedStickerUrl(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const webpDataUrl = await convertImageFileToWebpDataUrl(file, 768, 0.92);
+      setSelectedStickerUrl(webpDataUrl);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setSelectedStickerUrl(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -363,11 +372,11 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
                               : 'border-[#CBD5E1] bg-[#F8FAFC] text-[#0F172A]'
                           }`}
                         >
-                          <div className="w-12 h-12 rounded-xl overflow-hidden border border-[#0F172A]/20 bg-white">
+                          <div className="w-12 h-12 rounded-xl overflow-hidden border border-[#0F172A]/20 bg-white p-0.5">
                             <img
-                              src={sticker.imageUrl}
+                              src={toWebpAssetPath(sticker.imageUrl)}
                               alt={sticker.label}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-contain"
                             />
                           </div>
                           <span className="text-[10px] font-extrabold truncate max-w-full">

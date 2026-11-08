@@ -1,12 +1,51 @@
 export type TaskStatus = 'Belum Dikerjakan' | 'Selesai';
 
-export type TaskFilterTab = 'Semua' | 'Belum Dikerjakan' | 'Selesai';
+export type PresetTaskCategory = 'Praktikum' | 'Proyek' | 'Teori';
 
-export type TaskCategory = 'Praktikum' | 'Proyek' | 'Teori' | 'Kuis';
+export type TaskCategory = string;
+
+export type TaskFilter = 'Semua' | 'Belum Dikerjakan' | 'Selesai';
+
+export type TaskFilterTab = TaskFilter;
 
 export type MainBottomTab = 'tugas' | 'matakuliah' | 'progres' | 'profil';
 
 export type AppScreenPhase = 'splash' | 'auth' | 'main';
+
+export interface StudentUserSession {
+  uid: string;
+  name: string;
+  shortName: string;
+  nim: string;
+  classGroup: string;
+  semester: string;
+  program: string;
+  institution: string;
+  email: string;
+  avatarUrl: string;
+  authMethod: 'nim' | 'google';
+}
+
+export interface TaskMetrics {
+  total: number;
+  pending: number;
+  completed: number;
+  completionRate: number;
+  urgent?: number;
+}
+
+export interface PersonalLeaderboardEntry {
+  id: string;
+  title: string;
+  subtitle: string;
+  avatarUrl: string;
+  completedCount: number;
+  totalCount: number;
+  completionRate: number;
+  xpPoints: number;
+  accentColor: string;
+  pastelBg: string;
+}
 
 export type CourseIconKey =
   | 'code'
@@ -21,54 +60,6 @@ export type CourseIconKey =
   | 'smartphone'
   | 'palette'
   | 'briefcase';
-
-export interface TaskAttachment {
-  id: string;
-  name: string;
-  mimeType: string;
-  sizeLabel: string;
-  dataUrl: string;
-  kind: 'image' | 'video' | 'document';
-}
-
-export interface AcademicTask {
-  id: string;
-  title: string;
-  course: string;
-  category?: TaskCategory;
-  description: string;
-  deadline: string;
-  status: TaskStatus;
-  attachments?: TaskAttachment[];
-}
-
-export interface NewTaskPayload {
-  title: string;
-  course: string;
-  category: TaskCategory;
-  description: string;
-  deadline: string;
-  attachments?: TaskAttachment[];
-}
-
-export interface EditTaskPayload extends NewTaskPayload {
-  id: string;
-}
-
-export type TaskAction =
-  | { type: 'ADD_TASK'; payload: NewTaskPayload }
-  | { type: 'EDIT_TASK'; payload: EditTaskPayload }
-  | { type: 'DELETE_TASK'; payload: string }
-  | { type: 'TOGGLE_STATUS'; payload: string }
-  | { type: 'SET_TASKS'; payload: AcademicTask[] }
-  | { type: 'RESET_TASKS' };
-
-export interface TaskMetrics {
-  total: number;
-  pending: number;
-  completed: number;
-  completionRate: number;
-}
 
 export interface CourseColorTheme {
   id: string;
@@ -102,6 +93,56 @@ export interface CourseDetail {
   iconBg: string;
 }
 
+export interface PodiumTrophyItem {
+  id: string;
+  rank: string;
+  title: string;
+  subtitle: string;
+  metricBadge: string;
+  iconKey: 'clock' | 'terminal' | 'flame';
+  cardBg: string;
+  cardBorder: string;
+  rankBg: string;
+  accentColor: string;
+}
+
+export interface TaskAttachment {
+  id: string;
+  name: string;
+  type: 'image' | 'pdf' | 'video' | 'document';
+  sizeLabel: string;
+  url: string;
+  mimeType: string;
+}
+
+export interface AcademicTask {
+  id: string;
+  title: string;
+  course: string;
+  category: TaskCategory;
+  description: string;
+  deadline: string;
+  status: TaskStatus;
+  attachments?: TaskAttachment[];
+}
+
+export interface NewTaskInput {
+  title: string;
+  course: string;
+  category: TaskCategory;
+  description: string;
+  deadline: string;
+  attachments?: TaskAttachment[];
+}
+
+export type NewTaskPayload = NewTaskInput;
+
+export interface EditTaskInput extends NewTaskInput {
+  id: string;
+}
+
+export type EditTaskPayload = EditTaskInput;
+
 export interface NewCoursePayload {
   id?: string;
   name: string;
@@ -115,42 +156,10 @@ export interface NewCoursePayload {
   customAccentHex?: string;
 }
 
-export interface PodiumTrophyItem {
-  id: string;
-  rank: '01' | '02' | '03';
-  title: string;
-  subtitle: string;
-  metricBadge: string;
-  iconKey: 'clock' | 'terminal' | 'flame';
-  cardBg: string;
-  cardBorder: string;
-  rankBg: string;
-  accentColor: string;
-}
-
-export interface PersonalLeaderboardEntry {
-  id: string;
-  title: string;
-  subtitle: string;
-  avatarUrl: string;
-  completedCount: number;
-  totalCount: number;
-  completionRate: number;
-  xpPoints: number;
-  accentColor: string;
-  pastelBg: string;
-}
-
-export interface StudentUserSession {
-  uid: string;
-  name: string;
-  shortName: string;
-  nim: string;
-  classGroup: string;
-  semester: string;
-  program: string;
-  institution: string;
-  email: string;
-  avatarUrl: string;
-  authMethod: 'google' | 'nim';
-}
+export type TaskAction =
+  | { type: 'ADD_TASK'; payload: NewTaskInput }
+  | { type: 'EDIT_TASK'; payload: EditTaskInput }
+  | { type: 'DELETE_TASK'; payload: string }
+  | { type: 'TOGGLE_STATUS'; payload: string }
+  | { type: 'SET_TASKS'; payload: AcademicTask[] }
+  | { type: 'RESET_TASKS' };

@@ -49,10 +49,29 @@ service cloud.firestore {
         && data.ownerId is string && data.ownerId == userId && data.ownerId.size() <= 128
         && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
         && data.course is string && data.course.size() >= 1 && data.course.size() <= 120
-        && data.category is string && (data.category == 'Praktikum' || data.category == 'Proyek' || data.category == 'Teori' || data.category == 'Kuis')
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 60
         && data.description is string && data.description.size() <= 1000
         && data.deadline is string && data.deadline.size() >= 1 && data.deadline.size() <= 40
         && data.status is string && (data.status == 'Belum Dikerjakan' || data.status == 'Selesai');
+    }
+
+    function isValidCourseDoc(data, userId, courseId) {
+      return data.keys().hasAll(['id', 'ownerId', 'code', 'name', 'lecturer', 'schedule', 'room', 'credits', 'iconKey', 'stickerUrl', 'pastelBg', 'pastelBorder', 'accentColor', 'iconBg'])
+        && data.keys().hasOnly(['id', 'ownerId', 'code', 'name', 'lecturer', 'schedule', 'room', 'credits', 'iconKey', 'stickerUrl', 'pastelBg', 'pastelBorder', 'accentColor', 'iconBg'])
+        && data.id is string && data.id == courseId && data.id.size() <= 128
+        && data.ownerId is string && data.ownerId == userId && data.ownerId.size() <= 128
+        && data.code is string && data.code.size() >= 1 && data.code.size() <= 24
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.lecturer is string && data.lecturer.size() >= 1 && data.lecturer.size() <= 120
+        && data.schedule is string && data.schedule.size() >= 1 && data.schedule.size() <= 80
+        && data.room is string && data.room.size() >= 1 && data.room.size() <= 80
+        && data.credits is number && data.credits >= 1 && data.credits <= 12
+        && data.iconKey is string && data.iconKey.size() >= 1 && data.iconKey.size() <= 32
+        && data.stickerUrl is string && data.stickerUrl.size() >= 1 && data.stickerUrl.size() <= 500
+        && data.pastelBg is string && data.pastelBg.size() >= 4 && data.pastelBg.size() <= 16
+        && data.pastelBorder is string && data.pastelBorder.size() >= 4 && data.pastelBorder.size() <= 16
+        && data.accentColor is string && data.accentColor.size() >= 4 && data.accentColor.size() <= 16
+        && data.iconBg is string && data.iconBg.size() >= 4 && data.iconBg.size() <= 16;
     }
 
     match /users/{userId} {
@@ -83,6 +102,25 @@ service cloud.firestore {
           && incoming().ownerId == existing().ownerId
           && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'course', 'category', 'description', 'deadline', 'status']);
         allow delete: if isVerifiedUser() && isOwner(userId) && isValidId(userId) && isValidId(taskId);
+      }
+
+      match /courses/{courseId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(courseId);
+        allow list: if isOwner(userId) && resource.data.ownerId == request.auth.uid;
+        allow create: if isVerifiedUser()
+          && isOwner(userId)
+          && isValidId(userId)
+          && isValidId(courseId)
+          && isValidCourseDoc(incoming(), userId, courseId);
+        allow update: if isVerifiedUser()
+          && isOwner(userId)
+          && isValidId(userId)
+          && isValidId(courseId)
+          && isValidCourseDoc(incoming(), userId, courseId)
+          && incoming().id == existing().id
+          && incoming().ownerId == existing().ownerId
+          && incoming().diff(existing()).affectedKeys().hasOnly(['code', 'name', 'lecturer', 'schedule', 'room', 'credits', 'iconKey', 'stickerUrl', 'pastelBg', 'pastelBorder', 'accentColor', 'iconBg']);
+        allow delete: if isVerifiedUser() && isOwner(userId) && isValidId(userId) && isValidId(courseId);
       }
     }
   }

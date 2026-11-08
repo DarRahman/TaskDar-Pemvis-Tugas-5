@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { STUDENT_METADATA } from '../data/initialTasks';
 import { AppScreenPhase, StudentUserSession } from '../types/task';
+import { toWebpAssetPath } from '../utils/imageOptimizer';
 
 export interface WelcomeSplashModalProps {
   screenPhase: AppScreenPhase;
@@ -28,9 +29,10 @@ export interface WelcomeSplashModalProps {
 }
 
 /*
- * Full-screen #C41E3A Crimson Red & #FFFFFF White Aptivo-style splash screen
- * featuring a Playfair Display Black Italic wordmark and unboxed subtitle,
- * followed by a unified single-screen Login/Onboarding form and 2-step Google completion.
+ * Full-screen Bottom-to-Top Liquid Wave Splash Screen:
+ * Crimson Red (#C41E3A) liquid wave rises smoothly from a clean #FFFFFF white base
+ * until it fills 100% of the screen, with expressive character eyes and a
+ * Playfair Display Black Italic wordmark + unboxed subtitle.
  */
 export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
   screenPhase,
@@ -40,6 +42,7 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
   isGoogleLoading = false,
 }) => {
   const [authStep, setAuthStep] = useState<'form' | 'google-complete'>('form');
+  const [waveSubmerged, setWaveSubmerged] = useState<boolean>(false);
 
   const [googleDraft, setGoogleDraft] = useState<{
     uid: string;
@@ -66,10 +69,17 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
 
   useEffect(() => {
     if (screenPhase !== 'splash') return;
-    const timer = window.setTimeout(() => {
+    setWaveSubmerged(false);
+    const submergeTimer = window.setTimeout(() => {
+      setWaveSubmerged(true);
+    }, 950);
+    const finishTimer = window.setTimeout(() => {
       onFinishSplash();
-    }, 2300);
-    return () => window.clearTimeout(timer);
+    }, 2600);
+    return () => {
+      window.clearTimeout(submergeTimer);
+      window.clearTimeout(finishTimer);
+    };
   }, [screenPhase, onFinishSplash]);
 
   if (screenPhase === 'main') {
@@ -109,8 +119,8 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
       institution: trimmedCampus,
       email: googleDraft ? googleDraft.email : STUDENT_METADATA.email,
       avatarUrl: googleDraft
-        ? googleDraft.avatarUrl
-        : '/assets/mascot-splash.jpg',
+        ? toWebpAssetPath(googleDraft.avatarUrl)
+        : '/assets/mascot-splash.webp',
       authMethod: googleDraft ? 'google' : 'nim',
     });
   };
@@ -127,18 +137,63 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
           onClick={onFinishSplash}
           role="dialog"
           aria-label="Layar Pemuatan TaskDar"
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#C41E3A] text-white overflow-hidden cursor-pointer select-none px-6"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white overflow-hidden cursor-pointer select-none px-6"
         >
-          {/* Expressive Aptivo-Style Character Eyes + Smile Rising to Center */}
+          {/* Rising Liquid Wave Fill from Bottom (0%) to Full Top (100%) */}
           <motion.div
-            initial={{ y: 180, scale: 0.85, opacity: 0 }}
+            initial={{ y: '100%' }}
+            animate={{ y: '-8%' }}
+            transition={{
+              duration: 2.25,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+            className="absolute inset-x-0 bottom-0 h-[115%] bg-[#C41E3A] pointer-events-none z-10"
+          >
+            {/* Secondary Back Liquid Wave Crest */}
+            <div className="absolute -top-16 sm:-top-22 left-0 w-[200%] h-18 sm:h-24 overflow-hidden">
+              <motion.svg
+                viewBox="0 0 1200 120"
+                preserveAspectRatio="none"
+                animate={{ x: ['0%', '-50%'] }}
+                transition={{
+                  duration: 2.6,
+                  repeat: Infinity,
+                  ease: 'linear',
+                }}
+                className="w-full h-full fill-[#FB7185]/65"
+              >
+                <path d="M0,64 C150,120 300,8 450,64 C600,120 750,8 900,64 C1050,120 1125,36 1200,64 L1200,120 L0,120 Z" />
+              </motion.svg>
+            </div>
+
+            {/* Primary Front Liquid Wave Crest */}
+            <div className="absolute -top-14 sm:-top-20 left-0 w-[200%] h-16 sm:h-22 overflow-hidden">
+              <motion.svg
+                viewBox="0 0 1200 120"
+                preserveAspectRatio="none"
+                animate={{ x: ['-50%', '0%'] }}
+                transition={{
+                  duration: 2.1,
+                  repeat: Infinity,
+                  ease: 'linear',
+                }}
+                className="w-full h-full fill-[#C41E3A]"
+              >
+                <path d="M0,56 C200,4 400,112 600,56 C800,4 1000,112 1200,56 L1200,120 L0,120 Z" />
+              </motion.svg>
+            </div>
+          </motion.div>
+
+          {/* Expressive Aptivo-Style Character Eyes + Smile Centered Above Rising Wave */}
+          <motion.div
+            initial={{ y: 36, scale: 0.9, opacity: 0 }}
             animate={{ y: 0, scale: 1, opacity: 1 }}
             transition={{
               type: 'spring',
-              stiffness: 120,
+              stiffness: 130,
               damping: 16,
             }}
-            className="flex flex-col items-center justify-center text-center"
+            className="relative z-20 flex flex-col items-center justify-center text-center"
           >
             <svg
               viewBox="0 0 260 155"
@@ -211,27 +266,32 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                 <circle cx="178" cy="82" r="3.5" fill="#FFFFFF" />
               </motion.g>
 
-              {/* Cheerful Curved Smile */}
+              {/* Cheerful Curved Smile (adapts from Crimson to White as wave rises) */}
               <path
                 d="M110 132 Q130 148 150 132"
                 fill="none"
-                stroke="#FFFFFF"
+                stroke={waveSubmerged ? '#FFFFFF' : '#C41E3A'}
                 strokeWidth="4.5"
                 strokeLinecap="round"
+                className="transition-colors duration-300"
               />
             </svg>
 
             {/* Luxury Serif Italic TaskDar Wordmark */}
             <motion.h1
-              initial={{ y: 30, opacity: 0 }}
+              initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{
-                delay: 0.15,
+                delay: 0.12,
                 type: 'spring',
                 stiffness: 140,
                 damping: 16,
               }}
-              className="mt-4 text-6xl sm:text-7xl font-black font-luxury-italic tracking-tight text-white drop-shadow-[0_3px_0_rgba(15,23,42,0.35)]"
+              className={`mt-4 text-6xl sm:text-7xl font-black font-luxury-italic tracking-tight transition-colors duration-300 ${
+                waveSubmerged
+                  ? 'text-white drop-shadow-[0_3px_0_rgba(15,23,42,0.35)]'
+                  : 'text-[#C41E3A]'
+              }`}
             >
               TaskDar
             </motion.h1>
@@ -240,24 +300,18 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.28, duration: 0.35 }}
-              className="mt-2.5 text-sm sm:text-base font-bold text-white/95 tracking-wide"
+              transition={{ delay: 0.24, duration: 0.35 }}
+              className={`mt-2.5 text-sm sm:text-base font-bold tracking-wide transition-colors duration-300 ${
+                waveSubmerged ? 'text-white/95' : 'text-[#0F172A]'
+              }`}
             >
               Manajer Tugas & Jadwal Kuliah Mahasiswa
             </motion.p>
           </motion.div>
 
-          {/* Bottom Progress Bar */}
-          <div className="absolute bottom-10 flex flex-col items-center">
-            <div className="w-44 h-2.5 rounded-full bg-black/25 border border-white/30 overflow-hidden p-0.5">
-              <motion.div
-                initial={{ width: '0%' }}
-                animate={{ width: '100%' }}
-                transition={{ duration: 2.0, ease: 'easeInOut' }}
-                className="h-full bg-white rounded-full"
-              />
-            </div>
-            <span className="mt-2.5 text-xs font-extrabold text-white/90">
+          {/* Subtle Bottom Tap Prompt Over the Liquid Fill */}
+          <div className="absolute bottom-9 z-20 flex flex-col items-center">
+            <span className="text-xs font-extrabold text-white/95 tracking-wide">
               Ketuk layar untuk mulai
             </span>
           </div>
@@ -282,8 +336,8 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                 <img
                   src={
                     googleDraft
-                      ? googleDraft.avatarUrl
-                      : '/assets/mascot-splash.jpg'
+                      ? toWebpAssetPath(googleDraft.avatarUrl)
+                      : '/assets/mascot-splash.webp'
                   }
                   alt="Maskot TaskDar"
                   className="w-full h-full object-cover"
