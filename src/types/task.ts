@@ -2,6 +2,8 @@ export type TaskStatus = 'Belum Dikerjakan' | 'Selesai';
 
 export type TaskFilterTab = 'Semua' | 'Belum Dikerjakan' | 'Selesai';
 
+export type MainBottomTab = 'tugas' | 'matakuliah' | 'progres' | 'profil';
+
 export interface AcademicTask {
   id: string;
   title: string;
@@ -28,11 +30,29 @@ export interface TaskMetrics {
   total: number;
   pending: number;
   completed: number;
+  completionRate: number;
 }
 
-export interface SearchLogEntry {
+export interface CourseDetail {
   id: string;
-  timestamp: string;
-  query: string;
-  matchCount: number;
+  code: string;
+  name: string;
+  lecturer: string;
+  schedule: string;
+  room: string;
+  credits: number;
+  iconKey: 'code' | 'cpu' | 'database' | 'shield' | 'layers';
+  pastelBg: string;
+  pastelBorder: string;
+  accentColor: string;
+  iconBg: string;
+}
+
+export interface AchievementBadge {
+  id: string;
+  title: string;
+  subtitle: string;
+  iconKey: 'clock' | 'flame' | 'terminal' | 'award';
+  tintBg: string;
+  tintColor: string;
 }

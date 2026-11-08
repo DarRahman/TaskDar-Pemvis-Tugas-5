@@ -8,24 +8,36 @@ export interface AddTaskSheetProps {
   onClose: () => void;
   onAddTask: (payload: NewTaskPayload) => void;
   titleInputRef: React.RefObject<HTMLInputElement | null>;
+  initialCourse?: string;
+  isDarkMode?: boolean;
 }
 
 /*
- * Bottom sheet form modeled after the Slothy task creation modal.
- * Uses controlled useState inputs and programmatic useRef focus management
- * on the task title input upon opening or form reset.
+ * Slide-up bottom sheet modal for adding a new academic assignment.
+ * Uses controlled useState form fields and programmatic useRef focus
+ * on the task title input without exposing technical jargon in the UI.
  */
 export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
   isOpen,
   onClose,
   onAddTask,
   titleInputRef,
+  initialCourse,
+  isDarkMode = false,
 }) => {
   const [title, setTitle] = useState<string>('');
-  const [course, setCourse] = useState<string>(SEMESTER_5_COURSES[0]);
+  const [course, setCourse] = useState<string>(
+    initialCourse || SEMESTER_5_COURSES[0]
+  );
   const [description, setDescription] = useState<string>('');
   const [deadline, setDeadline] = useState<string>('20 Nov 2026');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialCourse) {
+      setCourse(initialCourse);
+    }
+  }, [initialCourse]);
 
   useEffect(() => {
     if (isOpen) {
@@ -43,7 +55,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
 
   const handleClearForm = () => {
     setTitle('');
-    setCourse(SEMESTER_5_COURSES[0]);
+    setCourse(initialCourse || SEMESTER_5_COURSES[0]);
     setDescription('');
     setDeadline('20 Nov 2026');
     setErrorMessage(null);
@@ -59,11 +71,11 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
       return;
     }
     if (!course.trim()) {
-      setErrorMessage('Nama mata kuliah wajib diisi.');
+      setErrorMessage('Pilih atau ketik nama mata kuliah.');
       return;
     }
     if (!description.trim()) {
-      setErrorMessage('Deskripsi atau instruksi tugas wajib diisi.');
+      setErrorMessage('Deskripsi atau rincian tugas wajib diisi.');
       return;
     }
     if (!deadline.trim()) {
@@ -92,60 +104,85 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
       aria-modal="true"
       aria-labelledby="add-task-sheet-title"
     >
-      <div className="w-full max-w-[430px] rounded-t-3xl sm:rounded-3xl bg-[#F5F5F3] border border-[#E4E2DD] shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-150">
-        {/* Grab Handle Affordance */}
-        <div className="pt-2.5 pb-1 flex justify-center">
-          <div className="w-10 h-1.5 rounded-full bg-[#D4D2CD]" aria-hidden="true" />
+      <div
+        className={`w-full max-w-[430px] rounded-t-[32px] sm:rounded-[32px] border shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-150 ${
+          isDarkMode
+            ? 'bg-[#1A1F28] border-[#2E3440] text-[#F8FAFC]'
+            : 'bg-[#FDFBF7] border-[#EFE8DC] text-[#1E1B18]'
+        }`}
+      >
+        {/* Drag Handle Bar */}
+        <div className="pt-3 pb-1 flex justify-center">
+          <div
+            className={`w-11 h-1.5 rounded-full ${
+              isDarkMode ? 'bg-[#3B4252]' : 'bg-[#DDD5C7]'
+            }`}
+            aria-hidden="true"
+          />
         </div>
 
         <form onSubmit={handleSubmit} noValidate>
-          {/* Sheet Header: Batal · Tambah Tugas · Simpan */}
-          <div className="px-4 pb-2 flex items-center justify-between border-b border-[#E4E2DD]">
+          {/* Header Bar: Batal · Tambah Tugas · Simpan */}
+          <div
+            className={`px-4 pb-2.5 flex items-center justify-between border-b ${
+              isDarkMode ? 'border-[#2E3440]' : 'border-[#EFE8DC]'
+            }`}
+          >
             <button
               type="button"
               onClick={onClose}
-              className="min-h-[44px] min-w-[64px] px-2 flex items-center justify-start text-sm font-medium text-[#52524E] hover:text-[#18181B] transition-colors"
+              className={`min-h-[44px] min-w-[64px] px-2 flex items-center justify-start text-sm font-semibold transition-colors ${
+                isDarkMode
+                  ? 'text-[#94A3B8] hover:text-white'
+                  : 'text-[#6E6658] hover:text-[#1E1B18]'
+              }`}
             >
               Batal
             </button>
 
             <h2
               id="add-task-sheet-title"
-              className="text-[15px] font-bold text-[#18181B] tracking-tight"
+              className="text-[15px] font-bold tracking-tight"
             >
               Tambah Tugas
             </h2>
 
             <button
               type="submit"
-              className="min-h-[44px] min-w-[64px] px-2 flex items-center justify-end text-sm font-bold text-[#18181B] hover:text-[#1E5E4E] transition-colors"
+              className="min-h-[44px] min-w-[64px] px-2 flex items-center justify-end text-sm font-bold text-[#EC6B56] hover:text-[#D95540] transition-colors"
             >
               Simpan
             </button>
           </div>
 
-          {/* Sheet Form Fields */}
-          <div className="p-4 space-y-4 max-h-[75vh] overflow-y-auto">
+          {/* Form Body */}
+          <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
             {errorMessage && (
               <div
                 role="alert"
-                className="flex items-center gap-2 p-3 rounded-xl bg-[#FEE2E2] border border-[#FECACA] text-xs font-medium text-[#991B1B]"
+                className="flex items-center gap-2 p-3 rounded-2xl bg-[#FFEAE6] border border-[#FBC7BE] text-xs font-semibold text-[#B91C1C]"
               >
                 <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
                 <span>{errorMessage}</span>
               </div>
             )}
 
-            {/* Judul Tugas (Targeted by useRef) */}
+            {/* Judul Tugas */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label
                   htmlFor="task-title-input"
-                  className="block text-xs font-semibold text-[#3F3F3B]"
+                  className={`block text-xs font-bold ${
+                    isDarkMode ? 'text-[#CBD5E1]' : 'text-[#4A4338]'
+                  }`}
                 >
-                  Judul Tugas (Fokus Otomatis useRef)
+                  Judul Tugas
                 </label>
-                <span className="text-[11px] font-mono tabular-nums text-[#64645E]">
+                <span
+                  className={`text-[11px] font-mono tabular-nums ${
+                    isDarkMode ? 'text-[#64748B]' : 'text-[#8C8476]'
+                  }`}
+                >
                   {title.length}/100
                 </span>
               </div>
@@ -159,20 +196,26 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                   setTitle(e.target.value);
                   if (errorMessage) setErrorMessage(null);
                 }}
-                placeholder="Contoh: Tugas Pertemuan 6 - Navigasi Stack"
-                className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#EAE7E1] border border-transparent focus:border-[#18181B] focus:bg-white text-sm text-[#18181B] placeholder:text-[#71716A] outline-none transition-colors"
+                placeholder="Contoh: Tugas Pertemuan 6 - Navigasi Layar"
+                className={`w-full min-h-[44px] px-4 py-2.5 rounded-2xl border text-sm outline-none transition-colors ${
+                  isDarkMode
+                    ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#EC6B56]'
+                    : 'bg-[#F4EFE6] border-transparent text-[#1E1B18] placeholder:text-[#8C8476] focus:border-[#EC6B56] focus:bg-white'
+                }`}
               />
             </div>
 
-            {/* Mata Kuliah Selector + Custom Input */}
+            {/* Pilihan Mata Kuliah */}
             <div>
               <label
                 htmlFor="task-course-input"
-                className="block text-xs font-semibold text-[#3F3F3B] mb-1.5"
+                className={`block text-xs font-bold mb-1.5 ${
+                  isDarkMode ? 'text-[#CBD5E1]' : 'text-[#4A4338]'
+                }`}
               >
-                Mata Kuliah Semester 5
+                Mata Kuliah
               </label>
-              <div className="flex flex-wrap gap-1.5 mb-2">
+              <div className="flex flex-wrap gap-1.5 mb-2.5">
                 {SEMESTER_5_COURSES.map((courseOption) => {
                   const isSelected = course === courseOption;
                   return (
@@ -180,10 +223,12 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                       key={courseOption}
                       type="button"
                       onClick={() => setCourse(courseOption)}
-                      className={`min-h-[44px] px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                      className={`min-h-[44px] px-3.5 py-1.5 rounded-2xl text-xs font-semibold transition-colors ${
                         isSelected
-                          ? 'bg-[#18181B] text-white'
-                          : 'bg-[#EAE7E1] text-[#3F3F3B] hover:bg-[#DFDCD4]'
+                          ? 'bg-[#EC6B56] text-white'
+                          : isDarkMode
+                          ? 'bg-[#232934] text-[#CBD5E1] hover:bg-[#2E3440]'
+                          : 'bg-[#F4EFE6] text-[#4A4338] hover:bg-[#EAE2D3]'
                       }`}
                     >
                       {courseOption}
@@ -197,7 +242,11 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                 value={course}
                 onChange={(e) => setCourse(e.target.value)}
                 placeholder="Ketik atau pilih mata kuliah"
-                className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#EAE7E1] border border-transparent focus:border-[#18181B] focus:bg-white text-sm text-[#18181B] placeholder:text-[#71716A] outline-none transition-colors"
+                className={`w-full min-h-[44px] px-4 py-2.5 rounded-2xl border text-sm outline-none transition-colors ${
+                  isDarkMode
+                    ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#EC6B56]'
+                    : 'bg-[#F4EFE6] border-transparent text-[#1E1B18] placeholder:text-[#8C8476] focus:border-[#EC6B56] focus:bg-white'
+                }`}
               />
             </div>
 
@@ -205,9 +254,11 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
             <div>
               <label
                 htmlFor="task-desc-input"
-                className="block text-xs font-semibold text-[#3F3F3B] mb-1.5"
+                className={`block text-xs font-bold mb-1.5 ${
+                  isDarkMode ? 'text-[#CBD5E1]' : 'text-[#4A4338]'
+                }`}
               >
-                Deskripsi dan Instruksi
+                Deskripsi dan Catatan
               </label>
               <textarea
                 id="task-desc-input"
@@ -218,7 +269,11 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                   if (errorMessage) setErrorMessage(null);
                 }}
                 placeholder="Tuliskan rincian materi, spesifikasi laporan, atau instruksi praktikum..."
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#EAE7E1] border border-transparent focus:border-[#18181B] focus:bg-white text-sm text-[#18181B] placeholder:text-[#71716A] outline-none transition-colors resize-none"
+                className={`w-full px-4 py-2.5 rounded-2xl border text-sm outline-none transition-colors resize-none ${
+                  isDarkMode
+                    ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#EC6B56]'
+                    : 'bg-[#F4EFE6] border-transparent text-[#1E1B18] placeholder:text-[#8C8476] focus:border-[#EC6B56] focus:bg-white'
+                }`}
               />
             </div>
 
@@ -226,9 +281,11 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
             <div>
               <label
                 htmlFor="task-deadline-input"
-                className="block text-xs font-semibold text-[#3F3F3B] mb-1.5"
+                className={`block text-xs font-bold mb-1.5 ${
+                  isDarkMode ? 'text-[#CBD5E1]' : 'text-[#4A4338]'
+                }`}
               >
-                Tenggat Waktu Pengumpulan
+                Tenggat Pengumpulan
               </label>
               <input
                 id="task-deadline-input"
@@ -236,26 +293,34 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
                 placeholder="Contoh: 18 Nov 2026"
-                className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#EAE7E1] border border-transparent focus:border-[#18181B] focus:bg-white text-sm font-mono tabular-nums text-[#18181B] placeholder:text-[#71716A] outline-none transition-colors"
+                className={`w-full min-h-[44px] px-4 py-2.5 rounded-2xl border text-sm font-mono tabular-nums outline-none transition-colors ${
+                  isDarkMode
+                    ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#EC6B56]'
+                    : 'bg-[#F4EFE6] border-transparent text-[#1E1B18] placeholder:text-[#8C8476] focus:border-[#EC6B56] focus:bg-white'
+                }`}
               />
             </div>
 
-            {/* Bottom Sheet Action Footer */}
-            <div className="pt-2 flex items-center justify-between gap-2">
+            {/* Bottom Actions */}
+            <div className="pt-2 flex items-center justify-between gap-2.5">
               <button
                 type="button"
                 onClick={handleClearForm}
-                className="min-h-[44px] px-3.5 rounded-xl bg-[#EAE7E1] hover:bg-[#DFDCD4] text-xs font-semibold text-[#3F3F3B] flex items-center gap-1.5 transition-colors"
+                className={`min-h-[44px] px-4 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-colors ${
+                  isDarkMode
+                    ? 'bg-[#232934] hover:bg-[#2E3440] text-[#CBD5E1]'
+                    : 'bg-[#F4EFE6] hover:bg-[#EAE2D3] text-[#4A4338]'
+                }`}
               >
                 <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>Bersihkan & Fokus Input</span>
+                <span>Kosongkan</span>
               </button>
 
               <button
                 type="submit"
-                className="min-h-[44px] px-5 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-xs font-semibold text-white transition-colors"
+                className="flex-1 min-h-[48px] px-5 rounded-2xl bg-[#EC6B56] hover:bg-[#D95540] text-sm font-bold text-white shadow-sm transition-colors"
               >
-                Simpan Tugas Baru
+                Simpan Tugas
               </button>
             </div>
           </div>

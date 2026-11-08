@@ -11,80 +11,103 @@ import {
   Calendar,
 } from 'lucide-react';
 import { AcademicTask } from '../types/task';
+import { COURSE_DIRECTORY } from '../data/initialTasks';
 
 export interface TaskCardProps {
   task: AcademicTask;
   onToggleStatus: (id: string) => void;
   onDeleteTask: (id: string) => void;
+  isDarkMode?: boolean;
 }
 
-/*
- * Maps each Semester 5 course to a distinct vector icon so visual scanning
- * remains rapid without relying on prohibited Unicode emojis.
- */
-function getCourseIcon(courseName: string) {
+function getCourseStyleAndIcon(courseName: string) {
+  const matched = COURSE_DIRECTORY.find(
+    (c) => c.name.toLowerCase() === courseName.toLowerCase()
+  );
   const normalized = courseName.toLowerCase();
+
+  let icon = <BookOpen className="w-4 h-4 text-white" aria-hidden="true" />;
   if (normalized.includes('visual') || normalized.includes('mobile')) {
-    return <Code2 className="w-4 h-4 text-[#18181B]" aria-hidden="true" />;
+    icon = <Code2 className="w-4 h-4 text-white" aria-hidden="true" />;
+  } else if (normalized.includes('robot')) {
+    icon = <Cpu className="w-4 h-4 text-white" aria-hidden="true" />;
+  } else if (normalized.includes('data') || normalized.includes('warehouse')) {
+    icon = <Database className="w-4 h-4 text-white" aria-hidden="true" />;
+  } else if (normalized.includes('keamanan') || normalized.includes('jaringan')) {
+    icon = <ShieldCheck className="w-4 h-4 text-white" aria-hidden="true" />;
+  } else if (normalized.includes('objek') || normalized.includes('pbo')) {
+    icon = <Layers className="w-4 h-4 text-white" aria-hidden="true" />;
   }
-  if (normalized.includes('robot')) {
-    return <Cpu className="w-4 h-4 text-[#18181B]" aria-hidden="true" />;
-  }
-  if (normalized.includes('data') || normalized.includes('warehouse')) {
-    return <Database className="w-4 h-4 text-[#18181B]" aria-hidden="true" />;
-  }
-  if (normalized.includes('keamanan') || normalized.includes('jaringan')) {
-    return <ShieldCheck className="w-4 h-4 text-[#18181B]" aria-hidden="true" />;
-  }
-  if (normalized.includes('objek') || normalized.includes('pbo')) {
-    return <Layers className="w-4 h-4 text-[#18181B]" aria-hidden="true" />;
-  }
-  return <BookOpen className="w-4 h-4 text-[#18181B]" aria-hidden="true" />;
+
+  return {
+    icon,
+    iconBg: matched?.iconBg ?? '#EC6B56',
+    pastelBg: matched?.pastelBg ?? '#FFEAE6',
+    accentColor: matched?.accentColor ?? '#C84332',
+  };
 }
 
 /*
- * Dedicated child component receiving data and mutation callbacks exclusively
- * via Props to satisfy Requirement 1 (Component Delegation) and prevent
- * unnecessary re-renders when sibling items change.
+ * Pure child component receiving task data and action callbacks via Props.
+ * Maintains 44x44pt minimum touch hitboxes and WCAG AA contrast ratios.
  */
 export const TaskCard: React.FC<TaskCardProps> = React.memo(
-  ({ task, onToggleStatus, onDeleteTask }) => {
+  ({ task, onToggleStatus, onDeleteTask, isDarkMode = false }) => {
     const isCompleted = task.status === 'Selesai';
+    const { icon, iconBg } = getCourseStyleAndIcon(task.course);
 
     return (
       <article
-        className={`group relative rounded-2xl border transition-colors duration-150 ${
-          isCompleted
-            ? 'bg-[#EFECE6]/75 border-[#E4E2DD]'
-            : 'bg-white border-[#E4E2DD] hover:border-[#C8C5BC]'
-        } p-4`}
+        className={`relative rounded-3xl border transition-all duration-150 p-4 ${
+          isDarkMode
+            ? isCompleted
+              ? 'bg-[#1F242D]/60 border-[#2E3440]'
+              : 'bg-[#232934] border-[#323A48]'
+            : isCompleted
+            ? 'bg-[#F4EFE6]/85 border-[#E6DEC8]'
+            : 'bg-white border-[#EFE8DC] shadow-xs'
+        }`}
       >
-        <div className="flex items-start gap-3">
-          {/* Course Vector Glyph Container */}
+        <div className="flex items-start gap-3.5">
+          {/* Subject Vector Icon Badge */}
           <div
-            className={`mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
-              isCompleted
-                ? 'bg-[#E6E3DC] border-[#D8D5CD] opacity-70'
-                : 'bg-[#F5F5F3] border-[#E4E2DD]'
+            style={{ backgroundColor: iconBg }}
+            className={`mt-0.5 w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 transition-opacity ${
+              isCompleted ? 'opacity-55' : 'opacity-100'
             }`}
           >
-            {getCourseIcon(task.course)}
+            {icon}
           </div>
 
-          {/* Primary Content Column */}
+          {/* Task Content Column */}
           <div
             className="flex-1 min-w-0 cursor-pointer select-none"
             onClick={() => onToggleStatus(task.id)}
           >
-            {/* Unboxed Metadata Kicker: Course · Status */}
-            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs font-medium text-[#52524E]">
-              <span className="truncate">{task.course}</span>
-              <span aria-hidden="true">·</span>
+            {/* Unboxed Course & Status Line */}
+            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs font-semibold">
+              <span
+                className={`truncate ${
+                  isDarkMode ? 'text-[#CBD5E1]' : 'text-[#5C5549]'
+                }`}
+              >
+                {task.course}
+              </span>
+              <span
+                aria-hidden="true"
+                className={isDarkMode ? 'text-[#64748B]' : 'text-[#A39B8B]'}
+              >
+                ·
+              </span>
               <span
                 className={
                   isCompleted
-                    ? 'text-[#1E5E4E] font-semibold'
-                    : 'text-[#854D0E] font-semibold'
+                    ? isDarkMode
+                      ? 'text-[#34D399]'
+                      : 'text-[#1E7A68]'
+                    : isDarkMode
+                    ? 'text-[#FBBF24]'
+                    : 'text-[#C25E00]'
                 }
               >
                 {task.status}
@@ -93,10 +116,14 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(
 
             {/* Task Title */}
             <h3
-              className={`mt-1 text-[15px] font-semibold leading-snug transition-colors ${
+              className={`mt-1 text-[15px] font-bold leading-snug transition-colors ${
                 isCompleted
-                  ? 'line-through text-[#64645E]'
-                  : 'text-[#18181B]'
+                  ? isDarkMode
+                    ? 'line-through text-[#64748B]'
+                    : 'line-through text-[#8C8476]'
+                  : isDarkMode
+                  ? 'text-[#F8FAFC]'
+                  : 'text-[#1E1B18]'
               }`}
             >
               {task.title}
@@ -104,22 +131,32 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(
 
             {/* Task Description */}
             <p
-              className={`mt-1.5 text-[13px] leading-relaxed ${
-                isCompleted ? 'text-[#71716A]' : 'text-[#484843]'
+              className={`mt-1.5 text-xs leading-relaxed ${
+                isCompleted
+                  ? isDarkMode
+                    ? 'text-[#64748B]'
+                    : 'text-[#968E80]'
+                  : isDarkMode
+                  ? 'text-[#94A3B8]'
+                  : 'text-[#5C5549]'
               }`}
             >
               {task.description}
             </p>
 
-            {/* Unboxed Footer Metadata: Deadline */}
-            <div className="mt-2.5 flex items-center gap-1.5 text-xs font-mono tabular-nums text-[#52524E]">
-              <Calendar className="w-3.5 h-3.5 shrink-0 text-[#64645E]" aria-hidden="true" />
+            {/* Unboxed Footer Deadline */}
+            <div
+              className={`mt-2.5 flex items-center gap-1.5 text-xs font-mono tabular-nums ${
+                isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
               <span>Tenggat: {task.deadline}</span>
             </div>
           </div>
 
           {/* Right Action Controls: 44x44pt minimum touch targets */}
-          <div className="flex items-center gap-1 shrink-0 -mr-1 -mt-1">
+          <div className="flex items-center gap-0.5 shrink-0 -mr-1.5 -mt-1">
             <button
               type="button"
               onClick={() => onToggleStatus(task.id)}
@@ -129,16 +166,20 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(
                   : `Tandai ${task.title} sebagai selesai`
               }
               title={isCompleted ? 'Ubah ke Belum Dikerjakan' : 'Tandai Selesai'}
-              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B] transition-transform active:scale-95"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-2xl transition-transform active:scale-95"
             >
               <span
                 className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors duration-150 ${
                   isCompleted
-                    ? 'bg-[#18181B] border-[#18181B] text-white'
-                    : 'bg-transparent border-[#71716A] hover:border-[#18181B]'
+                    ? 'bg-[#2A9D8F] border-[#2A9D8F] text-white'
+                    : isDarkMode
+                    ? 'bg-transparent border-[#64748B] hover:border-[#EC6B56]'
+                    : 'bg-transparent border-[#B5AC9C] hover:border-[#EC6B56]'
                 }`}
               >
-                {isCompleted && <Check className="w-3.5 h-3.5 stroke-[2.75]" aria-hidden="true" />}
+                {isCompleted && (
+                  <Check className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />
+                )}
               </span>
             </button>
 
@@ -147,7 +188,11 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(
               onClick={() => onDeleteTask(task.id)}
               aria-label={`Hapus tugas ${task.title}`}
               title="Hapus Tugas"
-              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-[#64645E] hover:text-[#B91C1C] hover:bg-[#FEE2E2]/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B91C1C] transition-colors"
+              className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-2xl transition-colors ${
+                isDarkMode
+                  ? 'text-[#94A3B8] hover:text-[#F87171] hover:bg-[#3B2329]'
+                  : 'text-[#8C8476] hover:text-[#C84332] hover:bg-[#FFEAE6]'
+              }`}
             >
               <Trash2 className="w-4 h-4" aria-hidden="true" />
             </button>

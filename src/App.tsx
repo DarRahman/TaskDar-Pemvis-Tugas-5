@@ -11,21 +11,45 @@ import {
   Search,
   X,
   RotateCcw,
-  FileCode2,
   CheckSquare,
+  BookOpen,
+  PieChart,
+  User,
+  Flame,
   Inbox,
-  GraduationCap,
-  BookMarked,
-  CheckCircle2,
+  Code2,
+  Cpu,
+  Database,
+  ShieldCheck,
+  Layers,
   Clock,
+  Terminal,
+  Award,
+  Bell,
+  Moon,
+  Sun,
+  Calendar,
+  MapPin,
+  UserCheck,
+  ChevronRight,
+  FileCode2,
+  CheckCircle2,
 } from 'lucide-react';
 import {
   INITIAL_TASKS,
   STUDENT_METADATA,
-  SEMESTER_5_COURSES,
+  COURSE_DIRECTORY,
+  ACHIEVEMENT_BADGES,
   taskReducer,
 } from './data/initialTasks';
-import { TaskFilterTab, NewTaskPayload, TaskMetrics } from './types/task';
+import {
+  TaskFilterTab,
+  MainBottomTab,
+  NewTaskPayload,
+  TaskMetrics,
+  CourseDetail,
+  AchievementBadge,
+} from './types/task';
 import { TaskCard } from './components/TaskCard';
 import { AddTaskSheet } from './components/AddTaskSheet';
 import { ExpoCodeDrawer } from './components/ExpoCodeDrawer';
@@ -36,6 +60,39 @@ const FILTER_TABS: readonly TaskFilterTab[] = [
   'Selesai',
 ];
 
+function renderCourseVectorIcon(iconKey: CourseDetail['iconKey']) {
+  switch (iconKey) {
+    case 'code':
+      return <Code2 className="w-5 h-5 text-white" aria-hidden="true" />;
+    case 'cpu':
+      return <Cpu className="w-5 h-5 text-white" aria-hidden="true" />;
+    case 'database':
+      return <Database className="w-5 h-5 text-white" aria-hidden="true" />;
+    case 'shield':
+      return <ShieldCheck className="w-5 h-5 text-white" aria-hidden="true" />;
+    case 'layers':
+      return <Layers className="w-5 h-5 text-white" aria-hidden="true" />;
+  }
+}
+
+function renderBadgeVectorIcon(
+  iconKey: AchievementBadge['iconKey'],
+  color: string
+) {
+  switch (iconKey) {
+    case 'clock':
+      return <Clock className="w-5 h-5" style={{ color }} aria-hidden="true" />;
+    case 'flame':
+      return <Flame className="w-5 h-5" style={{ color }} aria-hidden="true" />;
+    case 'terminal':
+      return (
+        <Terminal className="w-5 h-5" style={{ color }} aria-hidden="true" />
+      );
+    case 'award':
+      return <Award className="w-5 h-5" style={{ color }} aria-hidden="true" />;
+  }
+}
+
 export default function App() {
   /*
    * Hook 7 (useReducer): Central state engine managing task list mutations
@@ -44,14 +101,23 @@ export default function App() {
   const [tasks, dispatch] = useReducer(taskReducer, INITIAL_TASKS);
 
   /*
-   * Hook 2 (useState): Manages controlled search keyword, active filter tab,
-   * selected course filter, and modal sheet visibility.
+   * Hook 2 (useState): Manages active bottom navigation tab, search query,
+   * status filter tab, course filter, settings toggles, and modal sheets.
    */
+  const [bottomTab, setBottomTab] = useState<MainBottomTab>('tugas');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<TaskFilterTab>('Semua');
-  const [selectedCourse, setSelectedCourse] = useState<string>('Semua Mata Kuliah');
+  const [activeFilterTab, setActiveFilterTab] =
+    useState<TaskFilterTab>('Semua');
+  const [selectedCourseFilter, setSelectedCourseFilter] =
+    useState<string>('Semua');
+  const [preselectedCourseForAdd, setPreselectedCourseForAdd] =
+    useState<string>(COURSE_DIRECTORY[0].name);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState<boolean>(false);
   const [isCodeDrawerOpen, setIsCodeDrawerOpen] = useState<boolean>(false);
+
+  const [reminderEnabled, setReminderEnabled] = useState<boolean>(true);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
   /*
    * Hook 6 (useRef): References the task title input element inside the
@@ -73,30 +139,28 @@ export default function App() {
   }, [searchQuery]);
 
   /*
-   * Hook 4 (useMemo): Computes derived task counts (total, pending, completed)
-   * exclusively when the tasks state array mutates (FR-06).
+   * Hook 4 (useMemo): Computes derived task counts (total, pending, completed,
+   * and completion percentage) exclusively when the tasks array mutates (FR-06).
    */
   const taskMetrics: TaskMetrics = useMemo(() => {
     const total = tasks.length;
     const completed = tasks.filter((task) => task.status === 'Selesai').length;
     const pending = total - completed;
-    return { total, pending, completed };
+    const completionRate =
+      total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { total, pending, completed, completionRate };
   }, [tasks]);
 
-  /*
-   * Memoized filtering combining status tab, course selector, and real-time
-   * keyword search across task title and course name.
-   */
   const filteredTasks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
     return tasks.filter((task) => {
       const matchesStatus =
-        activeTab === 'Semua' ? true : task.status === activeTab;
+        activeFilterTab === 'Semua' ? true : task.status === activeFilterTab;
       const matchesCourse =
-        selectedCourse === 'Semua Mata Kuliah'
+        selectedCourseFilter === 'Semua'
           ? true
-          : task.course === selectedCourse;
+          : task.course.toLowerCase() === selectedCourseFilter.toLowerCase();
       const matchesKeyword =
         query === '' ||
         task.title.toLowerCase().includes(query) ||
@@ -104,7 +168,14 @@ export default function App() {
 
       return matchesStatus && matchesCourse && matchesKeyword;
     });
-  }, [tasks, activeTab, selectedCourse, searchQuery]);
+  }, [tasks, activeFilterTab, selectedCourseFilter, searchQuery]);
+
+  const showToastMessage = useCallback((message: string) => {
+    setFeedbackToast(message);
+    window.setTimeout(() => {
+      setFeedbackToast((prev) => (prev === message ? null : prev));
+    }, 2600);
+  }, []);
 
   /*
    * Hook 5 (useCallback): Preserves handler reference stability across renders
@@ -114,478 +185,1197 @@ export default function App() {
     dispatch({ type: 'TOGGLE_STATUS', payload: taskId });
   }, []);
 
-  const handleDeleteTask = useCallback((taskId: string) => {
-    dispatch({ type: 'DELETE_TASK', payload: taskId });
-  }, []);
+  const handleDeleteTask = useCallback(
+    (taskId: string) => {
+      dispatch({ type: 'DELETE_TASK', payload: taskId });
+      showToastMessage('Tugas berhasil dihapus.');
+    },
+    [showToastMessage]
+  );
 
-  const handleAddTask = useCallback((payload: NewTaskPayload) => {
-    dispatch({ type: 'ADD_TASK', payload });
-  }, []);
+  const handleAddTask = useCallback(
+    (payload: NewTaskPayload) => {
+      dispatch({ type: 'ADD_TASK', payload });
+      showToastMessage('Tugas baru berhasil ditambahkan.');
+    },
+    [showToastMessage]
+  );
 
   const handleResetTasks = useCallback(() => {
     dispatch({ type: 'RESET_TASKS' });
     setSearchQuery('');
-    setActiveTab('Semua');
-    setSelectedCourse('Semua Mata Kuliah');
-  }, []);
+    setActiveFilterTab('Semua');
+    setSelectedCourseFilter('Semua');
+    showToastMessage('Data tugas diatur ulang ke 5 tugas awal Semester 5.');
+  }, [showToastMessage]);
 
-  const handleOpenAddSheet = useCallback(() => {
+  const handleOpenAddSheet = useCallback((courseName?: string) => {
+    if (courseName) {
+      setPreselectedCourseForAdd(courseName);
+    }
     setIsAddSheetOpen(true);
     window.setTimeout(() => {
       titleInputRef.current?.focus();
     }, 60);
   }, []);
 
+  const radialRadius = 46;
+  const radialCircumference = 2 * Math.PI * radialRadius;
+  const radialStrokeOffset =
+    radialCircumference -
+    (taskMetrics.completionRate / 100) * radialCircumference;
+
+  const miniRadius = 21;
+  const miniCircumference = 2 * Math.PI * miniRadius;
+  const miniStrokeOffset =
+    miniCircumference - (taskMetrics.completionRate / 100) * miniCircumference;
+
   return (
-    <div className="min-h-screen bg-[#F5F5F3] lg:bg-[#1E5E4E] text-[#18181B] flex flex-col justify-between">
-      {/* Main Responsive Workspace Container */}
-      <main className="flex-1 w-full max-w-6xl mx-auto lg:py-8 lg:px-6 flex flex-col lg:flex-row items-stretch lg:items-start justify-center gap-8">
-        {/* Left / Primary Column: Slothy-Benchmark Mobile Task Manager Viewport */}
-        <section
-          aria-label="Antarmuka Utama Tugas Kuliah"
-          className="w-full max-w-[440px] mx-auto lg:mx-0 bg-[#F5F5F3] lg:rounded-[36px] lg:border-[8px] lg:border-[#18181B] lg:shadow-2xl flex flex-col min-h-screen lg:min-h-[812px] lg:max-h-[860px] relative overflow-hidden"
-        >
-          {/* Mobile Top Header */}
-          <header className="px-5 pt-5 pb-3 bg-[#F5F5F3] flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-[#18181B] text-white flex items-center justify-center shrink-0">
-                <CheckSquare className="w-4 h-4" aria-hidden="true" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-lg font-bold tracking-tight text-[#18181B] truncate">
-                  Tugas Kuliah
-                </h1>
-                <p className="text-xs text-[#52524E] truncate font-mono tabular-nums">
-                  {STUDENT_METADATA.name} · {STUDENT_METADATA.nim}
-                </p>
-              </div>
-            </div>
+    <div
+      className={`min-h-screen flex items-center justify-center sm:py-6 sm:px-4 transition-colors duration-200 ${
+        isDarkMode ? 'bg-[#0F1319]' : 'bg-[#DFC59B]'
+      }`}
+    >
+      {/* Pure Mobile Application Frame */}
+      <main
+        aria-label="Aplikasi Mobile Tugas Kuliah STIKOM Poltek Cirebon"
+        className={`w-full max-w-[430px] min-h-screen sm:min-h-[844px] sm:max-h-[880px] sm:rounded-[44px] sm:border-[10px] sm:shadow-2xl flex flex-col relative overflow-hidden transition-colors duration-200 ${
+          isDarkMode
+            ? 'bg-[#161A22] sm:border-[#262C3A] text-[#F8FAFC]'
+            : 'bg-[#FDFBF7] sm:border-[#2B2520] text-[#1E1B18]'
+        }`}
+      >
+        {/* Top Mobile Status Pill (Visible on framed viewports) */}
+        <div className="hidden sm:flex items-center justify-between px-7 pt-3 pb-1 text-[11px] font-bold tracking-tight select-none opacity-80">
+          <span className="font-mono tabular-nums">09:41</span>
+          <div className="w-24 h-5 rounded-full bg-[#1E1B18] dark:bg-black" />
+          <span className="font-mono tabular-nums">5G · 100%</span>
+        </div>
 
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsCodeDrawerOpen(true)}
-                title="Buka Kode React Native Expo (App.js)"
-                aria-label="Buka Kode React Native Expo App.js"
-                className="min-w-[44px] min-h-[44px] px-2.5 rounded-xl bg-[#EAE7E1] hover:bg-[#DFDCD4] text-[#18181B] flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors"
-              >
-                <FileCode2 className="w-4 h-4 shrink-0" aria-hidden="true" />
-                <span className="hidden sm:inline">App.js</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleResetTasks}
-                title="Atur Ulang ke 5 Tugas Awal Semester 5"
-                aria-label="Atur ulang daftar tugas ke data awal"
-                className="min-w-[44px] min-h-[44px] rounded-xl bg-[#EAE7E1] hover:bg-[#DFDCD4] text-[#18181B] flex items-center justify-center transition-colors"
-              >
-                <RotateCcw className="w-4 h-4" aria-hidden="true" />
-              </button>
-            </div>
-          </header>
-
-          {/* Derived Task Metrics Summary Strip (useMemo) */}
-          <div className="px-5 pb-3">
-            <div
-              aria-label="Ringkasan Jumlah Tugas"
-              className="grid grid-cols-3 rounded-2xl bg-white border border-[#E4E2DD] py-3 px-2"
-            >
-              <div className="flex flex-col items-center justify-center border-r border-[#E4E2DD] px-2">
-                <span className="text-lg font-bold font-mono tabular-nums text-[#18181B]">
-                  {taskMetrics.total}
-                </span>
-                <span className="text-[11px] font-medium text-[#52524E] mt-0.5">
-                  Total Tugas
-                </span>
-              </div>
-
-              <div className="flex flex-col items-center justify-center border-r border-[#E4E2DD] px-2">
-                <span className="text-lg font-bold font-mono tabular-nums text-[#854D0E]">
-                  {taskMetrics.pending}
-                </span>
-                <span className="text-[11px] font-medium text-[#52524E] mt-0.5">
-                  Belum Dikerjakan
-                </span>
-              </div>
-
-              <div className="flex flex-col items-center justify-center px-2">
-                <span className="text-lg font-bold font-mono tabular-nums text-[#1E5E4E]">
-                  {taskMetrics.completed}
-                </span>
-                <span className="text-[11px] font-medium text-[#52524E] mt-0.5">
-                  Selesai
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Real-Time Keyword Search Bar (FR-05 + useEffect observer) */}
-          <div className="px-5 pb-2">
-            <div className="relative flex items-center bg-[#EAE7E1] rounded-2xl border border-transparent focus-within:border-[#18181B] focus-within:bg-white transition-colors">
-              <Search
-                className="w-4 h-4 text-[#64645E] ml-3.5 shrink-0 pointer-events-none"
-                aria-hidden="true"
-              />
-              <input
-                ref={searchInputRef}
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari judul tugas atau mata kuliah..."
-                aria-label="Cari tugas berdasarkan judul atau mata kuliah"
-                className="w-full min-h-[44px] pl-2.5 pr-11 py-2 bg-transparent text-sm text-[#18181B] placeholder:text-[#64645E] outline-none"
-              />
-              {searchQuery.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery('');
-                    searchInputRef.current?.focus();
-                  }}
-                  aria-label="Bersihkan kata kunci pencarian"
-                  className="absolute right-1 min-w-[44px] min-h-[44px] flex items-center justify-center text-[#52524E] hover:text-[#18181B]"
-                >
-                  <X className="w-4 h-4" aria-hidden="true" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Slothy-Style Underlined Status Filter Tabs */}
-          <nav
-            aria-label="Filter Status Tugas"
-            className="px-5 border-b border-[#E4E2DD] grid grid-cols-3"
+        {/* Toast Feedback Notification */}
+        {feedbackToast && (
+          <div
+            role="status"
+            className="absolute top-12 left-5 right-5 z-40 flex items-center gap-2 px-4 py-3 rounded-2xl bg-[#1E1B18] text-white text-xs font-semibold shadow-lg animate-in fade-in slide-in-from-top-2 duration-150"
           >
-            {FILTER_TABS.map((tab) => {
-              const isActive = activeTab === tab;
-              const count =
-                tab === 'Semua'
-                  ? taskMetrics.total
-                  : tab === 'Belum Dikerjakan'
-                  ? taskMetrics.pending
-                  : taskMetrics.completed;
+            <CheckCircle2
+              className="w-4 h-4 text-[#34D399] shrink-0"
+              aria-hidden="true"
+            />
+            <span className="truncate">{feedbackToast}</span>
+          </div>
+        )}
 
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveTab(tab)}
-                  aria-current={isActive ? 'page' : undefined}
-                  className={`min-h-[44px] px-1 flex items-center justify-center gap-1.5 border-b-2 text-xs font-semibold transition-colors whitespace-nowrap ${
-                    isActive
-                      ? 'border-[#18181B] text-[#18181B]'
-                      : 'border-transparent text-[#64645E] hover:text-[#18181B]'
-                  }`}
-                >
-                  <span className="truncate">{tab}</span>
-                  <span className="font-mono tabular-nums text-[11px] opacity-75">
-                    ({count})
-                  </span>
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Active Course Filter Bar (when filtered from desktop sidebar) */}
-          {selectedCourse !== 'Semua Mata Kuliah' && (
-            <div className="px-5 pt-3 flex items-center justify-between text-xs text-[#484843]">
-              <span className="truncate">
-                Mata Kuliah: <strong className="text-[#18181B]">{selectedCourse}</strong>
-              </span>
+        {/* Tab 1: Tugas (Daily Task Manager) */}
+        {bottomTab === 'tugas' && (
+          <section
+            aria-label="Daftar Tugas Harian"
+            className="flex-1 flex flex-col min-h-0 overflow-hidden"
+          >
+            {/* Greeting Header with Student Avatar & Streak Badge */}
+            <header className="px-5 pt-4 pb-3 flex items-center justify-between gap-2">
               <button
                 type="button"
-                onClick={() => setSelectedCourse('Semua Mata Kuliah')}
-                className="min-h-[44px] px-2 font-semibold text-[#1E5E4E] hover:underline shrink-0"
+                onClick={() => setBottomTab('profil')}
+                className="flex items-center gap-3 min-w-0 min-h-[44px] text-left group"
               >
-                Tampilkan Semua
+                {/* Friendly Vector Student Avatar */}
+                <div className="w-11 h-11 rounded-full bg-[#EC6B56] border-2 border-[#FFEAE6] flex items-center justify-center shrink-0 shadow-xs">
+                  <span className="text-sm font-bold text-white tracking-tight">
+                    BR
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-[16px] font-bold tracking-tight truncate">
+                    Halo, {STUDENT_METADATA.name}
+                  </h1>
+                  <p
+                    className={`text-xs truncate ${
+                      isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                    }`}
+                  >
+                    Apa target kuliahmu hari ini?
+                  </p>
+                </div>
               </button>
-            </div>
-          )}
 
-          {/* Task List Container (FR-01) */}
-          <div className="flex-1 overflow-y-auto px-5 pt-3.5 pb-24 space-y-3">
-            {filteredTasks.length > 0 ? (
-              filteredTasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  onToggleStatus={handleToggleStatus}
-                  onDeleteTask={handleDeleteTask}
-                />
-              ))
-            ) : (
-              <div className="py-14 px-4 text-center rounded-2xl border border-dashed border-[#D4D2CD] bg-white/60">
-                <Inbox
-                  className="w-8 h-8 text-[#64645E] mx-auto mb-2.5"
+              {/* Streak Pill Button */}
+              <button
+                type="button"
+                onClick={() => setBottomTab('progres')}
+                aria-label="Lihat progres dan rentetan hari aktif"
+                className="min-h-[44px] px-3.5 rounded-full bg-[#FFEAE6] hover:bg-[#FCD5CE] text-[#C84332] flex items-center gap-1.5 text-xs font-bold shrink-0 transition-colors"
+              >
+                <Flame
+                  className="w-4 h-4 fill-[#EC6B56] text-[#EC6B56]"
                   aria-hidden="true"
                 />
-                <p className="text-sm font-semibold text-[#18181B]">
-                  Tidak ada tugas yang sesuai
-                </p>
-                <p className="text-xs text-[#52524E] mt-1 max-w-[260px] mx-auto leading-relaxed">
-                  Tidak ditemukan tugas untuk filter atau kata kunci pencarian saat ini.
-                </p>
-                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-                  {(searchQuery !== '' ||
-                    activeTab !== 'Semua' ||
-                    selectedCourse !== 'Semua Mata Kuliah') && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearchQuery('');
-                        setActiveTab('Semua');
-                        setSelectedCourse('Semua Mata Kuliah');
-                      }}
-                      className="min-h-[44px] px-4 rounded-xl bg-[#EAE7E1] hover:bg-[#DFDCD4] text-xs font-semibold text-[#18181B] transition-colors"
-                    >
-                      Bersihkan Filter
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleOpenAddSheet}
-                    className="min-h-[44px] px-4 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-xs font-semibold text-white transition-colors"
-                  >
-                    Tambah Tugas Baru
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Floating Action Button (+) in Bottom-Right Natural Thumb Zone */}
-          <div className="sticky lg:absolute bottom-5 right-5 ml-auto pr-5 lg:pr-0 pointer-events-none flex justify-end">
-            <button
-              type="button"
-              onClick={handleOpenAddSheet}
-              aria-label="Tambah tugas kuliah baru"
-              title="Tambah Tugas Baru"
-              className="pointer-events-auto w-14 h-14 min-w-[56px] min-h-[56px] rounded-full bg-[#18181B] hover:bg-[#27272A] text-white shadow-lg flex items-center justify-center transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]"
-            >
-              <Plus className="w-6 h-6" aria-hidden="true" />
-            </button>
-          </div>
-        </section>
-
-        {/* Right Column (Desktop Companion): Coursework Context, Course Filter & Expo Code Export */}
-        <aside
-          aria-label="Informasi Akademik dan Navigasi Mata Kuliah"
-          className="w-full max-w-[440px] lg:max-w-none lg:flex-1 mx-auto lg:mx-0 px-5 pb-8 lg:p-0 space-y-5"
-        >
-          {/* Academic Identity Card */}
-          <div className="rounded-3xl bg-[#F5F5F3] border border-[#E4E2DD] p-6 shadow-sm">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-[#1E5E4E]">
-                  <GraduationCap className="w-4 h-4 shrink-0" aria-hidden="true" />
-                  <span>{STUDENT_METADATA.institution}</span>
-                </div>
-                <h2 className="mt-1.5 text-xl font-bold tracking-tight text-[#18181B]">
-                  {STUDENT_METADATA.coursework}
-                </h2>
-                <p className="mt-1 text-sm text-[#484843]">
-                  Manajer Tugas Akademik Semester 5 dengan implementasi penuh React Native Hooks dan delegasi Props.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-5 pt-4 border-t border-[#E4E2DD] grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div>
-                <span className="text-[#64645E] block">Mahasiswa Pengembang</span>
-                <span className="font-semibold text-[#18181B] mt-0.5 block">
-                  {STUDENT_METADATA.name} (NIM: {STUDENT_METADATA.nim})
+                <span className="font-mono tabular-nums">
+                  {STUDENT_METADATA.streakDays} Hari Aktif
                 </span>
-              </div>
-              <div>
-                <span className="text-[#64645E] block">Kelas dan Program Studi</span>
-                <span className="font-semibold text-[#18181B] mt-0.5 block">
-                  {STUDENT_METADATA.program}
-                </span>
-              </div>
-            </div>
-
-            {/* Primary Actions on Desktop Companion */}
-            <div className="mt-5 pt-4 border-t border-[#E4E2DD] flex flex-wrap items-center gap-2.5">
-              <button
-                type="button"
-                onClick={handleOpenAddSheet}
-                className="min-h-[44px] px-4 rounded-xl bg-[#18181B] hover:bg-[#27272A] text-white text-xs font-semibold flex items-center gap-2 transition-colors"
-              >
-                <Plus className="w-4 h-4" aria-hidden="true" />
-                <span>Tambah Tugas Kuliah</span>
               </button>
+            </header>
 
-              <button
-                type="button"
-                onClick={() => setIsCodeDrawerOpen(true)}
-                className="min-h-[44px] px-4 rounded-xl bg-[#EAE7E1] hover:bg-[#DFDCD4] text-[#18181B] text-xs font-semibold flex items-center gap-2 transition-colors"
-              >
-                <FileCode2 className="w-4 h-4" aria-hidden="true" />
-                <span>Lihat & Salin Kode Expo (App.js)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleResetTasks}
-                className="min-h-[44px] px-3.5 rounded-xl bg-white border border-[#E4E2DD] hover:bg-[#EAE7E1] text-[#3F3F3B] text-xs font-semibold flex items-center gap-1.5 transition-colors"
-              >
-                <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>Atur Ulang Data</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Interactive Semester 5 Course Filter Card */}
-          <div className="rounded-3xl bg-[#F5F5F3] border border-[#E4E2DD] p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <div className="flex items-center gap-2">
-                <BookMarked className="w-4 h-4 text-[#18181B]" aria-hidden="true" />
-                <h3 className="text-sm font-bold text-[#18181B]">
-                  Filter Mata Kuliah Semester 5
-                </h3>
-              </div>
-              <span className="text-xs font-mono tabular-nums text-[#52524E]">
-                {SEMESTER_5_COURSES.length} Mata Kuliah
-              </span>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setSelectedCourse('Semua Mata Kuliah')}
-                className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                  selectedCourse === 'Semua Mata Kuliah'
-                    ? 'bg-[#18181B] text-white'
-                    : 'bg-white border border-[#E4E2DD] text-[#3F3F3B] hover:bg-[#EAE7E1]'
+            {/* Aptivo-Style Compact Progress Ring Summary Card */}
+            <div className="px-5 pb-3">
+              <div
+                onClick={() => setBottomTab('progres')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setBottomTab('progres');
+                  }
+                }}
+                className={`rounded-3xl border p-3.5 flex items-center justify-between gap-3.5 cursor-pointer transition-colors ${
+                  isDarkMode
+                    ? 'bg-[#232934] border-[#323A48] hover:border-[#EC6B56]/60'
+                    : 'bg-white border-[#EFE8DC] hover:border-[#DEC397] shadow-xs'
                 }`}
               >
-                Semua Mata Kuliah ({tasks.length})
-              </button>
+                <div className="flex items-center gap-3.5 min-w-0">
+                  {/* Mini SVG Progress Ring */}
+                  <div className="relative w-13 h-13 flex items-center justify-center shrink-0">
+                    <svg
+                      className="w-13 h-13 -rotate-90"
+                      viewBox="0 0 52 52"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        cx="26"
+                        cy="26"
+                        r={miniRadius}
+                        fill="none"
+                        stroke={isDarkMode ? '#323A48' : '#F4EFE6'}
+                        strokeWidth="5"
+                      />
+                      <circle
+                        cx="26"
+                        cy="26"
+                        r={miniRadius}
+                        fill="none"
+                        stroke="#EC6B56"
+                        strokeWidth="5"
+                        strokeLinecap="round"
+                        strokeDasharray={miniCircumference}
+                        strokeDashoffset={miniStrokeOffset}
+                      />
+                    </svg>
+                    <span className="absolute text-[11px] font-bold font-mono tabular-nums">
+                      {taskMetrics.completionRate}%
+                    </span>
+                  </div>
 
-              {SEMESTER_5_COURSES.map((courseName) => {
-                const countForCourse = tasks.filter(
-                  (t) => t.course === courseName
-                ).length;
-                const isSelected = selectedCourse === courseName;
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-bold truncate">
+                      Progres Tugas Semester 5
+                    </h2>
+                    <div
+                      className={`mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs font-medium ${
+                        isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                      }`}
+                    >
+                      <span className="font-mono tabular-nums">
+                        {taskMetrics.completed} selesai
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span className="font-mono tabular-nums">
+                        {taskMetrics.pending} belum dikerjakan
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 ${
+                    isDarkMode ? 'bg-[#1A1F28]' : 'bg-[#F4EFE6]'
+                  }`}
+                >
+                  <ChevronRight
+                    className={`w-4 h-4 ${
+                      isDarkMode ? 'text-[#CBD5E1]' : 'text-[#5C5549]'
+                    }`}
+                    aria-hidden="true"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Real-Time Search Bar (FR-05 + useEffect observer) */}
+            <div className="px-5 pb-2">
+              <div
+                className={`relative flex items-center rounded-2xl border transition-colors ${
+                  isDarkMode
+                    ? 'bg-[#232934] border-[#323A48] focus-within:border-[#EC6B56]'
+                    : 'bg-[#F4EFE6] border-transparent focus-within:border-[#EC6B56] focus-within:bg-white'
+                }`}
+              >
+                <Search
+                  className={`w-4 h-4 ml-3.5 shrink-0 pointer-events-none ${
+                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                  }`}
+                  aria-hidden="true"
+                />
+                <input
+                  ref={searchInputRef}
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Cari judul tugas atau mata kuliah..."
+                  aria-label="Cari tugas berdasarkan judul atau mata kuliah"
+                  className="w-full min-h-[44px] pl-2.5 pr-11 py-2 bg-transparent text-sm outline-none placeholder:text-[#8C8476]"
+                />
+                {searchQuery.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      searchInputRef.current?.focus();
+                    }}
+                    aria-label="Bersihkan kata kunci pencarian"
+                    className="absolute right-1 min-w-[44px] min-h-[44px] flex items-center justify-center text-[#8C8476] hover:text-[#EC6B56]"
+                  >
+                    <X className="w-4 h-4" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Clean Status Filter Tabs: Semua, Belum Dikerjakan, Selesai */}
+            <nav
+              aria-label="Filter Status Tugas"
+              className={`px-5 border-b grid grid-cols-3 ${
+                isDarkMode ? 'border-[#2E3440]' : 'border-[#EFE8DC]'
+              }`}
+            >
+              {FILTER_TABS.map((tab) => {
+                const isActive = activeFilterTab === tab;
+                const count =
+                  tab === 'Semua'
+                    ? taskMetrics.total
+                    : tab === 'Belum Dikerjakan'
+                    ? taskMetrics.pending
+                    : taskMetrics.completed;
 
                 return (
                   <button
-                    key={courseName}
+                    key={tab}
                     type="button"
-                    onClick={() =>
-                      setSelectedCourse(
-                        isSelected ? 'Semua Mata Kuliah' : courseName
-                      )
-                    }
-                    className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                      isSelected
-                        ? 'bg-[#18181B] text-white'
-                        : 'bg-white border border-[#E4E2DD] text-[#3F3F3B] hover:bg-[#EAE7E1]'
+                    onClick={() => setActiveFilterTab(tab)}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`min-h-[44px] px-1 flex items-center justify-center gap-1 border-b-2 text-xs font-bold transition-colors whitespace-nowrap ${
+                      isActive
+                        ? 'border-[#EC6B56] text-[#EC6B56]'
+                        : isDarkMode
+                        ? 'border-transparent text-[#94A3B8] hover:text-white'
+                        : 'border-transparent text-[#8C8476] hover:text-[#1E1B18]'
                     }`}
                   >
-                    <span>{courseName}</span>
-                    <span className="font-mono tabular-nums text-[11px] opacity-75">
-                      ({countForCourse})
+                    <span className="truncate">{tab}</span>
+                    <span className="font-mono tabular-nums text-[11px] opacity-80">
+                      ({count})
                     </span>
                   </button>
                 );
               })}
-            </div>
-          </div>
+            </nav>
 
-          {/* React Hooks Architecture Summary Card */}
-          <div className="rounded-3xl bg-[#F5F5F3] border border-[#E4E2DD] p-6 shadow-sm">
-            <h3 className="text-sm font-bold text-[#18181B] mb-3">
-              Arsitektur 7 Komponen React Native Hooks & Props
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-              <div className="p-3 rounded-2xl bg-white border border-[#E4E2DD]">
-                <div className="font-mono font-semibold text-[#18181B]">
-                  1. Props (TaskCard)
-                </div>
-                <p className="text-[#52524E] mt-1 leading-relaxed">
-                  Delegasi data tugas serta callback ubah status dan hapus ke komponen anak murni.
-                </p>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-white border border-[#E4E2DD]">
-                <div className="font-mono font-semibold text-[#18181B]">
-                  2. useState
-                </div>
-                <p className="text-[#52524E] mt-1 leading-relaxed">
-                  Mengelola input formulir terkontrol, tab filter aktif, dan kata kunci pencarian.
-                </p>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-white border border-[#E4E2DD]">
-                <div className="font-mono font-semibold text-[#18181B]">
-                  3. useEffect ([searchQuery])
-                </div>
-                <p className="text-[#52524E] mt-1 leading-relaxed">
-                  Memantau perubahan kata kunci pencarian secara real-time dan mencetak log ke konsol.
-                </p>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-white border border-[#E4E2DD]">
-                <div className="font-mono font-semibold text-[#18181B]">
-                  4. useMemo ([tasks])
-                </div>
-                <p className="text-[#52524E] mt-1 leading-relaxed">
-                  Menghitung metrik total ({taskMetrics.total}), belum dikerjakan ({taskMetrics.pending}), dan selesai ({taskMetrics.completed}).
-                </p>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-white border border-[#E4E2DD]">
-                <div className="font-mono font-semibold text-[#18181B]">
-                  5. useCallback
-                </div>
-                <p className="text-[#52524E] mt-1 leading-relaxed">
-                  Memoisasi fungsi tambah, hapus, dan toggle status untuk menjaga stabilitas referensi.
-                </p>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-white border border-[#E4E2DD]">
-                <div className="font-mono font-semibold text-[#18181B]">
-                  6. useRef & 7. useReducer
-                </div>
-                <p className="text-[#52524E] mt-1 leading-relaxed">
-                  Fokus otomatis pada input judul tugas dan mesin state ADD, DELETE, TOGGLE, RESET.
-                </p>
-              </div>
-            </div>
-
-            {/* Quick Status Bar */}
-            <div className="mt-4 pt-3.5 border-t border-[#E4E2DD] flex flex-wrap items-center justify-between gap-2 text-xs text-[#52524E]">
-              <div className="flex items-center gap-3">
-                <span className="inline-flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-[#854D0E]" aria-hidden="true" />
-                  <span>{taskMetrics.pending} Belum Dikerjakan</span>
+            {/* Active Course Filter Indicator (if selected from Mata Kuliah tab) */}
+            {selectedCourseFilter !== 'Semua' && (
+              <div
+                className={`mx-5 mt-2.5 px-3.5 py-1.5 rounded-2xl flex items-center justify-between text-xs ${
+                  isDarkMode
+                    ? 'bg-[#232934] text-[#CBD5E1]'
+                    : 'bg-[#F4EFE6] text-[#4A4338]'
+                }`}
+              >
+                <span className="truncate">
+                  Filter: <strong>{selectedCourseFilter}</strong>
                 </span>
-                <span aria-hidden="true">·</span>
-                <span className="inline-flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#1E5E4E]" aria-hidden="true" />
-                  <span>{taskMetrics.completed} Selesai</span>
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCourseFilter('Semua')}
+                  className="min-h-[44px] px-2 font-bold text-[#EC6B56] hover:underline shrink-0"
+                >
+                  Hapus Filter
+                </button>
               </div>
-              <span className="font-mono tabular-nums">
-                Menampilkan {filteredTasks.length} dari {taskMetrics.total} tugas
-              </span>
+            )}
+
+            {/* Scrollable TaskCard List */}
+            <div className="flex-1 overflow-y-auto px-5 pt-3.5 pb-28 space-y-3">
+              {filteredTasks.length > 0 ? (
+                filteredTasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onToggleStatus={handleToggleStatus}
+                    onDeleteTask={handleDeleteTask}
+                    isDarkMode={isDarkMode}
+                  />
+                ))
+              ) : (
+                <div
+                  className={`py-12 px-4 text-center rounded-3xl border border-dashed ${
+                    isDarkMode
+                      ? 'border-[#323A48] bg-[#232934]/40'
+                      : 'border-[#DDD5C7] bg-white/60'
+                  }`}
+                >
+                  <Inbox
+                    className="w-8 h-8 text-[#8C8476] mx-auto mb-2.5"
+                    aria-hidden="true"
+                  />
+                  <p className="text-sm font-bold">
+                    Tidak ada tugas ditemukan
+                  </p>
+                  <p
+                    className={`text-xs mt-1 max-w-[240px] mx-auto leading-relaxed ${
+                      isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                    }`}
+                  >
+                    Ubah kata kunci pencarian, ganti tab filter, atau tambahkan tugas baru.
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                    {(searchQuery !== '' ||
+                      activeFilterTab !== 'Semua' ||
+                      selectedCourseFilter !== 'Semua') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchQuery('');
+                          setActiveFilterTab('Semua');
+                          setSelectedCourseFilter('Semua');
+                        }}
+                        className={`min-h-[44px] px-4 rounded-2xl text-xs font-bold transition-colors ${
+                          isDarkMode
+                            ? 'bg-[#232934] text-white'
+                            : 'bg-[#F4EFE6] text-[#1E1B18]'
+                        }`}
+                      >
+                        Tampilkan Semua
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAddSheet()}
+                      className="min-h-[44px] px-4 rounded-2xl bg-[#EC6B56] hover:bg-[#D95540] text-xs font-bold text-white transition-colors"
+                    >
+                      Tambah Tugas
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        </aside>
+
+            {/* Floating Action Button (+) above Bottom Nav */}
+            <button
+              type="button"
+              onClick={() => handleOpenAddSheet()}
+              aria-label="Tambah tugas baru"
+              title="Tambah Tugas"
+              className="absolute right-5 bottom-22 z-30 w-14 h-14 min-w-[56px] min-h-[56px] rounded-full bg-[#EC6B56] hover:bg-[#D95540] text-white shadow-lg flex items-center justify-center transition-transform active:scale-95"
+            >
+              <Plus className="w-6 h-6 stroke-[2.5]" aria-hidden="true" />
+            </button>
+          </section>
+        )}
+
+        {/* Tab 2: Mata Kuliah (Visual Course Directory) */}
+        {bottomTab === 'matakuliah' && (
+          <section
+            aria-label="Direktori Mata Kuliah Semester 5"
+            className="flex-1 flex flex-col min-h-0 overflow-hidden"
+          >
+            <header className="px-5 pt-4 pb-3 flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-bold tracking-tight">
+                  Mata Kuliah
+                </h1>
+                <p
+                  className={`text-xs mt-0.5 ${
+                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                  }`}
+                >
+                  {STUDENT_METADATA.semester} · {STUDENT_METADATA.classGroup} · 15 SKS
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleOpenAddSheet()}
+                className="min-h-[44px] px-3.5 rounded-2xl bg-[#EC6B56] hover:bg-[#D95540] text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
+              >
+                <Plus className="w-4 h-4" aria-hidden="true" />
+                <span>Tugas Baru</span>
+              </button>
+            </header>
+
+            <div className="flex-1 overflow-y-auto px-5 pt-1 pb-28 space-y-3.5">
+              {COURSE_DIRECTORY.map((course) => {
+                const courseTasks = tasks.filter(
+                  (t) => t.course.toLowerCase() === course.name.toLowerCase()
+                );
+                const activeCourseTasks = courseTasks.filter(
+                  (t) => t.status === 'Belum Dikerjakan'
+                ).length;
+                const completedCourseTasks =
+                  courseTasks.length - activeCourseTasks;
+
+                return (
+                  <article
+                    key={course.id}
+                    style={
+                      isDarkMode
+                        ? undefined
+                        : {
+                            backgroundColor: course.pastelBg,
+                            borderColor: course.pastelBorder,
+                          }
+                    }
+                    className={`rounded-3xl border p-4 transition-all ${
+                      isDarkMode
+                        ? 'bg-[#232934] border-[#323A48]'
+                        : 'shadow-xs'
+                    }`}
+                  >
+                    {/* Top Row: Subject Icon + Title + Code */}
+                    <div className="flex items-start gap-3.5">
+                      <div
+                        style={{ backgroundColor: course.iconBg }}
+                        className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-xs"
+                      >
+                        {renderCourseVectorIcon(course.iconKey)}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className={`flex items-center gap-1.5 text-xs font-semibold ${
+                            isDarkMode ? 'text-[#94A3B8]' : 'text-[#5C5549]'
+                          }`}
+                        >
+                          <span className="font-mono">{course.code}</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{course.credits} SKS</span>
+                          <span aria-hidden="true">·</span>
+                          <span className="truncate">{course.room}</span>
+                        </div>
+
+                        <h2
+                          className={`mt-0.5 text-[16px] font-bold leading-snug ${
+                            isDarkMode ? 'text-white' : 'text-[#1E1B18]'
+                          }`}
+                        >
+                          {course.name}
+                        </h2>
+                      </div>
+                    </div>
+
+                    {/* Lecturer & Schedule Box */}
+                    <div
+                      className={`mt-3 rounded-2xl p-3 space-y-1.5 text-xs ${
+                        isDarkMode
+                          ? 'bg-[#1A1F28] text-[#CBD5E1]'
+                          : 'bg-white/75 text-[#3D3830]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <UserCheck
+                          className="w-3.5 h-3.5 shrink-0 opacity-75"
+                          aria-hidden="true"
+                        />
+                        <span className="truncate">
+                          Dosen: <strong>{course.lecturer}</strong>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar
+                          className="w-3.5 h-3.5 shrink-0 opacity-75"
+                          aria-hidden="true"
+                        />
+                        <span className="font-mono tabular-nums truncate">
+                          {course.schedule}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin
+                          className="w-3.5 h-3.5 shrink-0 opacity-75"
+                          aria-hidden="true"
+                        />
+                        <span className="truncate">Ruangan: {course.room}</span>
+                      </div>
+                    </div>
+
+                    {/* Footer Row: Active Task Count & Interactive Actions */}
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      <div className="text-xs font-bold">
+                        <span
+                          style={{
+                            color: isDarkMode ? '#F8FAFC' : course.accentColor,
+                          }}
+                        >
+                          {activeCourseTasks} Tugas Aktif
+                        </span>
+                        <span
+                          className={`ml-1.5 font-normal ${
+                            isDarkMode ? 'text-[#94A3B8]' : 'text-[#5C5549]'
+                          }`}
+                        >
+                          · {completedCourseTasks} Selesai
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenAddSheet(course.name)}
+                          aria-label={`Tambah tugas untuk ${course.name}`}
+                          className={`min-h-[44px] px-3 rounded-2xl text-xs font-bold flex items-center gap-1 transition-colors ${
+                            isDarkMode
+                              ? 'bg-[#1A1F28] text-white hover:bg-[#2E3440]'
+                              : 'bg-white/80 text-[#1E1B18] hover:bg-white'
+                          }`}
+                        >
+                          <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                          <span>Tambah</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCourseFilter(course.name);
+                            setActiveFilterTab('Semua');
+                            setBottomTab('tugas');
+                          }}
+                          className="min-h-[44px] px-3.5 rounded-2xl bg-[#1E1B18] hover:bg-[#332E27] text-white text-xs font-bold flex items-center gap-1 transition-colors"
+                        >
+                          <span>Lihat Tugas</span>
+                          <ChevronRight
+                            className="w-3.5 h-3.5"
+                            aria-hidden="true"
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Tab 3: Progres (Academic Analytics and Badges) */}
+        {bottomTab === 'progres' && (
+          <section
+            aria-label="Progres Akademik dan Pencapaian"
+            className="flex-1 flex flex-col min-h-0 overflow-hidden"
+          >
+            <header className="px-5 pt-4 pb-3 flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-bold tracking-tight">
+                  Progres Belajar
+                </h1>
+                <p
+                  className={`text-xs mt-0.5 ${
+                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                  }`}
+                >
+                  Analitik penyelesaian tugas Semester 5
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-2xl bg-[#FFEAE6] flex items-center justify-center">
+                <Flame
+                  className="w-5 h-5 fill-[#EC6B56] text-[#EC6B56]"
+                  aria-hidden="true"
+                />
+              </div>
+            </header>
+
+            <div className="flex-1 overflow-y-auto px-5 pt-1 pb-28 space-y-4">
+              {/* Aptivo-Inspired Warm Coral Streak Banner */}
+              <div className="rounded-3xl bg-[#EC6B56] text-white p-4.5 flex items-center gap-4 shadow-sm">
+                <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+                  <Flame
+                    className="w-6 h-6 fill-white text-white"
+                    aria-hidden="true"
+                  />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold tracking-tight">
+                    {STUDENT_METADATA.streakDays} Hari Aktif Berturut-turut!
+                  </h2>
+                  <p className="text-xs text-[#FFEAE6] mt-0.5 leading-relaxed">
+                    Pertahankan ritme pengerjaan tugas kuliahmu minggu ini.
+                  </p>
+                </div>
+              </div>
+
+              {/* Circular Radial Progress Gauge + Metrics Breakdown (derived via useMemo) */}
+              <div
+                className={`rounded-3xl border p-5 ${
+                  isDarkMode
+                    ? 'bg-[#232934] border-[#323A48]'
+                    : 'bg-white border-[#EFE8DC] shadow-xs'
+                }`}
+              >
+                <div className="flex items-center gap-5">
+                  {/* Radial SVG Progress Gauge */}
+                  <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
+                    <svg
+                      className="w-28 h-28 -rotate-90"
+                      viewBox="0 0 112 112"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        cx="56"
+                        cy="56"
+                        r={radialRadius}
+                        fill="none"
+                        stroke={isDarkMode ? '#323A48' : '#F4EFE6'}
+                        strokeWidth="10"
+                      />
+                      <circle
+                        cx="56"
+                        cy="56"
+                        r={radialRadius}
+                        fill="none"
+                        stroke="#2A9D8F"
+                        strokeWidth="10"
+                        strokeLinecap="round"
+                        strokeDasharray={radialCircumference}
+                        strokeDashoffset={radialStrokeOffset}
+                      />
+                    </svg>
+                    <div className="absolute flex flex-col items-center justify-center">
+                      <span className="text-xl font-bold font-mono tabular-nums">
+                        {taskMetrics.completionRate}%
+                      </span>
+                      <span
+                        className={`text-[10px] font-semibold ${
+                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                        }`}
+                      >
+                        Tuntas
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Metrics Breakdown Column */}
+                  <div className="flex-1 space-y-2.5">
+                    <div
+                      className={`p-2.5 rounded-2xl flex items-center justify-between ${
+                        isDarkMode ? 'bg-[#1A1F28]' : 'bg-[#FDFBF7]'
+                      }`}
+                    >
+                      <span
+                        className={`text-xs font-semibold ${
+                          isDarkMode ? 'text-[#CBD5E1]' : 'text-[#5C5549]'
+                        }`}
+                      >
+                        Total Tugas
+                      </span>
+                      <span className="text-sm font-bold font-mono tabular-nums">
+                        {taskMetrics.total}
+                      </span>
+                    </div>
+
+                    <div
+                      className={`p-2.5 rounded-2xl flex items-center justify-between ${
+                        isDarkMode ? 'bg-[#1A1F28]' : 'bg-[#E6F4F1]/70'
+                      }`}
+                    >
+                      <span className="text-xs font-semibold text-[#1E7A68]">
+                        Tugas Selesai
+                      </span>
+                      <span className="text-sm font-bold font-mono tabular-nums text-[#1E7A68]">
+                        {taskMetrics.completed}
+                      </span>
+                    </div>
+
+                    <div
+                      className={`p-2.5 rounded-2xl flex items-center justify-between ${
+                        isDarkMode ? 'bg-[#1A1F28]' : 'bg-[#FFF3E0]/80'
+                      }`}
+                    >
+                      <span className="text-xs font-semibold text-[#C25E00]">
+                        Tugas Tertunda
+                      </span>
+                      <span className="text-sm font-bold font-mono tabular-nums text-[#C25E00]">
+                        {taskMetrics.pending}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Per-Subject Progress Breakdown (Aptivo "By subject" Style) */}
+              <div
+                className={`rounded-3xl border p-5 ${
+                  isDarkMode
+                    ? 'bg-[#232934] border-[#323A48]'
+                    : 'bg-white border-[#EFE8DC] shadow-xs'
+                }`}
+              >
+                <h3 className="text-sm font-bold mb-3.5">
+                  Progres per Mata Kuliah
+                </h3>
+                <div className="space-y-3.5">
+                  {COURSE_DIRECTORY.map((course) => {
+                    const totalForCourse = tasks.filter(
+                      (t) =>
+                        t.course.toLowerCase() === course.name.toLowerCase()
+                    ).length;
+                    const doneForCourse = tasks.filter(
+                      (t) =>
+                        t.course.toLowerCase() === course.name.toLowerCase() &&
+                        t.status === 'Selesai'
+                    ).length;
+                    const rate =
+                      totalForCourse > 0
+                        ? Math.round((doneForCourse / totalForCourse) * 100)
+                        : 0;
+
+                    return (
+                      <div key={course.id} className="flex items-center gap-3">
+                        <div
+                          style={{ backgroundColor: course.iconBg }}
+                          className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                        >
+                          {renderCourseVectorIcon(course.iconKey)}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="font-bold truncate">
+                              {course.name}
+                            </span>
+                            <span className="font-mono tabular-nums font-semibold opacity-80">
+                              {doneForCourse}/{totalForCourse} ({rate}%)
+                            </span>
+                          </div>
+                          <div
+                            className={`h-2 rounded-full overflow-hidden ${
+                              isDarkMode ? 'bg-[#1A1F28]' : 'bg-[#F4EFE6]'
+                            }`}
+                          >
+                            <div
+                              style={{
+                                width: `${rate}%`,
+                                backgroundColor: course.iconBg,
+                              }}
+                              className="h-full rounded-full transition-all duration-300"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Academic Achievement Badges Shelf */}
+              <div>
+                <h3 className="text-sm font-bold mb-2.5 px-1">
+                  Pencapaian Akademik
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {ACHIEVEMENT_BADGES.map((badge) => {
+                    const isUnlocked =
+                      badge.id === 'badge-semester'
+                        ? taskMetrics.total > 0 && taskMetrics.pending === 0
+                        : true;
+
+                    return (
+                      <div
+                        key={badge.id}
+                        className={`rounded-3xl border p-4 flex flex-col justify-between transition-opacity ${
+                          isDarkMode
+                            ? 'bg-[#232934] border-[#323A48]'
+                            : 'bg-white border-[#EFE8DC] shadow-xs'
+                        } ${isUnlocked ? 'opacity-100' : 'opacity-65'}`}
+                      >
+                        <div className="flex items-center justify-between mb-2.5">
+                          <div
+                            style={{ backgroundColor: badge.tintBg }}
+                            className="w-10 h-10 rounded-2xl flex items-center justify-center"
+                          >
+                            {renderBadgeVectorIcon(
+                              badge.iconKey,
+                              badge.tintColor
+                            )}
+                          </div>
+                          <span
+                            className={`text-[11px] font-bold ${
+                              isUnlocked ? 'text-[#1E7A68]' : 'text-[#8C8476]'
+                            }`}
+                          >
+                            {isUnlocked ? 'Tercapai' : 'Proses'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <h4 className="text-xs font-bold">{badge.title}</h4>
+                          <p
+                            className={`text-[11px] mt-0.5 leading-snug ${
+                              isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                            }`}
+                          >
+                            {badge.subtitle}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Tab 4: Profil (Student Identity and Settings) */}
+        {bottomTab === 'profil' && (
+          <section
+            aria-label="Profil Mahasiswa dan Pengaturan"
+            className="flex-1 flex flex-col min-h-0 overflow-hidden"
+          >
+            <header className="px-5 pt-4 pb-3 flex items-center justify-between">
+              <h1 className="text-xl font-bold tracking-tight">
+                Profil Mahasiswa
+              </h1>
+              <button
+                type="button"
+                onClick={() => setIsCodeDrawerOpen(true)}
+                className={`min-h-[44px] px-3.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-colors ${
+                  isDarkMode
+                    ? 'bg-[#232934] text-[#CBD5E1] hover:bg-[#2E3440]'
+                    : 'bg-[#F4EFE6] text-[#4A4338] hover:bg-[#EAE2D3]'
+                }`}
+              >
+                <FileCode2 className="w-4 h-4" aria-hidden="true" />
+                <span>App.js</span>
+              </button>
+            </header>
+
+            <div className="flex-1 overflow-y-auto px-5 pt-1 pb-28 space-y-4">
+              {/* Student Identity Card (Aptivo Profile Header Style) */}
+              <div
+                className={`rounded-3xl border p-5 text-center ${
+                  isDarkMode
+                    ? 'bg-[#232934] border-[#323A48]'
+                    : 'bg-white border-[#EFE8DC] shadow-xs'
+                }`}
+              >
+                <div className="w-18 h-18 rounded-full bg-[#EC6B56] border-4 border-[#FFEAE6] mx-auto flex items-center justify-center shadow-sm">
+                  <span className="text-xl font-bold text-white tracking-tight">
+                    BR
+                  </span>
+                </div>
+
+                <h2 className="mt-3 text-lg font-bold tracking-tight">
+                  {STUDENT_METADATA.name}
+                </h2>
+                <p className="text-xs font-mono tabular-nums font-semibold text-[#EC6B56] mt-0.5">
+                  NIM {STUDENT_METADATA.nim}
+                </p>
+                <p
+                  className={`text-xs mt-1 ${
+                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#5C5549]'
+                  }`}
+                >
+                  {STUDENT_METADATA.classGroup} · {STUDENT_METADATA.semester} ·{' '}
+                  {STUDENT_METADATA.program}
+                </p>
+                <p
+                  className={`text-xs font-semibold mt-0.5 ${
+                    isDarkMode ? 'text-[#CBD5E1]' : 'text-[#1E1B18]'
+                  }`}
+                >
+                  {STUDENT_METADATA.institution}
+                </p>
+
+                {/* Academic Semester Stats Summary Row */}
+                <div
+                  className={`mt-4 pt-4 border-t grid grid-cols-3 ${
+                    isDarkMode ? 'border-[#323A48]' : 'border-[#EFE8DC]'
+                  }`}
+                >
+                  <div>
+                    <span className="block text-base font-bold font-mono tabular-nums">
+                      {COURSE_DIRECTORY.length}
+                    </span>
+                    <span
+                      className={`text-[11px] ${
+                        isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                      }`}
+                    >
+                      Mata Kuliah
+                    </span>
+                  </div>
+                  <div
+                    className={`border-x ${
+                      isDarkMode ? 'border-[#323A48]' : 'border-[#EFE8DC]'
+                    }`}
+                  >
+                    <span className="block text-base font-bold font-mono tabular-nums">
+                      {taskMetrics.completed}/{taskMetrics.total}
+                    </span>
+                    <span
+                      className={`text-[11px] ${
+                        isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                      }`}
+                    >
+                      Tugas Selesai
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-base font-bold font-mono tabular-nums">
+                      {STUDENT_METADATA.streakDays}
+                    </span>
+                    <span
+                      className={`text-[11px] ${
+                        isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                      }`}
+                    >
+                      Hari Aktif
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Interactive Settings List */}
+              <div
+                className={`rounded-3xl border p-3 space-y-1 ${
+                  isDarkMode
+                    ? 'bg-[#232934] border-[#323A48]'
+                    : 'bg-white border-[#EFE8DC] shadow-xs'
+                }`}
+              >
+                {/* Setting 1: Pengingat Tugas */}
+                <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-2xl bg-[#FFEAE6] text-[#EC6B56] flex items-center justify-center">
+                      <Bell className="w-4 h-4" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <span className="text-sm font-bold block">
+                        Pengingat Tugas
+                      </span>
+                      <span
+                        className={`text-[11px] block ${
+                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                        }`}
+                      >
+                        {reminderEnabled
+                          ? 'Notifikasi H-1 sebelum tenggat aktif'
+                          : 'Notifikasi pengingat dinonaktifkan'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={reminderEnabled}
+                    aria-label="Aktifkan atau nonaktifkan pengingat tugas"
+                    onClick={() => {
+                      const next = !reminderEnabled;
+                      setReminderEnabled(next);
+                      showToastMessage(
+                        next
+                          ? 'Pengingat tugas diaktifkan.'
+                          : 'Pengingat tugas dinonaktifkan.'
+                      );
+                    }}
+                    className="min-w-[48px] min-h-[44px] flex items-center justify-end"
+                  >
+                    <span
+                      className={`w-12 h-7 rounded-full p-1 transition-colors flex items-center ${
+                        reminderEnabled
+                          ? 'bg-[#2A9D8F] justify-end'
+                          : isDarkMode
+                          ? 'bg-[#323A48] justify-start'
+                          : 'bg-[#DDD5C7] justify-start'
+                      }`}
+                    >
+                      <span className="w-5 h-5 rounded-full bg-white shadow-xs" />
+                    </span>
+                  </button>
+                </div>
+
+                {/* Setting 2: Mode Tampilan */}
+                <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-2xl bg-[#EAF2FF] text-[#2563EB] flex items-center justify-center">
+                      {isDarkMode ? (
+                        <Moon className="w-4 h-4" aria-hidden="true" />
+                      ) : (
+                        <Sun className="w-4 h-4" aria-hidden="true" />
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-sm font-bold block">
+                        Mode Tampilan
+                      </span>
+                      <span
+                        className={`text-[11px] block ${
+                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                        }`}
+                      >
+                        {isDarkMode ? 'Mode Gelap Aktif' : 'Mode Hangat (Krem)'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={isDarkMode}
+                    aria-label="Ubah mode tampilan terang atau gelap"
+                    onClick={() => {
+                      const next = !isDarkMode;
+                      setIsDarkMode(next);
+                      showToastMessage(
+                        next
+                          ? 'Mode tampilan gelap diaktifkan.'
+                          : 'Mode tampilan hangat diaktifkan.'
+                      );
+                    }}
+                    className="min-w-[48px] min-h-[44px] flex items-center justify-end"
+                  >
+                    <span
+                      className={`w-12 h-7 rounded-full p-1 transition-colors flex items-center ${
+                        isDarkMode
+                          ? 'bg-[#EC6B56] justify-end'
+                          : 'bg-[#DDD5C7] justify-start'
+                      }`}
+                    >
+                      <span className="w-5 h-5 rounded-full bg-white shadow-xs" />
+                    </span>
+                  </button>
+                </div>
+
+                {/* Setting 3: Kode Sumber React Native Expo */}
+                <button
+                  type="button"
+                  onClick={() => setIsCodeDrawerOpen(true)}
+                  className={`w-full flex items-center justify-between px-3 py-2 min-h-[52px] rounded-2xl transition-colors text-left ${
+                    isDarkMode ? 'hover:bg-[#1A1F28]' : 'hover:bg-[#FDFBF7]'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-2xl bg-[#E6F4F1] text-[#1E7A68] flex items-center justify-center">
+                      <FileCode2 className="w-4 h-4" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <span className="text-sm font-bold block">
+                        Ekspor Kode Expo (App.js)
+                      </span>
+                      <span
+                        className={`text-[11px] block ${
+                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#6E6658]'
+                        }`}
+                      >
+                        Salin atau unduh kode React Native siap jalan
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight
+                    className="w-4 h-4 text-[#8C8476]"
+                    aria-hidden="true"
+                  />
+                </button>
+              </div>
+
+              {/* Atur Ulang Data Button (Dispatches RESET_TASKS in useReducer) */}
+              <button
+                type="button"
+                onClick={handleResetTasks}
+                className="w-full min-h-[50px] rounded-3xl bg-[#EC6B56] hover:bg-[#D95540] text-white text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-colors"
+              >
+                <RotateCcw className="w-4 h-4" aria-hidden="true" />
+                <span>Atur Ulang Data</span>
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Persistent 4-Tab Bottom Navigation Bar */}
+        <nav
+          aria-label="Navigasi Utama Aplikasi"
+          className={`absolute bottom-3 left-4 right-4 z-30 rounded-[28px] border p-1.5 flex items-center justify-between shadow-lg transition-colors ${
+            isDarkMode
+              ? 'bg-[#1F242D]/95 border-[#323A48] backdrop-blur-md'
+              : 'bg-white/95 border-[#EFE8DC] backdrop-blur-md'
+          }`}
+        >
+          {(
+            [
+              {
+                key: 'tugas',
+                label: 'Tugas',
+                icon: CheckSquare,
+              },
+              {
+                key: 'matakuliah',
+                label: 'Mata Kuliah',
+                icon: BookOpen,
+              },
+              {
+                key: 'progres',
+                label: 'Progres',
+                icon: PieChart,
+              },
+              {
+                key: 'profil',
+                label: 'Profil',
+                icon: User,
+              },
+            ] as const
+          ).map((item) => {
+            const IconComponent = item.icon;
+            const isSelected = bottomTab === item.key;
+
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setBottomTab(item.key)}
+                aria-current={isSelected ? 'page' : undefined}
+                aria-label={item.label}
+                className={`min-h-[44px] min-w-[48px] px-3.5 rounded-[22px] flex items-center justify-center gap-1.5 text-xs font-bold transition-all duration-150 ${
+                  isSelected
+                    ? 'bg-[#EC6B56] text-white shadow-xs flex-1 max-w-[140px]'
+                    : isDarkMode
+                    ? 'text-[#94A3B8] hover:text-white'
+                    : 'text-[#8C8476] hover:text-[#1E1B18]'
+                }`}
+              >
+                <IconComponent
+                  className="w-4 h-4 shrink-0"
+                  aria-hidden="true"
+                />
+                {isSelected && (
+                  <span className="truncate whitespace-nowrap">
+                    {item.label}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
       </main>
 
-      {/* Bottom Sheet Modal for Task Creation (FR-02 + useRef Focus) */}
+      {/* Slide-Up Add Task Bottom Sheet Modal (with useRef auto-focus) */}
       <AddTaskSheet
         isOpen={isAddSheetOpen}
         onClose={() => setIsAddSheetOpen(false)}
         onAddTask={handleAddTask}
         titleInputRef={titleInputRef}
+        initialCourse={preselectedCourseForAdd}
+        isDarkMode={isDarkMode}
       />
 
-      {/* Standalone React Native Expo App.js Source Code Drawer */}
+      {/* React Native Expo App.js Code Export Modal */}
       <ExpoCodeDrawer
         isOpen={isCodeDrawerOpen}
         onClose={() => setIsCodeDrawerOpen(false)}
