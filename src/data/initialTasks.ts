@@ -22,6 +22,94 @@ export const STUDENT_METADATA = {
   streakDays: 6,
 } as const;
 
+export const INDONESIAN_MONTH_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'Mei',
+  'Jun',
+  'Jul',
+  'Agu',
+  'Sep',
+  'Okt',
+  'Nov',
+  'Des',
+] as const;
+
+export const INDONESIAN_DAY_NAMES_JS_ORDER = [
+  'Minggu',
+  'Senin',
+  'Selasa',
+  'Rabu',
+  'Kamis',
+  'Jumat',
+  'Sabtu',
+] as const;
+
+export type IndonesianDayName = (typeof INDONESIAN_DAY_NAMES_JS_ORDER)[number];
+
+export const WEEKDAY_FILTER_ITEMS = [
+  { dayShort: 'Sen', dayFull: 'Senin' },
+  { dayShort: 'Sel', dayFull: 'Selasa' },
+  { dayShort: 'Rab', dayFull: 'Rabu' },
+  { dayShort: 'Kam', dayFull: 'Kamis' },
+  { dayShort: 'Jum', dayFull: 'Jumat' },
+  { dayShort: 'Sab', dayFull: 'Sabtu' },
+  { dayShort: 'Min', dayFull: 'Minggu' },
+] as const;
+
+/*
+ * Formats any JavaScript Date object into the standard Indonesian date label (e.g. '08 Nov 2026').
+ */
+export function formatDateToIndonesianLabel(dateObj: Date): string {
+  const day = dateObj.getDate();
+  const dayPadded = day < 10 ? `0${day}` : `${day}`;
+  const monthShort = INDONESIAN_MONTH_SHORT[dateObj.getMonth()] ?? 'Nov';
+  const year = dateObj.getFullYear();
+  return `${dayPadded} ${monthShort} ${year}`;
+}
+
+/*
+ * Parses an Indonesian date string (e.g. '08 Nov 2026', '18 Nov 2026', '04 Des 2026')
+ * using accurate JavaScript Date math and returns its Indonesian day of the week
+ * ('Senin' .. 'Minggu').
+ */
+export function getIndonesianDayFromDateLabel(
+  dateLabel: string
+): string | null {
+  const parts = dateLabel.trim().split(/\s+/);
+  if (parts.length >= 3) {
+    const dayNum = parseInt(parts[0], 10);
+    const monthPrefix = parts[1].slice(0, 3).toLowerCase();
+    const yearNum = parseInt(parts[2], 10);
+
+    const monthIndex = INDONESIAN_MONTH_SHORT.findIndex(
+      (m) => m.toLowerCase() === monthPrefix
+    );
+
+    if (!Number.isNaN(dayNum) && monthIndex >= 0 && !Number.isNaN(yearNum)) {
+      const dateObj = new Date(yearNum, monthIndex, dayNum);
+      if (!Number.isNaN(dateObj.getTime())) {
+        return INDONESIAN_DAY_NAMES_JS_ORDER[dateObj.getDay()] ?? null;
+      }
+    }
+  }
+  return null;
+}
+
+/*
+ * Extracts the scheduled day of the week from a course schedule string
+ * (e.g. 'Senin, 08:00 - 10:30 WIB' -> 'Senin').
+ */
+export function getCourseScheduledDay(schedule: string): string {
+  const firstSegment = schedule.split(',')[0]?.trim() || '';
+  const matched = WEEKDAY_FILTER_ITEMS.find(
+    (d) => d.dayFull.toLowerCase() === firstSegment.toLowerCase()
+  );
+  return matched ? matched.dayFull : 'Senin';
+}
+
 export const COURSE_STICKER_GALLERY: readonly CourseStickerOption[] = [
   {
     id: 'sticker-coding',
@@ -94,7 +182,7 @@ export const SUBJECT_ICON_OPTIONS: readonly {
 export const BENTO_COLOR_THEMES: readonly CourseColorTheme[] = [
   {
     id: 'crimson',
-    name: 'Merah Koral',
+    name: 'Merah Utama',
     pastelBg: '#FEE2E2',
     pastelBorder: '#FECACA',
     accentColor: '#C41E3A',
@@ -134,11 +222,7 @@ export const BENTO_COLOR_THEMES: readonly CourseColorTheme[] = [
   },
 ];
 
-/*
- * Converts any user-picked RGB/Hex color into a harmonious Bento card theme
- * with a soft tinted pastel surface, border, and high-contrast accent.
- */
-export function deriveBentoThemeFromHex(hexColor: string): CourseColorTheme {
+function parseHexChannels(hexColor: string): { r: number; g: number; b: number } {
   const cleanHex = hexColor.replace('#', '').trim();
   const fullHex =
     cleanHex.length === 3
@@ -148,9 +232,29 @@ export function deriveBentoThemeFromHex(hexColor: string): CourseColorTheme {
           .join('')
       : cleanHex.padEnd(6, '0').slice(0, 6);
 
-  const r = parseInt(fullHex.slice(0, 2), 16) || 196;
-  const g = parseInt(fullHex.slice(2, 4), 16) || 30;
-  const b = parseInt(fullHex.slice(4, 6), 16) || 58;
+  const parsedR = parseInt(fullHex.slice(0, 2), 16);
+  const parsedG = parseInt(fullHex.slice(2, 4), 16);
+  const parsedB = parseInt(fullHex.slice(4, 6), 16);
+
+  return {
+    r: Number.isNaN(parsedR) ? 196 : parsedR,
+    g: Number.isNaN(parsedG) ? 30 : parsedG,
+    b: Number.isNaN(parsedB) ? 58 : parsedB,
+  };
+}
+
+export function isLightHexColor(hexColor: string): boolean {
+  const { r, g, b } = parseHexChannels(hexColor);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.64;
+}
+
+export function getReadableTextColor(hexColor: string): '#0F172A' | '#FFFFFF' {
+  return isLightHexColor(hexColor) ? '#0F172A' : '#FFFFFF';
+}
+
+export function deriveBentoThemeFromHex(hexColor: string): CourseColorTheme {
+  const { r, g, b } = parseHexChannels(hexColor);
 
   const mixWithWhite = (channel: number, whiteRatio: number) =>
     Math.round(channel * (1 - whiteRatio) + 255 * whiteRatio);
@@ -158,22 +262,25 @@ export function deriveBentoThemeFromHex(hexColor: string): CourseColorTheme {
   const toHex = (n: number) =>
     Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0').toUpperCase();
 
-  const bgR = mixWithWhite(r, 0.86);
-  const bgG = mixWithWhite(g, 0.86);
-  const bgB = mixWithWhite(b, 0.86);
-
-  const borderR = mixWithWhite(r, 0.72);
-  const borderG = mixWithWhite(g, 0.72);
-  const borderB = mixWithWhite(b, 0.72);
-
   const normalizedHex = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  const isVeryLight = isLightHexColor(normalizedHex);
+
+  const bgR = isVeryLight ? Math.max(242, r) : mixWithWhite(r, 0.85);
+  const bgG = isVeryLight ? Math.max(244, g) : mixWithWhite(g, 0.85);
+  const bgB = isVeryLight ? Math.max(248, b) : mixWithWhite(b, 0.85);
+
+  const borderR = isVeryLight ? 203 : mixWithWhite(r, 0.68);
+  const borderG = isVeryLight ? 213 : mixWithWhite(g, 0.68);
+  const borderB = isVeryLight ? 225 : mixWithWhite(b, 0.68);
+
+  const readableAccent = isVeryLight ? '#0F172A' : normalizedHex;
 
   return {
     id: 'custom',
     name: 'Warna Kustom',
     pastelBg: `#${toHex(bgR)}${toHex(bgG)}${toHex(bgB)}`,
     pastelBorder: `#${toHex(borderR)}${toHex(borderG)}${toHex(borderB)}`,
-    accentColor: normalizedHex,
+    accentColor: readableAccent,
     iconBg: normalizedHex,
   };
 }
@@ -291,8 +398,8 @@ export const PODIUM_TROPHY_SHELF: readonly PodiumTrophyItem[] = [
     id: 'trophy-03',
     rank: '03',
     title: 'Konsisten Semester',
-    subtitle: 'Mempertahankan ritme belajar aktif setiap hari tanpa putus',
-    metricBadge: '6 Hari Aktif',
+    subtitle: 'Mempertahankan ketuntasan tugas kuliah pada seluruh mata kuliah',
+    metricBadge: 'Target Tuntas',
     iconKey: 'flame',
     cardBg: '#FEF3C7',
     cardBorder: '#FDE68A',
@@ -311,6 +418,7 @@ export const INITIAL_TASKS: AcademicTask[] = [
       'Merancang antarmuka aplikasi daftar tugas mahasiswa dengan fitur pencarian langsung, filter status penyelesaian, dan ringkasan progres.',
     deadline: '08 Nov 2026',
     status: 'Belum Dikerjakan',
+    attachments: [],
   },
   {
     id: 'task-rob-02',
@@ -321,6 +429,7 @@ export const INITIAL_TASKS: AcademicTask[] = [
       'Konversi koordinat bola ke kartesian dan matriks rotasi end-effector robot manipulator.',
     deadline: '04 Nov 2026',
     status: 'Selesai',
+    attachments: [],
   },
   {
     id: 'task-dwdm-03',
@@ -331,6 +440,7 @@ export const INITIAL_TASKS: AcademicTask[] = [
       'Arsitektur data lake, pemrosesan aliran data, dan pemisahan sistem transaksi dengan analitik.',
     deadline: '07 Nov 2026',
     status: 'Selesai',
+    attachments: [],
   },
   {
     id: 'task-kij-04',
@@ -341,6 +451,7 @@ export const INITIAL_TASKS: AcademicTask[] = [
       'Pengujian pemindaian port jaringan menggunakan Nmap 7.99 pada lingkungan Kali Linux.',
     deadline: '05 Nov 2026',
     status: 'Selesai',
+    attachments: [],
   },
   {
     id: 'task-pbo-05',
@@ -351,13 +462,10 @@ export const INITIAL_TASKS: AcademicTask[] = [
       'Pemodelan diagram kelas dan skenario kebutuhan spesifikasi harga pangan daerah Cirebon.',
     deadline: '09 Nov 2026',
     status: 'Belum Dikerjakan',
+    attachments: [],
   },
 ];
 
-/*
- * Central state reducer guaranteeing immutable task array updates across
- * creation, editing, deletion, status toggling, cloud sync, and restoration.
- */
 export function taskReducer(
   state: AcademicTask[],
   action: TaskAction
@@ -372,6 +480,7 @@ export function taskReducer(
         description: action.payload.description.trim(),
         deadline: action.payload.deadline.trim(),
         status: 'Belum Dikerjakan',
+        attachments: action.payload.attachments || [],
       };
       return [newTask, ...state];
     }
@@ -386,6 +495,7 @@ export function taskReducer(
               category: action.payload.category,
               description: action.payload.description.trim(),
               deadline: action.payload.deadline.trim(),
+              attachments: action.payload.attachments ?? task.attachments ?? [],
             }
           : task
       );

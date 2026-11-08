@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   AlertCircle,
   Check,
@@ -17,6 +18,7 @@ import {
   BENTO_COLOR_THEMES,
   COURSE_STICKER_GALLERY,
   deriveBentoThemeFromHex,
+  getReadableTextColor,
 } from '../data/initialTasks';
 
 export interface AddCourseSheetProps {
@@ -45,10 +47,10 @@ const QUICK_TIME_PRESETS = [
 ] as const;
 
 /*
- * Slide-up bottom sheet modal for adding or editing a course in Tab 2 (Mata Kuliah),
+ * Slide-up / button-morph modal for adding or editing a course in Tab 2 (Mata Kuliah),
  * featuring an 8-character clean 2D Sticker Picker, Custom Image Upload,
  * 7-Day Selection (Sen-Min), Custom SKS Input, Mobile Time Picker + Free Text,
- * and Custom RGB / Full-Spectrum Color Picker.
+ * and Custom RGB / Full-Spectrum Color Picker with automatic contrast protection.
  */
 export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
   isOpen,
@@ -149,10 +151,6 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
     }
   }, [editingCourse, isOpen]);
 
-  if (!isOpen) {
-    return null;
-  }
-
   const handleCustomStickerUpload = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -209,568 +207,630 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
   };
 
   const customPreviewTheme = deriveBentoThemeFromHex(customHexColor);
+  const customCircleText = getReadableTextColor(customHexColor);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/55 backdrop-blur-[2px] p-0 sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="add-course-sheet-title"
-    >
-      <div
-        className={`w-full max-w-[480px] rounded-t-[32px] sm:rounded-[32px] border-2 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-150 ${
-          isDarkMode
-            ? 'bg-[#161A22] border-[#262C3A] text-white'
-            : 'bg-white border-[#0F172A] text-[#0F172A]'
-        }`}
-      >
-        {/* Drag Handle */}
-        <div className="pt-3 pb-1 flex justify-center">
-          <div
-            className={`w-11 h-1.5 rounded-full ${
-              isDarkMode ? 'bg-[#334155]' : 'bg-[#CBD5E1]'
-            }`}
-            aria-hidden="true"
-          />
-        </div>
-
-        <form onSubmit={handleSubmit} noValidate>
-          {/* Sheet Header */}
-          <div
-            className={`px-4 pb-2.5 flex items-center justify-between border-b ${
-              isDarkMode ? 'border-[#262C3A]' : 'border-[#F1F5F9]'
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          key="add-course-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          onClick={onClose}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/55 backdrop-blur-[2px] p-0 sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-course-sheet-title"
+        >
+          <motion.div
+            key="add-course-sheet-body"
+            initial={{
+              scale: 0.25,
+              opacity: 0,
+              x: 110,
+              y: -180,
+              borderRadius: '48px',
+            }}
+            animate={{
+              scale: 1,
+              opacity: 1,
+              x: 0,
+              y: 0,
+              borderRadius: '32px',
+            }}
+            exit={{
+              scale: 0.25,
+              opacity: 0,
+              x: 110,
+              y: -180,
+              borderRadius: '48px',
+            }}
+            transition={{
+              type: 'spring',
+              stiffness: 290,
+              damping: 25,
+            }}
+            onClick={(e) => e.stopPropagation()}
+            style={{ transformOrigin: 'top right' }}
+            className={`w-full max-w-[480px] rounded-t-[32px] sm:rounded-[32px] border-2 shadow-2xl overflow-hidden ${
+              isDarkMode
+                ? 'bg-[#161A22] border-[#262C3A] text-white'
+                : 'bg-white border-[#0F172A] text-[#0F172A]'
             }`}
           >
-            <button
-              type="button"
-              onClick={onClose}
-              className={`min-h-[44px] min-w-[64px] px-2 flex items-center justify-start text-sm font-semibold ${
-                isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
-              }`}
-            >
-              Batal
-            </button>
-
-            <div className="flex items-center gap-1.5">
-              <BookPlus className="w-4 h-4 text-[#C41E3A]" aria-hidden="true" />
-              <h2
-                id="add-course-sheet-title"
-                className="text-[15px] font-extrabold tracking-tight"
-              >
-                {editingCourse ? 'Edit Mata Kuliah' : 'Tambah Mata Kuliah'}
-              </h2>
-            </div>
-
-            <button
-              type="submit"
-              className="min-h-[44px] min-w-[64px] px-2 flex items-center justify-end text-sm font-extrabold text-[#C41E3A] hover:text-[#A3162E]"
-            >
-              Simpan
-            </button>
-          </div>
-
-          <div className="p-5 space-y-4 max-h-[78vh] overflow-y-auto">
-            {errorMessage && (
-              <div
-                role="alert"
-                className="flex items-center gap-2 p-3 rounded-2xl bg-[#FEE2E2] border border-[#FECACA] text-xs font-semibold text-[#C41E3A]"
-              >
-                <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-
-            {/* Expressive 2D Character Sticker Picker + Custom Upload */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-extrabold flex items-center gap-1">
-                  <Sparkles
-                    className="w-3.5 h-3.5 text-[#C41E3A]"
-                    aria-hidden="true"
-                  />
-                  <span>Pilih Karakter Stiker Visual</span>
-                </span>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleCustomStickerUpload}
-                  className="hidden"
+            {/* Dominant Red Header Band */}
+            <div className="bg-[#C41E3A] text-white px-4 pt-3 pb-3 border-b-2 border-[#0F172A]">
+              <div className="pb-2 flex justify-center">
+                <div
+                  className="w-11 h-1.5 rounded-full bg-white/40"
+                  aria-hidden="true"
                 />
+              </div>
+
+              <div className="flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="min-h-[34px] px-2.5 py-1 rounded-xl bg-[#FEE2E2] hover:bg-[#FECACA] text-[#C41E3A] text-[11px] font-extrabold flex items-center gap-1 transition-colors"
+                  onClick={onClose}
+                  className="min-h-[38px] px-3 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-extrabold border border-white/30 transition-colors"
                 >
-                  <Upload className="w-3 h-3" aria-hidden="true" />
-                  <span>Unggah Gambar Sendiri</span>
+                  Batal
+                </button>
+
+                <div className="flex items-center gap-1.5">
+                  <BookPlus
+                    className="w-4 h-4 text-white"
+                    aria-hidden="true"
+                  />
+                  <h2
+                    id="add-course-sheet-title"
+                    className="text-[15px] font-black tracking-tight"
+                  >
+                    {editingCourse ? 'Edit Mata Kuliah' : 'Tambah Mata Kuliah'}
+                  </h2>
+                </div>
+
+                <button
+                  type="submit"
+                  form="add-course-form"
+                  className="min-h-[38px] px-3.5 rounded-xl bg-white text-[#C41E3A] border-2 border-[#0F172A] text-xs font-black shadow-[0_2px_0_0_#0F172A] active:translate-y-0.5 transition-all"
+                >
+                  Simpan
                 </button>
               </div>
+            </div>
 
-              <div className="grid grid-cols-4 gap-2">
-                {COURSE_STICKER_GALLERY.map((sticker) => {
-                  const isPicked = selectedStickerUrl === sticker.imageUrl;
-                  return (
+            <form id="add-course-form" onSubmit={handleSubmit} noValidate>
+              <div className="p-5 space-y-4 max-h-[76vh] overflow-y-auto no-scrollbar">
+                {errorMessage && (
+                  <div
+                    role="alert"
+                    className="flex items-center gap-2 p-3 rounded-2xl bg-[#FEE2E2] border-2 border-[#C41E3A] text-xs font-extrabold text-[#C41E3A]"
+                  >
+                    <AlertCircle
+                      className="w-4 h-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+
+                {/* Expressive 2D Character Sticker Picker + Custom Upload */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-extrabold flex items-center gap-1">
+                      <Sparkles
+                        className="w-3.5 h-3.5 text-[#C41E3A]"
+                        aria-hidden="true"
+                      />
+                      <span>Pilih Karakter Stiker Visual</span>
+                    </span>
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleCustomStickerUpload}
+                      className="hidden"
+                    />
                     <button
-                      key={sticker.id}
                       type="button"
-                      onClick={() => {
-                        setSelectedStickerUrl(sticker.imageUrl);
-                        setSelectedIconKey(sticker.defaultIconKey);
-                      }}
-                      className={`p-1.5 rounded-2xl border-2 flex flex-col items-center gap-1 transition-all ${
-                        isPicked
-                          ? 'border-[#C41E3A] bg-[#FFF1F2] scale-[1.03] shadow-xs'
-                          : isDarkMode
-                          ? 'border-[#323A48] bg-[#232934]'
-                          : 'border-[#E2E8F0] bg-[#F8FAFC]'
-                      }`}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="min-h-[34px] px-2.5 py-1 rounded-xl bg-white hover:bg-[#FFF1F2] text-[#C41E3A] border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] text-[11px] font-extrabold flex items-center gap-1 transition-all active:translate-y-0.5"
                     >
-                      <div className="w-12 h-12 rounded-xl overflow-hidden border border-[#0F172A]/15">
-                        <img
-                          src={sticker.imageUrl}
-                          alt={sticker.label}
-                          className="w-full h-full object-cover"
+                      <Upload className="w-3 h-3" aria-hidden="true" />
+                      <span>Unggah Gambar Sendiri</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2">
+                    {COURSE_STICKER_GALLERY.map((sticker) => {
+                      const isPicked = selectedStickerUrl === sticker.imageUrl;
+                      return (
+                        <button
+                          key={sticker.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedStickerUrl(sticker.imageUrl);
+                            setSelectedIconKey(sticker.defaultIconKey);
+                          }}
+                          className={`p-1.5 rounded-2xl border-2 flex flex-col items-center gap-1 transition-all ${
+                            isPicked
+                              ? 'border-[#C41E3A] bg-[#FFF1F2] text-[#0F172A] scale-[1.02] shadow-[0_2px_0_0_#C41E3A]'
+                              : isDarkMode
+                              ? 'border-[#323A48] bg-[#232934] text-white'
+                              : 'border-[#CBD5E1] bg-[#F8FAFC] text-[#0F172A]'
+                          }`}
+                        >
+                          <div className="w-12 h-12 rounded-xl overflow-hidden border border-[#0F172A]/20 bg-white">
+                            <img
+                              src={sticker.imageUrl}
+                              alt={sticker.label}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <span className="text-[10px] font-extrabold truncate max-w-full">
+                            {sticker.label.replace('Karakter ', '')}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Preview if user uploaded custom image */}
+                  {!COURSE_STICKER_GALLERY.some(
+                    (s) => s.imageUrl === selectedStickerUrl
+                  ) && (
+                    <div className="mt-2 p-2.5 rounded-2xl bg-[#D1FAE5] border-2 border-[#0F172A] flex items-center gap-3">
+                      <img
+                        src={selectedStickerUrl}
+                        alt="Stiker Kustom"
+                        className="w-11 h-11 rounded-xl object-cover border border-[#0F172A] bg-white"
+                      />
+                      <div className="text-xs font-extrabold text-[#065F46]">
+                        Gambar sampul kustom berhasil dipilih!
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Nama Mata Kuliah */}
+                <div>
+                  <label
+                    htmlFor="course-name-input"
+                    className="block text-xs font-extrabold mb-1.5"
+                  >
+                    Nama Mata Kuliah
+                  </label>
+                  <input
+                    id="course-name-input"
+                    type="text"
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      if (errorMessage) setErrorMessage(null);
+                    }}
+                    placeholder="Contoh: Kecerdasan Buatan"
+                    className={`w-full min-h-[44px] px-4 py-2.5 rounded-2xl border-2 text-sm font-semibold outline-none transition-colors ${
+                      isDarkMode
+                        ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#C41E3A]'
+                        : 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A] placeholder:text-[#94A3B8] focus:border-[#C41E3A] focus:bg-white'
+                    }`}
+                  />
+                </div>
+
+                {/* Dosen Pengampu */}
+                <div>
+                  <label
+                    htmlFor="course-lecturer-input"
+                    className="block text-xs font-extrabold mb-1.5"
+                  >
+                    Dosen Pengampu
+                  </label>
+                  <input
+                    id="course-lecturer-input"
+                    type="text"
+                    value={lecturer}
+                    onChange={(e) => {
+                      setLecturer(e.target.value);
+                      if (errorMessage) setErrorMessage(null);
+                    }}
+                    placeholder="Contoh: Ir. Ahmad Fauzi, M.Kom."
+                    className={`w-full min-h-[44px] px-4 py-2.5 rounded-2xl border-2 text-sm font-semibold outline-none transition-colors ${
+                      isDarkMode
+                        ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#C41E3A]'
+                        : 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A] placeholder:text-[#94A3B8] focus:border-[#C41E3A] focus:bg-white'
+                    }`}
+                  />
+                </div>
+
+                {/* Jumlah SKS (2, 3, or Custom Typed SKS) & Ruang Kuliah */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <span className="block text-xs font-extrabold mb-1.5">
+                      Jumlah SKS (Pilih atau Ketik)
+                    </span>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[2, 3].map((sks) => {
+                        const isSelected =
+                          !customCreditsMode && credits === sks;
+                        return (
+                          <button
+                            key={sks}
+                            type="button"
+                            onClick={() => {
+                              setCustomCreditsMode(false);
+                              setCredits(sks);
+                            }}
+                            className={`min-h-[44px] rounded-2xl text-xs font-extrabold border-2 transition-all ${
+                              isSelected
+                                ? 'bg-[#C41E3A] border-[#0F172A] text-white shadow-[0_2px_0_0_#0F172A]'
+                                : isDarkMode
+                                ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1]'
+                                : 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A]'
+                            }`}
+                          >
+                            {sks} SKS
+                          </button>
+                        );
+                      })}
+
+                      {/* Option 3: Custom Typed SKS Input */}
+                      <div className="relative">
+                        <input
+                          ref={customCreditsInputRef}
+                          type="number"
+                          min={1}
+                          max={12}
+                          value={customCreditsMode ? customCreditsText : ''}
+                          onFocus={() => setCustomCreditsMode(true)}
+                          onChange={(e) => {
+                            setCustomCreditsMode(true);
+                            setCustomCreditsText(e.target.value);
+                          }}
+                          placeholder="Ketik..."
+                          aria-label="Ketik jumlah SKS kustom"
+                          className={`w-full min-h-[44px] px-2 text-center rounded-2xl text-xs font-extrabold border-2 outline-none transition-colors ${
+                            customCreditsMode
+                              ? 'bg-[#FFF1F2] border-[#C41E3A] text-[#C41E3A]'
+                              : isDarkMode
+                              ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1] placeholder:text-[#94A3B8]'
+                              : 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A] placeholder:text-[#64748B]'
+                          }`}
                         />
                       </div>
-                      <span className="text-[10px] font-bold truncate max-w-full">
-                        {sticker.label.replace('Karakter ', '')}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Preview if user uploaded custom image */}
-              {!COURSE_STICKER_GALLERY.some(
-                (s) => s.imageUrl === selectedStickerUrl
-              ) && (
-                <div className="mt-2 p-2.5 rounded-2xl bg-[#D1FAE5] border border-[#A7F3D0] flex items-center gap-3">
-                  <img
-                    src={selectedStickerUrl}
-                    alt="Stiker Kustom"
-                    className="w-11 h-11 rounded-xl object-cover border border-[#0F172A]"
-                  />
-                  <div className="text-xs font-bold text-[#065F46]">
-                    Gambar sampul kustom berhasil dipilih!
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
 
-            {/* Nama Mata Kuliah */}
-            <div>
-              <label
-                htmlFor="course-name-input"
-                className="block text-xs font-extrabold mb-1.5"
-              >
-                Nama Mata Kuliah
-              </label>
-              <input
-                id="course-name-input"
-                type="text"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  if (errorMessage) setErrorMessage(null);
-                }}
-                placeholder="Contoh: Kecerdasan Buatan"
-                className={`w-full min-h-[44px] px-4 py-2.5 rounded-2xl border-2 text-sm font-semibold outline-none transition-colors ${
-                  isDarkMode
-                    ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#C41E3A]'
-                    : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] placeholder:text-[#94A3B8] focus:border-[#C41E3A] focus:bg-white'
-                }`}
-              />
-            </div>
-
-            {/* Dosen Pengampu */}
-            <div>
-              <label
-                htmlFor="course-lecturer-input"
-                className="block text-xs font-extrabold mb-1.5"
-              >
-                Dosen Pengampu
-              </label>
-              <input
-                id="course-lecturer-input"
-                type="text"
-                value={lecturer}
-                onChange={(e) => {
-                  setLecturer(e.target.value);
-                  if (errorMessage) setErrorMessage(null);
-                }}
-                placeholder="Contoh: Ir. Ahmad Fauzi, M.Kom."
-                className={`w-full min-h-[44px] px-4 py-2.5 rounded-2xl border-2 text-sm font-semibold outline-none transition-colors ${
-                  isDarkMode
-                    ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#C41E3A]'
-                    : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] placeholder:text-[#94A3B8] focus:border-[#C41E3A] focus:bg-white'
-                }`}
-              />
-            </div>
-
-            {/* Jumlah SKS (2, 3, or Custom Typed SKS) & Ruang Kuliah */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <span className="block text-xs font-extrabold mb-1.5">
-                  Jumlah SKS (Pilih atau Ketik)
-                </span>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {[2, 3].map((sks) => {
-                    const isSelected = !customCreditsMode && credits === sks;
-                    return (
-                      <button
-                        key={sks}
-                        type="button"
-                        onClick={() => {
-                          setCustomCreditsMode(false);
-                          setCredits(sks);
-                        }}
-                        className={`min-h-[44px] rounded-2xl text-xs font-extrabold border-2 transition-colors ${
-                          isSelected
-                            ? 'bg-[#C41E3A] border-[#0F172A] text-white'
-                            : isDarkMode
-                            ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1]'
-                            : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A]'
-                        }`}
-                      >
-                        {sks} SKS
-                      </button>
-                    );
-                  })}
-
-                  {/* Option 3: Custom Typed SKS Input */}
-                  <div className="relative">
+                  <div>
+                    <label
+                      htmlFor="course-room-input"
+                      className="block text-xs font-extrabold mb-1.5"
+                    >
+                      Ruang Kuliah
+                    </label>
                     <input
-                      ref={customCreditsInputRef}
-                      type="number"
-                      min={1}
-                      max={12}
-                      value={customCreditsMode ? customCreditsText : ''}
-                      onFocus={() => setCustomCreditsMode(true)}
-                      onChange={(e) => {
-                        setCustomCreditsMode(true);
-                        setCustomCreditsText(e.target.value);
-                      }}
-                      placeholder="Ketik..."
-                      aria-label="Ketik jumlah SKS kustom"
-                      className={`w-full min-h-[44px] px-2 text-center rounded-2xl text-xs font-extrabold border-2 outline-none transition-colors ${
-                        customCreditsMode
-                          ? 'bg-[#FFF1F2] border-[#C41E3A] text-[#C41E3A]'
-                          : isDarkMode
-                          ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1] placeholder:text-[#94A3B8]'
-                          : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] placeholder:text-[#64748B]'
+                      id="course-room-input"
+                      type="text"
+                      value={room}
+                      onChange={(e) => setRoom(e.target.value)}
+                      placeholder="Contoh: Ruang 302 / Lab 1"
+                      className={`w-full min-h-[44px] px-3.5 py-2.5 rounded-2xl border-2 text-sm font-semibold outline-none transition-colors ${
+                        isDarkMode
+                          ? 'bg-[#232934] border-[#323A48] text-white'
+                          : 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A]'
                       }`}
                     />
                   </div>
                 </div>
-              </div>
 
-              <div>
-                <label
-                  htmlFor="course-room-input"
-                  className="block text-xs font-extrabold mb-1.5"
-                >
-                  Ruang Kuliah
-                </label>
-                <input
-                  id="course-room-input"
-                  type="text"
-                  value={room}
-                  onChange={(e) => setRoom(e.target.value)}
-                  placeholder="Contoh: Ruang 302 / Lab 1"
-                  className={`w-full min-h-[44px] px-3.5 py-2.5 rounded-2xl border-2 text-sm font-semibold outline-none transition-colors ${
-                    isDarkMode
-                      ? 'bg-[#232934] border-[#323A48] text-white'
-                      : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A]'
-                  }`}
-                />
-              </div>
-            </div>
-
-            {/* 7-Day Selection (Senin s/d Minggu) */}
-            <div>
-              <span className="block text-xs font-extrabold mb-1.5">
-                Pilih Hari Kuliah (Senin s/d Minggu)
-              </span>
-              <div className="grid grid-cols-7 gap-1">
-                {DAY_CHIPS.map((day) => {
-                  const isSelected = selectedDay === day.full;
-                  return (
-                    <button
-                      key={day.full}
-                      type="button"
-                      onClick={() => setSelectedDay(day.full)}
-                      className={`min-h-[40px] rounded-xl text-[11px] font-extrabold border transition-colors ${
-                        isSelected
-                          ? 'bg-[#C41E3A] border-[#0F172A] text-white'
-                          : isDarkMode
-                          ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1]'
-                          : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#334155]'
-                      }`}
-                    >
-                      {day.short}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Jam Perkuliahan: Mobile-Style Start & End Time Picker + Free Typing */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-extrabold flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-[#C41E3A]" aria-hidden="true" />
-                  <span>Jam Perkuliahan</span>
-                </span>
-
-                <div className="flex items-center gap-1 bg-[#F1F5F9] dark:bg-[#232934] p-0.5 rounded-xl border border-[#CBD5E1] dark:border-[#323A48]">
-                  <button
-                    type="button"
-                    onClick={() => setTimeMode('picker')}
-                    className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-colors ${
-                      timeMode === 'picker'
-                        ? 'bg-[#C41E3A] text-white'
-                        : 'text-[#64748B]'
-                    }`}
-                  >
-                    Pilih Jam HP
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setManualTimeText(`${startTime} - ${endTime} WIB`);
-                      setTimeMode('manual');
-                    }}
-                    className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-colors ${
-                      timeMode === 'manual'
-                        ? 'bg-[#C41E3A] text-white'
-                        : 'text-[#64748B]'
-                    }`}
-                  >
-                    Ketik Bebas
-                  </button>
-                </div>
-              </div>
-
-              {timeMode === 'picker' ? (
-                <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div
-                      className={`p-2.5 rounded-2xl border-2 ${
-                        isDarkMode
-                          ? 'bg-[#232934] border-[#323A48]'
-                          : 'bg-[#F8FAFC] border-[#E2E8F0]'
-                      }`}
-                    >
-                      <label
-                        htmlFor="course-start-time"
-                        className="block text-[10px] font-bold text-[#64748B] mb-1"
-                      >
-                        Jam Mulai
-                      </label>
-                      <input
-                        id="course-start-time"
-                        type="time"
-                        value={startTime}
-                        onChange={(e) => setStartTime(e.target.value)}
-                        className="w-full bg-transparent text-sm font-black outline-none"
-                      />
-                    </div>
-
-                    <div
-                      className={`p-2.5 rounded-2xl border-2 ${
-                        isDarkMode
-                          ? 'bg-[#232934] border-[#323A48]'
-                          : 'bg-[#F8FAFC] border-[#E2E8F0]'
-                      }`}
-                    >
-                      <label
-                        htmlFor="course-end-time"
-                        className="block text-[10px] font-bold text-[#64748B] mb-1"
-                      >
-                        Jam Selesai
-                      </label>
-                      <input
-                        id="course-end-time"
-                        type="time"
-                        value={endTime}
-                        onChange={(e) => setEndTime(e.target.value)}
-                        className="w-full bg-transparent text-sm font-black outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Quick Time Presets */}
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {QUICK_TIME_PRESETS.map((preset) => {
-                      const active =
-                        startTime === preset.start && endTime === preset.end;
+                {/* 7-Day Selection (Senin s/d Minggu) */}
+                <div>
+                  <span className="block text-xs font-extrabold mb-1.5">
+                    Pilih Hari Kuliah (Senin s/d Minggu)
+                  </span>
+                  <div className="grid grid-cols-7 gap-1">
+                    {DAY_CHIPS.map((day) => {
+                      const isSelected = selectedDay === day.full;
                       return (
                         <button
-                          key={preset.label}
+                          key={day.full}
                           type="button"
-                          onClick={() => {
-                            setStartTime(preset.start);
-                            setEndTime(preset.end);
-                          }}
-                          className={`min-h-[34px] px-1.5 rounded-xl text-[10px] font-bold border transition-colors ${
-                            active
-                              ? 'bg-[#FEE2E2] border-[#C41E3A] text-[#C41E3A]'
+                          onClick={() => setSelectedDay(day.full)}
+                          className={`min-h-[40px] rounded-xl text-[11px] font-extrabold border-2 transition-all ${
+                            isSelected
+                              ? 'bg-[#C41E3A] border-[#0F172A] text-white shadow-[0_2px_0_0_#0F172A]'
                               : isDarkMode
                               ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1]'
-                              : 'bg-white border-[#E2E8F0] text-[#475569]'
+                              : 'bg-[#F8FAFC] border-[#CBD5E1] text-[#334155]'
                           }`}
                         >
-                          {preset.label}
+                          {day.short}
                         </button>
                       );
                     })}
                   </div>
                 </div>
-              ) : (
-                <input
-                  type="text"
-                  value={manualTimeText}
-                  onChange={(e) => setManualTimeText(e.target.value)}
-                  placeholder="Contoh: 08:00 - 10:30 WIB atau Malam 19:00"
-                  className={`w-full min-h-[44px] px-4 py-2.5 rounded-2xl border-2 text-sm font-semibold outline-none ${
-                    isDarkMode
-                      ? 'bg-[#232934] border-[#323A48] text-white focus:border-[#C41E3A]'
-                      : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] focus:border-[#C41E3A] focus:bg-white'
-                  }`}
-                />
-              )}
-            </div>
 
-            {/* Bento Color Theme Selector (5 Curated Themes + Custom RGB Spectrum Picker) */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-extrabold">
-                  Pilih Tema Warna Kartu Bento
-                </span>
-                <span className="text-[10px] font-bold text-[#64748B]">
-                  5 Preset + RGB Bebas
-                </span>
-              </div>
+                {/* Jam Perkuliahan: Mobile-Style Start & End Time Picker + Free Typing (Zero dark: bug!) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-extrabold flex items-center gap-1">
+                      <Clock
+                        className="w-3.5 h-3.5 text-[#C41E3A]"
+                        aria-hidden="true"
+                      />
+                      <span>Jam Perkuliahan</span>
+                    </span>
 
-              <div className="grid grid-cols-6 gap-1.5">
-                {BENTO_COLOR_THEMES.map((theme) => {
-                  const isPicked = colorThemeId === theme.id;
-                  return (
-                    <button
-                      key={theme.id}
-                      type="button"
-                      onClick={() => setColorThemeId(theme.id)}
-                      style={{
-                        backgroundColor: theme.pastelBg,
-                        borderColor: isPicked ? '#0F172A' : theme.pastelBorder,
-                      }}
-                      className="min-h-[52px] rounded-2xl border-2 flex flex-col items-center justify-center gap-1 p-1 transition-transform active:scale-95"
-                      title={theme.name}
+                    <div
+                      className={`flex items-center gap-1 p-1 rounded-xl border-2 ${
+                        isDarkMode
+                          ? 'bg-[#232934] border-[#323A48]'
+                          : 'bg-[#F1F5F9] border-[#0F172A]'
+                      }`}
                     >
-                      <span
-                        style={{ backgroundColor: theme.iconBg }}
-                        className="w-5 h-5 rounded-full flex items-center justify-center text-white"
+                      <button
+                        type="button"
+                        onClick={() => setTimeMode('picker')}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-colors ${
+                          timeMode === 'picker'
+                            ? 'bg-[#C41E3A] text-white border border-[#0F172A]'
+                            : isDarkMode
+                            ? 'text-[#CBD5E1]'
+                            : 'text-[#0F172A]'
+                        }`}
                       >
-                        {isPicked && <Check className="w-3 h-3 stroke-[3]" />}
-                      </span>
-                      <span
-                        style={{ color: theme.accentColor }}
-                        className="text-[10px] font-extrabold truncate max-w-full"
+                        Pilih Jam HP
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setManualTimeText(`${startTime} - ${endTime} WIB`);
+                          setTimeMode('manual');
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-colors ${
+                          timeMode === 'manual'
+                            ? 'bg-[#C41E3A] text-white border border-[#0F172A]'
+                            : isDarkMode
+                            ? 'text-[#CBD5E1]'
+                            : 'text-[#0F172A]'
+                        }`}
                       >
-                        {theme.name.split(' ')[0]}
-                      </span>
-                    </button>
-                  );
-                })}
+                        Ketik Bebas
+                      </button>
+                    </div>
+                  </div>
 
-                {/* 6th Tile: Custom RGB / Hex Color Picker */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setColorThemeId('custom');
-                    colorInputRef.current?.click();
-                  }}
-                  style={{
-                    backgroundColor: customPreviewTheme.pastelBg,
-                    borderColor:
-                      colorThemeId === 'custom'
-                        ? '#0F172A'
-                        : customPreviewTheme.pastelBorder,
-                  }}
-                  className="min-h-[52px] rounded-2xl border-2 flex flex-col items-center justify-center gap-1 p-1 transition-transform active:scale-95 relative"
-                  title="Pilih Warna Kustom RGB"
-                >
-                  <input
-                    ref={colorInputRef}
-                    type="color"
-                    value={customHexColor}
-                    onChange={(e) => {
-                      setCustomHexColor(e.target.value);
-                      setColorThemeId('custom');
-                    }}
-                    className="sr-only"
-                    aria-label="Pilih warna kustom RGB"
-                  />
-                  <span
-                    style={{ backgroundColor: customHexColor }}
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-white border border-black/20"
-                  >
-                    {colorThemeId === 'custom' ? (
-                      <Check className="w-3 h-3 stroke-[3]" />
-                    ) : (
-                      <Palette className="w-3 h-3" />
-                    )}
-                  </span>
-                  <span
-                    style={{ color: customHexColor }}
-                    className="text-[10px] font-extrabold truncate max-w-full"
-                  >
-                    RGB
-                  </span>
-                </button>
-              </div>
+                  {timeMode === 'picker' ? (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div
+                          className={`p-2.5 rounded-2xl border-2 ${
+                            isDarkMode
+                              ? 'bg-[#232934] border-[#323A48]'
+                              : 'bg-[#F8FAFC] border-[#CBD5E1]'
+                          }`}
+                        >
+                          <label
+                            htmlFor="course-start-time"
+                            className="block text-[10px] font-bold text-[#64748B] mb-1"
+                          >
+                            Jam Mulai
+                          </label>
+                          <input
+                            id="course-start-time"
+                            type="time"
+                            value={startTime}
+                            onChange={(e) => setStartTime(e.target.value)}
+                            className="w-full bg-transparent text-sm font-black outline-none"
+                          />
+                        </div>
 
-              {colorThemeId === 'custom' && (
-                <div
-                  style={{
-                    backgroundColor: customPreviewTheme.pastelBg,
-                    borderColor: customPreviewTheme.pastelBorder,
-                  }}
-                  className="mt-2 p-2.5 rounded-2xl border-2 flex items-center justify-between gap-2"
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      style={{ backgroundColor: customHexColor }}
-                      className="w-6 h-6 rounded-lg border border-[#0F172A]"
+                        <div
+                          className={`p-2.5 rounded-2xl border-2 ${
+                            isDarkMode
+                              ? 'bg-[#232934] border-[#323A48]'
+                              : 'bg-[#F8FAFC] border-[#CBD5E1]'
+                          }`}
+                        >
+                          <label
+                            htmlFor="course-end-time"
+                            className="block text-[10px] font-bold text-[#64748B] mb-1"
+                          >
+                            Jam Selesai
+                          </label>
+                          <input
+                            id="course-end-time"
+                            type="time"
+                            value={endTime}
+                            onChange={(e) => setEndTime(e.target.value)}
+                            className="w-full bg-transparent text-sm font-black outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Quick Time Presets */}
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {QUICK_TIME_PRESETS.map((preset) => {
+                          const active =
+                            startTime === preset.start &&
+                            endTime === preset.end;
+                          return (
+                            <button
+                              key={preset.label}
+                              type="button"
+                              onClick={() => {
+                                setStartTime(preset.start);
+                                setEndTime(preset.end);
+                              }}
+                              className={`min-h-[34px] px-1.5 rounded-xl text-[10px] font-extrabold border-2 transition-all ${
+                                active
+                                  ? 'bg-[#C41E3A] border-[#0F172A] text-white'
+                                  : isDarkMode
+                                  ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1]'
+                                  : 'bg-white border-[#CBD5E1] text-[#0F172A]'
+                              }`}
+                            >
+                              {preset.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={manualTimeText}
+                      onChange={(e) => setManualTimeText(e.target.value)}
+                      placeholder="Contoh: 08:00 - 10:30 WIB atau Malam 19:00"
+                      className={`w-full min-h-[44px] px-4 py-2.5 rounded-2xl border-2 text-sm font-semibold outline-none ${
+                        isDarkMode
+                          ? 'bg-[#232934] border-[#323A48] text-white focus:border-[#C41E3A]'
+                          : 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A] focus:border-[#C41E3A] focus:bg-white'
+                      }`}
                     />
-                    <span className="text-xs font-extrabold text-[#0F172A]">
-                      Warna Kustom Aktif ({customHexColor.toUpperCase()})
+                  )}
+                </div>
+
+                {/* Bento Color Theme Selector (5 Curated Themes + Custom RGB Spectrum Picker) */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-extrabold">
+                      Pilih Tema Warna Kartu Bento
+                    </span>
+                    <span className="text-[10px] font-bold text-[#64748B]">
+                      5 Preset + RGB Bebas
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => colorInputRef.current?.click()}
-                    className="px-2.5 py-1 rounded-xl bg-white border border-[#0F172A] text-[11px] font-extrabold text-[#0F172A]"
-                  >
-                    Ubah Spektrum RGB
-                  </button>
-                </div>
-              )}
-            </div>
 
-            <button
-              type="submit"
-              className="w-full min-h-[48px] rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-white text-sm font-extrabold border-2 border-[#0F172A] shadow-xs transition-colors"
-            >
-              {editingCourse
-                ? 'Simpan Perubahan Mata Kuliah'
-                : 'Simpan Mata Kuliah Baru'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+                  <div className="grid grid-cols-6 gap-1.5">
+                    {BENTO_COLOR_THEMES.map((theme) => {
+                      const isPicked = colorThemeId === theme.id;
+                      return (
+                        <button
+                          key={theme.id}
+                          type="button"
+                          onClick={() => setColorThemeId(theme.id)}
+                          style={{
+                            backgroundColor: theme.pastelBg,
+                            borderColor: isPicked
+                              ? '#0F172A'
+                              : theme.pastelBorder,
+                          }}
+                          className="min-h-[54px] rounded-2xl border-2 flex flex-col items-center justify-center gap-1 p-1 transition-transform active:scale-95"
+                          title={theme.name}
+                        >
+                          <span
+                            style={{ backgroundColor: theme.iconBg }}
+                            className="w-5 h-5 rounded-full flex items-center justify-center text-white border border-[#0F172A]"
+                          >
+                            {isPicked && (
+                              <Check className="w-3 h-3 stroke-[3]" />
+                            )}
+                          </span>
+                          <span
+                            style={{ color: theme.accentColor }}
+                            className="text-[10px] font-extrabold truncate max-w-full"
+                          >
+                            {theme.name.split(' ')[0]}
+                          </span>
+                        </button>
+                      );
+                    })}
+
+                    {/* 6th Tile: Custom RGB / Hex Color Picker */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setColorThemeId('custom');
+                        colorInputRef.current?.click();
+                      }}
+                      style={{
+                        backgroundColor: customPreviewTheme.pastelBg,
+                        borderColor:
+                          colorThemeId === 'custom'
+                            ? '#0F172A'
+                            : customPreviewTheme.pastelBorder,
+                      }}
+                      className="min-h-[54px] rounded-2xl border-2 flex flex-col items-center justify-center gap-1 p-1 transition-transform active:scale-95 relative"
+                      title="Pilih Warna Kustom RGB"
+                    >
+                      <input
+                        ref={colorInputRef}
+                        type="color"
+                        value={customHexColor}
+                        onChange={(e) => {
+                          setCustomHexColor(e.target.value);
+                          setColorThemeId('custom');
+                        }}
+                        className="sr-only"
+                        aria-label="Pilih warna kustom RGB"
+                      />
+                      <span
+                        style={{
+                          backgroundColor: customHexColor,
+                          color: customCircleText,
+                        }}
+                        className="w-5 h-5 rounded-full flex items-center justify-center border border-[#0F172A]"
+                      >
+                        {colorThemeId === 'custom' ? (
+                          <Check className="w-3 h-3 stroke-[3]" />
+                        ) : (
+                          <Palette className="w-3 h-3" />
+                        )}
+                      </span>
+                      <span
+                        style={{ color: customPreviewTheme.accentColor }}
+                        className="text-[10px] font-extrabold truncate max-w-full"
+                      >
+                        RGB
+                      </span>
+                    </button>
+                  </div>
+
+                  {colorThemeId === 'custom' && (
+                    <div
+                      style={{
+                        backgroundColor: customPreviewTheme.pastelBg,
+                        borderColor: '#0F172A',
+                      }}
+                      className="mt-2 p-2.5 rounded-2xl border-2 flex items-center justify-between gap-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          style={{ backgroundColor: customHexColor }}
+                          className="w-6 h-6 rounded-lg border-2 border-[#0F172A]"
+                        />
+                        <span className="text-xs font-extrabold text-[#0F172A]">
+                          Warna Kustom ({customHexColor.toUpperCase()})
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => colorInputRef.current?.click()}
+                        className="px-2.5 py-1 rounded-xl bg-white border-2 border-[#0F172A] text-[11px] font-extrabold text-[#0F172A] shadow-[0_2px_0_0_#0F172A]"
+                      >
+                        Ubah RGB
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full min-h-[48px] rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-white text-sm font-black border-2 border-[#0F172A] shadow-[0_3px_0_0_#0F172A] active:translate-y-0.5 transition-all"
+                >
+                  {editingCourse
+                    ? 'Simpan Perubahan Mata Kuliah'
+                    : 'Simpan Mata Kuliah Baru'}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

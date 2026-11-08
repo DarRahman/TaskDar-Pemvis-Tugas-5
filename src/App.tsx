@@ -6,6 +6,7 @@ import React, {
   useRef,
   useReducer,
 } from 'react';
+import { motion } from 'motion/react';
 import {
   Plus,
   Search,
@@ -15,7 +16,7 @@ import {
   BookOpen,
   PieChart,
   User,
-  Flame,
+  AlertCircle,
   Award,
   Bell,
   Moon,
@@ -34,6 +35,7 @@ import {
   LogOut,
   Camera,
   Building2,
+  BarChart3,
 } from 'lucide-react';
 import {
   INITIAL_TASKS,
@@ -41,7 +43,13 @@ import {
   BENTO_COLOR_THEMES,
   STUDENT_METADATA,
   COURSE_STICKER_GALLERY,
+  WEEKDAY_FILTER_ITEMS,
+  IndonesianDayName,
+  formatDateToIndonesianLabel,
+  getIndonesianDayFromDateLabel,
+  getCourseScheduledDay,
   deriveBentoThemeFromHex,
+  getReadableTextColor,
   taskReducer,
 } from './data/initialTasks';
 import {
@@ -89,65 +97,67 @@ const FILTER_TABS: readonly TaskFilterTab[] = [
   'Selesai',
 ];
 
-interface WeeklyDayItem {
-  dayShort: string;
-  dayFull: string;
-  dateNumber: string;
-  fullDateLabel: string;
-  studyHours: number;
+const STORAGE_KEYS = {
+  TASKS: 'taskdar_tasks_v2',
+  COURSES: 'taskdar_courses_v2',
+  USER: 'taskdar_user_v2',
+  SETTINGS: 'taskdar_settings_v2',
+} as const;
+
+function loadStoredTasks(): AcademicTask[] {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEYS.TASKS);
+    if (!raw) return INITIAL_TASKS;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed;
+    }
+  } catch {
+    // Fallback to initial tasks if storage is unavailable
+  }
+  return INITIAL_TASKS;
 }
 
-const WEEKLY_CALENDAR_DAYS: readonly WeeklyDayItem[] = [
-  {
-    dayShort: 'Sen',
-    dayFull: 'Senin',
-    dateNumber: '3',
-    fullDateLabel: '03 Nov 2026',
-    studyHours: 3.5,
-  },
-  {
-    dayShort: 'Sel',
-    dayFull: 'Selasa',
-    dateNumber: '4',
-    fullDateLabel: '04 Nov 2026',
-    studyHours: 4.0,
-  },
-  {
-    dayShort: 'Rab',
-    dayFull: 'Rabu',
-    dateNumber: '5',
-    fullDateLabel: '05 Nov 2026',
-    studyHours: 4.5,
-  },
-  {
-    dayShort: 'Kam',
-    dayFull: 'Kamis',
-    dateNumber: '6',
-    fullDateLabel: '06 Nov 2026',
-    studyHours: 3.0,
-  },
-  {
-    dayShort: 'Jum',
-    dayFull: 'Jumat',
-    dateNumber: '7',
-    fullDateLabel: '07 Nov 2026',
-    studyHours: 5.0,
-  },
-  {
-    dayShort: 'Sab',
-    dayFull: 'Sabtu',
-    dateNumber: '8',
-    fullDateLabel: '08 Nov 2026',
-    studyHours: 4.2,
-  },
-  {
-    dayShort: 'Min',
-    dayFull: 'Minggu',
-    dateNumber: '9',
-    fullDateLabel: '09 Nov 2026',
-    studyHours: 2.5,
-  },
-];
+function loadStoredCourses(): CourseDetail[] {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEYS.COURSES);
+    if (!raw) return INITIAL_COURSES;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed;
+    }
+  } catch {
+    // Fallback to initial courses
+  }
+  return INITIAL_COURSES;
+}
+
+function loadStoredUser(): StudentUserSession {
+  const defaultSession: StudentUserSession = {
+    uid: 'student-14524303',
+    name: STUDENT_METADATA.name,
+    shortName: STUDENT_METADATA.shortName,
+    nim: STUDENT_METADATA.nim,
+    classGroup: STUDENT_METADATA.classGroup,
+    semester: STUDENT_METADATA.semester,
+    program: STUDENT_METADATA.program,
+    institution: STUDENT_METADATA.institution,
+    email: STUDENT_METADATA.email,
+    avatarUrl: STUDENT_METADATA.avatarUrl,
+    authMethod: 'nim',
+  };
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEYS.USER);
+    if (!raw) return defaultSession;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && parsed.name) {
+      return { ...defaultSession, ...parsed };
+    }
+  } catch {
+    // Fallback to default session
+  }
+  return defaultSession;
+}
 
 const CATEGORY_METADATA: readonly {
   category: TaskCategory;
@@ -186,12 +196,23 @@ const CATEGORY_METADATA: readonly {
   },
 ];
 
+/* Distinct colorful Bento row surfaces for Leaderboard #1 through #6+ */
+const LEADERBOARD_ROW_PALETTE = [
+  { bg: '#FECDD3', badgeBg: '#C41E3A' },
+  { bg: '#A7F3D0', badgeBg: '#059669' },
+  { bg: '#FDE68A', badgeBg: '#D97706' },
+  { bg: '#DDD6FE', badgeBg: '#4F46E5' },
+  { bg: '#BAE6FD', badgeBg: '#0284C7' },
+  { bg: '#FED7AA', badgeBg: '#EA580C' },
+] as const;
+
 export default function App() {
   /*
    * Hook 7 (useReducer): Central state engine managing task list mutations
-   * across ADD_TASK, EDIT_TASK, DELETE_TASK, TOGGLE_STATUS, SET_TASKS, and RESET_TASKS.
+   * across ADD_TASK, EDIT_TASK, DELETE_TASK, TOGGLE_STATUS, SET_TASKS, and RESET_TASKS,
+   * initialized from localStorage so user data persists across reloads.
    */
-  const [tasks, dispatch] = useReducer(taskReducer, INITIAL_TASKS);
+  const [tasks, dispatch] = useReducer(taskReducer, undefined, loadStoredTasks);
 
   /*
    * Hook 2 (useState): Manages screen phase (splash -> auth -> main),
@@ -199,45 +220,42 @@ export default function App() {
    * active filters, personal leaderboard mode, and modal sheets.
    */
   const [screenPhase, setScreenPhase] = useState<AppScreenPhase>('splash');
-  const [studentUser, setStudentUser] = useState<StudentUserSession>({
-    uid: 'student-14524303',
-    name: STUDENT_METADATA.name,
-    shortName: STUDENT_METADATA.shortName,
-    nim: STUDENT_METADATA.nim,
-    classGroup: STUDENT_METADATA.classGroup,
-    semester: STUDENT_METADATA.semester,
-    program: STUDENT_METADATA.program,
-    institution: STUDENT_METADATA.institution,
-    email: STUDENT_METADATA.email,
-    avatarUrl: STUDENT_METADATA.avatarUrl,
-    authMethod: 'nim',
-  });
+  const [studentUser, setStudentUser] =
+    useState<StudentUserSession>(loadStoredUser);
   const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
   const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
 
   /* Editable profile modal state in Tab 4 */
   const [isEditProfileOpen, setIsEditProfileOpen] = useState<boolean>(false);
-  const [draftName, setDraftName] = useState<string>(STUDENT_METADATA.name);
-  const [draftNim, setDraftNim] = useState<string>(STUDENT_METADATA.nim);
+  const [draftName, setDraftName] = useState<string>(studentUser.name);
+  const [draftNim, setDraftNim] = useState<string>(studentUser.nim);
   const [draftInstitution, setDraftInstitution] = useState<string>(
-    STUDENT_METADATA.institution
+    studentUser.institution
   );
-  const [draftProgram, setDraftProgram] = useState<string>(
-    STUDENT_METADATA.program
-  );
+  const [draftProgram, setDraftProgram] = useState<string>(studentUser.program);
   const [draftSemester, setDraftSemester] = useState<string>(
-    STUDENT_METADATA.semester
+    studentUser.semester
   );
   const [draftClassGroup, setDraftClassGroup] = useState<string>(
-    STUDENT_METADATA.classGroup
+    studentUser.classGroup
   );
 
-  const [courses, setCourses] = useState<CourseDetail[]>(INITIAL_COURSES);
+  const [courses, setCourses] = useState<CourseDetail[]>(loadStoredCourses);
   const [bottomTab, setBottomTab] = useState<MainBottomTab>('tugas');
 
-  const [selectedDayDate, setSelectedDayDate] = useState<string>('Semua');
+  /*
+   * Day-of-week filter ('Semua' or 'Senin'..'Minggu') + optional exact date filter
+   * from Kalender Bulan so tasks on any future week/month are reachable.
+   */
+  const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<
+    'Semua' | IndonesianDayName
+  >('Semua');
+  const [selectedExactDate, setSelectedExactDate] = useState<string | null>(
+    null
+  );
   const [calendarHighlightedDate, setCalendarHighlightedDate] =
-    useState<string>('08 Nov 2026');
+    useState<string>(() => formatDateToIndonesianLabel(new Date()));
+
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeFilterTab, setActiveFilterTab] =
     useState<TaskFilterTab>('Semua');
@@ -272,6 +290,77 @@ export default function App() {
   const [siakadAutoUpdate, setSiakadAutoUpdate] = useState<boolean>(true);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
+
+  /* Load persisted app preferences on mount */
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEYS.SETTINGS);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed.reminderEnabled === 'boolean') {
+          setReminderEnabled(parsed.reminderEnabled);
+        }
+        if (typeof parsed.googleCalendarSync === 'boolean') {
+          setGoogleCalendarSync(parsed.googleCalendarSync);
+        }
+        if (typeof parsed.siakadAutoUpdate === 'boolean') {
+          setSiakadAutoUpdate(parsed.siakadAutoUpdate);
+        }
+        if (typeof parsed.isDarkMode === 'boolean') {
+          setIsDarkMode(parsed.isDarkMode);
+        }
+      }
+    } catch {
+      // Ignore storage read errors
+    }
+  }, []);
+
+  /* Automatically persist tasks, courses, studentUser, and settings to localStorage */
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks));
+    } catch {
+      // Ignore quota errors
+    }
+  }, [tasks]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEYS.COURSES,
+        JSON.stringify(courses)
+      );
+    } catch {
+      // Ignore quota errors
+    }
+  }, [courses]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEYS.USER,
+        JSON.stringify(studentUser)
+      );
+    } catch {
+      // Ignore quota errors
+    }
+  }, [studentUser]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEYS.SETTINGS,
+        JSON.stringify({
+          reminderEnabled,
+          googleCalendarSync,
+          siakadAutoUpdate,
+          isDarkMode,
+        })
+      );
+    } catch {
+      // Ignore quota errors
+    }
+  }, [reminderEnabled, googleCalendarSync, siakadAutoUpdate, isDarkMode]);
 
   /*
    * Hook 6 (useRef): References the task title input element inside the
@@ -423,9 +512,45 @@ export default function App() {
   );
 
   /*
-   * Personal Productivity Leaderboard (Zero other students!)
+   * Proportional Weekly Task Load Distribution grouped by Indonesian Day of Week (Senin..Minggu).
+   * Uses a realistic scaleCeiling = Math.max(3, maxTasksInDay) so 1 task renders at ~34% height,
+   * 2 tasks at ~67% height, and 3+ tasks at 100% height.
+   */
+  const weeklyTaskDistribution = useMemo(() => {
+    const perDay = WEEKDAY_FILTER_ITEMS.map((dayItem) => {
+      const dayTasks = tasks.filter(
+        (t) => getIndonesianDayFromDateLabel(t.deadline) === dayItem.dayFull
+      );
+      const completedOnDay = dayTasks.filter(
+        (t) => t.status === 'Selesai'
+      ).length;
+      return {
+        ...dayItem,
+        totalCount: dayTasks.length,
+        completedCount: completedOnDay,
+        pendingCount: dayTasks.length - completedOnDay,
+      };
+    });
+
+    const maxTasksInDay = Math.max(
+      1,
+      ...perDay.map((d) => d.totalCount)
+    );
+    const scaleCeiling = Math.max(3, maxTasksInDay);
+    const activeDaysCount = perDay.filter((d) => d.totalCount > 0).length;
+
+    return {
+      perDay,
+      maxTasksInDay,
+      scaleCeiling,
+      activeDaysCount,
+    };
+  }, [tasks]);
+
+  /*
+   * Personal Productivity Leaderboard (Zero other students & zero XP clutter).
    * Supports switching between:
-   * 1. 'course': Ranks the user's own courses (#1 to #N) by completion rate & XP
+   * 1. 'course': Ranks the user's own courses (#1 to #N) by completion rate & completed tasks
    * 2. 'category': Ranks the user's task categories (Praktikum, Proyek, Teori, Kuis)
    */
   const personalLeaderboardEntries: PersonalLeaderboardEntry[] = useMemo(() => {
@@ -443,7 +568,7 @@ export default function App() {
             totalCount > 0
               ? Math.round((completedCount / totalCount) * 100)
               : 0;
-          const xpPoints = completedCount * 85 + totalCount * 20;
+          const xpPoints = completedCount * 100 + totalCount * 10;
 
           return {
             id: course.id,
@@ -464,7 +589,7 @@ export default function App() {
         if (b.completionRate !== a.completionRate) {
           return b.completionRate - a.completionRate;
         }
-        return b.xpPoints - a.xpPoints;
+        return b.completedCount - a.completedCount;
       });
     }
 
@@ -481,7 +606,7 @@ export default function App() {
           totalCount > 0
             ? Math.round((completedCount / totalCount) * 100)
             : 0;
-        const xpPoints = completedCount * 90 + totalCount * 25;
+        const xpPoints = completedCount * 100 + totalCount * 10;
 
         return {
           id: `cat-${meta.category}`,
@@ -502,7 +627,7 @@ export default function App() {
       if (b.completionRate !== a.completionRate) {
         return b.completionRate - a.completionRate;
       }
-      return b.xpPoints - a.xpPoints;
+      return b.completedCount - a.completedCount;
     });
   }, [leaderboardMode, courses, tasks]);
 
@@ -516,21 +641,32 @@ export default function App() {
         selectedCourseFilter === 'Semua'
           ? true
           : task.course.toLowerCase() === selectedCourseFilter.toLowerCase();
-      const matchesDate =
-        selectedDayDate === 'Semua' ? true : task.deadline === selectedDayDate;
+      const matchesDayOfWeek =
+        selectedDayOfWeek === 'Semua'
+          ? true
+          : getIndonesianDayFromDateLabel(task.deadline) === selectedDayOfWeek;
+      const matchesExactDate =
+        selectedExactDate === null ? true : task.deadline === selectedExactDate;
       const matchesKeyword =
         query === '' ||
         task.title.toLowerCase().includes(query) ||
         task.course.toLowerCase().includes(query) ||
         (task.category || '').toLowerCase().includes(query);
 
-      return matchesStatus && matchesCourse && matchesDate && matchesKeyword;
+      return (
+        matchesStatus &&
+        matchesCourse &&
+        matchesDayOfWeek &&
+        matchesExactDate &&
+        matchesKeyword
+      );
     });
   }, [
     tasks,
     activeFilterTab,
     selectedCourseFilter,
-    selectedDayDate,
+    selectedDayOfWeek,
+    selectedExactDate,
     searchQuery,
   ]);
 
@@ -574,6 +710,7 @@ export default function App() {
         description: payload.description.trim(),
         deadline: payload.deadline.trim(),
         status: 'Belum Dikerjakan',
+        attachments: payload.attachments ?? [],
       };
       dispatch({ type: 'ADD_TASK', payload });
       void syncTaskToCloud(newTaskObj);
@@ -594,6 +731,7 @@ export default function App() {
           category: payload.category,
           description: payload.description.trim(),
           deadline: payload.deadline.trim(),
+          attachments: payload.attachments ?? existing.attachments ?? [],
         });
       }
       setEditingTask(null);
@@ -674,7 +812,14 @@ export default function App() {
     setSearchQuery('');
     setActiveFilterTab('Semua');
     setSelectedCourseFilter('Semua');
-    setSelectedDayDate('Semua');
+    setSelectedDayOfWeek('Semua');
+    setSelectedExactDate(null);
+    try {
+      window.localStorage.removeItem(STORAGE_KEYS.TASKS);
+      window.localStorage.removeItem(STORAGE_KEYS.COURSES);
+    } catch {
+      // Ignore storage errors
+    }
     showToastMessage('Data berhasil diatur ulang ke kondisi awal.');
   }, [showToastMessage]);
 
@@ -707,41 +852,75 @@ export default function App() {
     []
   );
 
-  const handleGoogleSignIn = useCallback(async () => {
+  /*
+   * Google Sign-In handler supporting both:
+   * 1. 2-Step Onboarding in WelcomeSplashModal (returns Google profile so user can fill Campus & NIM)
+   * 2. Direct sync inside Tab 4 (Profil)
+   */
+  const handleGoogleSignIn = useCallback(async (): Promise<{
+    uid: string;
+    name: string;
+    email: string;
+    avatarUrl: string;
+  }> => {
     setIsGoogleLoading(true);
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
       const displayName = user.displayName || studentUser.name;
       const firstWord = displayName.split(' ')[0] || 'Mahasiswa';
+      const email = user.email || studentUser.email || STUDENT_METADATA.email;
+      const avatarUrl = user.photoURL || studentUser.avatarUrl;
+
       setStudentUser((prev) => ({
         ...prev,
         uid: user.uid,
         name: displayName,
         shortName: firstWord,
-        email: user.email || prev.email,
-        avatarUrl: user.photoURL || prev.avatarUrl,
+        email,
+        avatarUrl,
         authMethod: 'google',
       }));
       setIsCloudSynced(true);
-      setScreenPhase('main');
-      showToastMessage(`Akun Google (${user.email || displayName}) terhubung.`);
+      if (screenPhase === 'main') {
+        showToastMessage(`Akun Google (${email}) berhasil disinkronkan.`);
+      }
+      return {
+        uid: user.uid,
+        name: displayName,
+        email,
+        avatarUrl,
+      };
     } catch {
+      const fallbackEmail = studentUser.email || STUDENT_METADATA.email;
+      const fallbackName = studentUser.name || STUDENT_METADATA.name;
+      const fallbackUid = 'google-badar-14524303';
       setStudentUser((prev) => ({
         ...prev,
-        uid: 'google-badar-14524303',
-        email: prev.email || STUDENT_METADATA.email,
+        uid: fallbackUid,
+        email: fallbackEmail,
         authMethod: 'google',
       }));
       setIsCloudSynced(true);
-      setScreenPhase('main');
-      showToastMessage(
-        `Terhubung ke Akun Google (${studentUser.email || STUDENT_METADATA.email}).`
-      );
+      if (screenPhase === 'main') {
+        showToastMessage(`Terhubung ke Akun Google (${fallbackEmail}).`);
+      }
+      return {
+        uid: fallbackUid,
+        name: fallbackName,
+        email: fallbackEmail,
+        avatarUrl: studentUser.avatarUrl || STUDENT_METADATA.avatarUrl,
+      };
     } finally {
       setIsGoogleLoading(false);
     }
-  }, [studentUser.name, studentUser.email, showToastMessage]);
+  }, [
+    studentUser.name,
+    studentUser.email,
+    studentUser.avatarUrl,
+    screenPhase,
+    showToastMessage,
+  ]);
 
   const handleOpenEditProfile = () => {
     setDraftName(studentUser.name);
@@ -800,6 +979,9 @@ export default function App() {
 
   const allTasksCompleted =
     taskMetrics.total > 0 && taskMetrics.pending === 0;
+  const isStikomCampus = studentUser.institution
+    .toLowerCase()
+    .includes('stikom');
 
   return (
     <div
@@ -809,7 +991,7 @@ export default function App() {
           : 'bg-[#FFFDF9] text-[#0F172A]'
       }`}
     >
-      {/* Full-Viewport Responsive Application Container (No Rigid Fake Phone Bezel) */}
+      {/* Unified Responsive Application Container Aligned with Bottom Navigation Bar */}
       <main
         aria-label="Aplikasi TaskDar"
         className="w-full max-w-[640px] mx-auto min-h-screen flex flex-col relative pb-28"
@@ -818,7 +1000,7 @@ export default function App() {
         {feedbackToast && (
           <div
             role="status"
-            className="fixed top-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[560px] z-50 flex items-center gap-2 px-4 py-3 rounded-2xl bg-[#0F172A] text-white text-xs font-semibold shadow-lg animate-in fade-in slide-in-from-top-2 duration-150"
+            className="fixed top-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[592px] z-50 flex items-center gap-2 px-4 py-3 rounded-2xl bg-[#0F172A] text-white border-2 border-[#C41E3A] text-xs font-extrabold shadow-lg"
           >
             <CheckCircle2
               className="w-4 h-4 text-[#34D399] shrink-0"
@@ -828,13 +1010,17 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 1: TUGAS (Responsive Header + Crisp Sans Calendar Strip + Aligned TaskCards) */}
+        {/* TAB 1: TUGAS (Dominant Red & White Accents, Urgent Task Badge, Weekday Filter Strip with MK Count) */}
         {bottomTab === 'tugas' && (
-          <section
+          <motion.section
+            key="tab-tugas"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18 }}
             aria-label="Daftar Tugas Harian"
             className="flex-1 flex flex-col"
           >
-            {/* Compact Airy Greeting Bar */}
+            {/* Unified Header */}
             <header className="px-4 sm:px-6 pt-4 pb-2.5 flex items-center justify-between gap-2">
               <div className="flex items-center gap-3 min-w-0">
                 <button
@@ -853,7 +1039,7 @@ export default function App() {
                     <h1 className="text-base sm:text-lg font-black tracking-tight truncate">
                       Halo, {studentUser.shortName}!
                     </h1>
-                    <span className="px-2 py-0.5 rounded-full bg-[#FEE2E2] text-[#C41E3A] text-[10px] font-extrabold shrink-0">
+                    <span className="px-2.5 py-0.5 rounded-xl bg-[#C41E3A] text-white border border-[#0F172A] text-[10px] font-black shrink-0">
                       {studentUser.classGroup}
                     </span>
                   </div>
@@ -870,17 +1056,39 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
+                {/* Urgent / Pending Tasks Badge (Replacing 6h Streak) */}
                 <button
                   type="button"
-                  onClick={() => setBottomTab('progres')}
-                  aria-label="Lihat rentetan belajar 6 hari aktif"
-                  className="min-h-[40px] px-3 py-1 rounded-2xl bg-[#FEE2E2] border-2 border-[#0F172A] text-[#C41E3A] text-xs font-extrabold flex items-center gap-1 shadow-2xs"
+                  onClick={() => {
+                    if (taskMetrics.pending > 0) {
+                      setActiveFilterTab((prev) =>
+                        prev === 'Belum Dikerjakan'
+                          ? 'Semua'
+                          : 'Belum Dikerjakan'
+                      );
+                    } else {
+                      setBottomTab('progres');
+                    }
+                  }}
+                  aria-label="Filter tugas mendesak yang belum dikerjakan"
+                  title={
+                    taskMetrics.pending > 0
+                      ? 'Ketuk untuk menyaring tugas yang belum selesai'
+                      : 'Semua tugas kuliah sudah tuntas'
+                  }
+                  className={`min-h-[40px] px-3 py-1 rounded-2xl text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] text-xs font-black flex items-center gap-1.5 active:translate-y-0.5 transition-all ${
+                    taskMetrics.pending > 0 ? 'bg-[#C41E3A]' : 'bg-[#059669]'
+                  }`}
                 >
-                  <Flame
-                    className="w-4 h-4 fill-[#C41E3A] text-[#C41E3A]"
-                    aria-hidden="true"
-                  />
-                  <span>{STUDENT_METADATA.streakDays}h</span>
+                  {taskMetrics.pending > 0 ? (
+                    <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  ) : (
+                    <CheckCircle2
+                      className="w-4 h-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span>{taskMetrics.pending} Mendesak</span>
                 </button>
 
                 <button
@@ -896,7 +1104,7 @@ export default function App() {
                       ? 'Ubah ke Grid 2 Kolom'
                       : 'Ubah ke Kartu Lebar'
                   }
-                  className={`min-w-[40px] min-h-[40px] rounded-2xl border-2 flex items-center justify-center transition-colors ${
+                  className={`min-w-[40px] min-h-[40px] rounded-2xl border-2 flex items-center justify-center transition-all shadow-[0_2px_0_0_#0F172A] active:translate-y-0.5 ${
                     isDarkMode
                       ? 'bg-[#1F242D] border-[#2E3440] text-white'
                       : 'bg-white border-[#0F172A] text-[#0F172A]'
@@ -911,26 +1119,34 @@ export default function App() {
               </div>
             </header>
 
-            {/* Interactive 7-Day Weekly Calendar Strip (Crisp Sans Numbers, Proportionate Pills) */}
+            {/* Interactive 7-Day Weekday Filter Strip (Sen s/d Min with Scheduled Course Count) */}
             <div className="px-4 sm:px-6 pb-2.5">
               <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <button
                     type="button"
-                    onClick={() => setSelectedDayDate('Semua')}
-                    className={`min-h-[32px] px-3 py-1 rounded-xl text-xs font-extrabold border-2 transition-colors ${
-                      selectedDayDate === 'Semua'
-                        ? 'bg-[#0F172A] border-[#0F172A] text-white'
+                    onClick={() => {
+                      setSelectedDayOfWeek('Semua');
+                      setSelectedExactDate(null);
+                    }}
+                    className={`min-h-[34px] px-3 py-1 rounded-xl text-xs font-extrabold border-2 transition-all ${
+                      selectedDayOfWeek === 'Semua' && selectedExactDate === null
+                        ? 'bg-[#C41E3A] border-[#0F172A] text-white shadow-[0_2px_0_0_#0F172A]'
                         : isDarkMode
                         ? 'bg-[#1F242D] border-[#2E3440] text-[#CBD5E1]'
-                        : 'bg-white border-[#CBD5E1] text-[#334155]'
+                        : 'bg-white border-[#0F172A] text-[#0F172A]'
                     }`}
                   >
-                    Semua Tanggal ({tasks.length})
+                    Semua Hari ({tasks.length})
                   </button>
-                  {selectedDayDate !== 'Semua' && (
-                    <span className="text-xs font-extrabold text-[#C41E3A]">
-                      · {selectedDayDate}
+                  {selectedDayOfWeek !== 'Semua' && (
+                    <span className="px-2.5 py-1 rounded-xl bg-white border-2 border-[#0F172A] text-xs font-extrabold text-[#C41E3A]">
+                      Hari {selectedDayOfWeek}
+                    </span>
+                  )}
+                  {selectedExactDate !== null && (
+                    <span className="px-2.5 py-1 rounded-xl bg-white border-2 border-[#0F172A] text-xs font-extrabold text-[#C41E3A]">
+                      {selectedExactDate}
                     </span>
                   )}
                 </div>
@@ -939,7 +1155,7 @@ export default function App() {
                   type="button"
                   onClick={handleOpenCalendarView}
                   aria-label="Buka kalender bulan penuh"
-                  className="min-h-[32px] px-3 py-1 rounded-xl bg-[#FFE4E6] hover:bg-[#FECDD3] text-[#C41E3A] text-xs font-extrabold flex items-center gap-1.5 transition-colors"
+                  className="min-h-[34px] px-3 py-1 rounded-xl bg-white hover:bg-[#FFF1F2] text-[#C41E3A] border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] text-xs font-extrabold flex items-center gap-1.5 active:translate-y-0.5 transition-all shrink-0"
                 >
                   <Calendar className="w-3.5 h-3.5" aria-hidden="true" />
                   <span>Kalender Bulan</span>
@@ -947,63 +1163,78 @@ export default function App() {
               </div>
 
               <div
-                aria-label="Kalender Mingguan"
+                aria-label="Filter Hari Senin sampai Minggu"
                 className="grid grid-cols-7 gap-1.5 sm:gap-2"
               >
-                {WEEKLY_CALENDAR_DAYS.map((dayItem) => {
-                  const isSelected = selectedDayDate === dayItem.fullDateLabel;
-                  const countOnDay = tasks.filter(
-                    (t) => t.deadline === dayItem.fullDateLabel
+                {WEEKDAY_FILTER_ITEMS.map((dayItem) => {
+                  const isSelected =
+                    selectedDayOfWeek === dayItem.dayFull &&
+                    selectedExactDate === null;
+                  const tasksOnWeekday = tasks.filter(
+                    (t) =>
+                      getIndonesianDayFromDateLabel(t.deadline) ===
+                      dayItem.dayFull
+                  ).length;
+                  const coursesOnDay = courses.filter(
+                    (c) => getCourseScheduledDay(c.schedule) === dayItem.dayFull
                   ).length;
 
                   return (
                     <button
-                      key={dayItem.fullDateLabel}
+                      key={dayItem.dayFull}
                       type="button"
-                      onClick={() =>
-                        setSelectedDayDate((prev) =>
-                          prev === dayItem.fullDateLabel
-                            ? 'Semua'
-                            : dayItem.fullDateLabel
-                        )
-                      }
-                      aria-label={`${dayItem.dayFull}, ${dayItem.fullDateLabel}`}
+                      onClick={() => {
+                        setSelectedExactDate(null);
+                        setSelectedDayOfWeek((prev) =>
+                          prev === dayItem.dayFull ? 'Semua' : dayItem.dayFull
+                        );
+                      }}
+                      aria-label={`Hari ${dayItem.dayFull}, ${coursesOnDay} mata kuliah terjadwal, ${tasksOnWeekday} tugas`}
                       aria-pressed={isSelected}
                       className={`relative py-2 px-1 rounded-2xl flex flex-col items-center justify-center transition-all border-2 ${
                         isSelected
-                          ? 'bg-[#C41E3A] border-[#0F172A] text-white shadow-xs -translate-y-0.5'
+                          ? 'bg-[#C41E3A] border-[#0F172A] text-white shadow-[0_2px_0_0_#0F172A] -translate-y-0.5'
                           : isDarkMode
                           ? 'bg-[#1F242D] border-[#2E3440] text-[#CBD5E1] hover:border-[#C41E3A]'
-                          : 'bg-white border-[#E2E8F0] text-[#0F172A] hover:border-[#0F172A]'
+                          : 'bg-white border-[#0F172A] text-[#0F172A] hover:bg-[#FFF1F2]'
                       }`}
                     >
-                      {/* Corner Task Count Badge (Never stretches the button vertically) */}
-                      {countOnDay > 0 && (
+                      {tasksOnWeekday > 0 && (
                         <span
                           className={`absolute -top-1.5 -right-1 w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center border ${
                             isSelected
                               ? 'bg-white text-[#C41E3A] border-[#0F172A]'
-                              : 'bg-[#C41E3A] text-white border-white'
+                              : 'bg-[#C41E3A] text-white border-[#0F172A]'
                           }`}
                         >
-                          {countOnDay}
+                          {tasksOnWeekday}
                         </span>
                       )}
 
                       <span
-                        className={`text-[10px] font-bold leading-none ${
+                        className={`text-[11px] font-black leading-none ${
                           isSelected
-                            ? 'text-white/90'
+                            ? 'text-white'
                             : isDarkMode
-                            ? 'text-[#94A3B8]'
-                            : 'text-[#64748B]'
+                            ? 'text-white'
+                            : 'text-[#0F172A]'
                         }`}
                       >
                         {dayItem.dayShort}
                       </span>
 
-                      <span className="mt-1 text-sm font-black tracking-tight leading-none">
-                        {dayItem.dateNumber}
+                      <span
+                        className={`mt-1 text-[9px] font-extrabold tracking-tight leading-none ${
+                          isSelected
+                            ? 'text-white/95'
+                            : coursesOnDay > 0
+                            ? 'text-[#C41E3A]'
+                            : isDarkMode
+                            ? 'text-[#64748B]'
+                            : 'text-[#94A3B8]'
+                        }`}
+                      >
+                        {coursesOnDay} MK
                       </span>
                     </button>
                   );
@@ -1017,13 +1248,11 @@ export default function App() {
                 className={`relative flex items-center rounded-2xl border-2 transition-colors ${
                   isDarkMode
                     ? 'bg-[#1F242D] border-[#2E3440] focus-within:border-[#C41E3A]'
-                    : 'bg-white border-[#E2E8F0] focus-within:border-[#0F172A]'
+                    : 'bg-white border-[#0F172A] focus-within:border-[#C41E3A]'
                 }`}
               >
                 <Search
-                  className={`w-4 h-4 ml-3.5 shrink-0 pointer-events-none ${
-                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
-                  }`}
+                  className="w-4 h-4 ml-3.5 shrink-0 pointer-events-none text-[#C41E3A]"
                   aria-hidden="true"
                 />
                 <input
@@ -1054,7 +1283,7 @@ export default function App() {
             {/* Clean Status Filter Tabs: Semua, Belum Dikerjakan, Selesai */}
             <nav
               aria-label="Filter Status Tugas"
-              className={`px-4 sm:px-6 border-b grid grid-cols-3 ${
+              className={`px-4 sm:px-6 border-b-2 grid grid-cols-3 ${
                 isDarkMode ? 'border-[#262C3A]' : 'border-[#E2E8F0]'
               }`}
             >
@@ -1082,38 +1311,53 @@ export default function App() {
                     }`}
                   >
                     <span className="truncate">{tab}</span>
-                    <span className="text-[11px] opacity-80">({count})</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                        isActive
+                          ? 'bg-[#C41E3A] text-white'
+                          : isDarkMode
+                          ? 'bg-[#232934] text-[#94A3B8]'
+                          : 'bg-[#F1F5F9] text-[#475569]'
+                      }`}
+                    >
+                      {count}
+                    </span>
                   </button>
                 );
               })}
             </nav>
 
-            {/* Active Course / Date Filter Banner */}
+            {/* Active Course / Day / Date Filter Banner */}
             {(selectedCourseFilter !== 'Semua' ||
-              selectedDayDate !== 'Semua') && (
+              selectedDayOfWeek !== 'Semua' ||
+              selectedExactDate !== null) && (
               <div
-                className={`mx-4 sm:mx-6 mt-2.5 px-3.5 py-2 rounded-2xl flex items-center justify-between text-xs border ${
+                className={`mx-4 sm:mx-6 mt-2.5 px-3.5 py-2 rounded-2xl flex items-center justify-between text-xs border-2 ${
                   isDarkMode
                     ? 'bg-[#1F242D] border-[#2E3440] text-[#CBD5E1]'
-                    : 'bg-[#FFF1F2] border-[#FECACA] text-[#BE123C]'
+                    : 'bg-white border-[#0F172A] text-[#0F172A] shadow-[0_2px_0_0_#0F172A]'
                 }`}
               >
                 <span className="truncate font-semibold">
                   Filter aktif:{' '}
-                  <strong>
+                  <strong className="text-[#C41E3A]">
                     {selectedCourseFilter !== 'Semua'
                       ? selectedCourseFilter
                       : ''}{' '}
-                    {selectedDayDate !== 'Semua' ? `(${selectedDayDate})` : ''}
+                    {selectedDayOfWeek !== 'Semua'
+                      ? `(Hari ${selectedDayOfWeek})`
+                      : ''}{' '}
+                    {selectedExactDate !== null ? `(${selectedExactDate})` : ''}
                   </strong>
                 </span>
                 <button
                   type="button"
                   onClick={() => {
                     setSelectedCourseFilter('Semua');
-                    setSelectedDayDate('Semua');
+                    setSelectedDayOfWeek('Semua');
+                    setSelectedExactDate(null);
                   }}
-                  className="min-h-[30px] px-2 font-extrabold underline shrink-0"
+                  className="min-h-[30px] px-2.5 rounded-xl bg-[#C41E3A] text-white font-extrabold shrink-0"
                 >
                   Reset Filter
                 </button>
@@ -1127,7 +1371,7 @@ export default function App() {
                   className={`p-3.5 rounded-3xl border-2 flex items-center gap-3 ${
                     isDarkMode
                       ? 'bg-[#064E3B]/30 border-[#059669]'
-                      : 'bg-[#D1FAE5] border-[#0F172A]'
+                      : 'bg-[#D1FAE5] border-[#0F172A] shadow-[0_3px_0_0_#0F172A]'
                   }`}
                 >
                   <StudentMascotAvatar
@@ -1135,7 +1379,11 @@ export default function App() {
                     avatarUrl="/assets/olympiad-trophy.jpg"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-extrabold text-[#065F46] dark:text-[#34D399]">
+                    <p
+                      className={`text-xs font-extrabold ${
+                        isDarkMode ? 'text-[#34D399]' : 'text-[#065F46]'
+                      }`}
+                    >
                       Semua tugas kuliah sudah tuntas! Waktunya istirahat.
                     </p>
                     <p
@@ -1175,13 +1423,15 @@ export default function App() {
                   className={`py-8 px-5 text-center rounded-3xl border-2 ${
                     isDarkMode
                       ? 'border-[#262C3A] bg-[#1F242D]/50'
-                      : 'border-[#0F172A] bg-white shadow-xs'
+                      : 'border-[#0F172A] bg-white shadow-[0_3px_0_0_#0F172A]'
                   }`}
                 >
                   <CelebrationMascotIllustration />
                   <h3 className="mt-3 text-[15px] font-extrabold leading-snug max-w-[260px] mx-auto">
-                    {selectedDayDate !== 'Semua'
-                      ? `Tidak ada tenggat tugas pada ${selectedDayDate}`
+                    {selectedExactDate !== null
+                      ? `Tidak ada tenggat tugas pada ${selectedExactDate}`
+                      : selectedDayOfWeek !== 'Semua'
+                      ? `Tidak ada tenggat tugas pada hari ${selectedDayOfWeek}`
                       : 'Semua tugas kuliah sudah tuntas! Waktunya istirahat.'}
                   </h3>
                   <p
@@ -1191,27 +1441,30 @@ export default function App() {
                   >
                     {searchQuery.trim() !== ''
                       ? `Tidak ditemukan tugas dengan kata kunci "${searchQuery}".`
-                      : selectedDayDate !== 'Semua'
-                      ? 'Pilih tanggal lain pada kalender atau tampilkan seluruh tanggal.'
+                      : selectedExactDate !== null ||
+                        selectedDayOfWeek !== 'Semua'
+                      ? 'Pilih hari lain pada baris atas atau tampilkan seluruh hari.'
                       : 'Tidak ada tugas yang menunggu pada tampilan ini.'}
                   </p>
                   <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                     {(searchQuery !== '' ||
                       activeFilterTab !== 'Semua' ||
                       selectedCourseFilter !== 'Semua' ||
-                      selectedDayDate !== 'Semua') && (
+                      selectedDayOfWeek !== 'Semua' ||
+                      selectedExactDate !== null) && (
                       <button
                         type="button"
                         onClick={() => {
                           setSearchQuery('');
                           setActiveFilterTab('Semua');
                           setSelectedCourseFilter('Semua');
-                          setSelectedDayDate('Semua');
+                          setSelectedDayOfWeek('Semua');
+                          setSelectedExactDate(null);
                         }}
                         className={`min-h-[44px] px-4 rounded-2xl text-xs font-extrabold border-2 transition-colors ${
                           isDarkMode
                             ? 'bg-[#232934] text-white border-[#323A48]'
-                            : 'bg-[#F1F5F9] text-[#0F172A] border-[#0F172A]'
+                            : 'bg-white text-[#0F172A] border-[#0F172A] shadow-[0_2px_0_0_#0F172A]'
                         }`}
                       >
                         Lihat Semua Tugas
@@ -1220,7 +1473,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => handleOpenAddSheet()}
-                      className="min-h-[44px] px-4 rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-xs font-extrabold text-white border-2 border-[#0F172A] transition-colors"
+                      className="min-h-[44px] px-4 rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-xs font-extrabold text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] transition-colors"
                     >
                       Tambah Tugas Baru
                     </button>
@@ -1235,16 +1488,20 @@ export default function App() {
               onClick={() => handleOpenAddSheet()}
               aria-label="Tambah tugas baru"
               title="Tambah Tugas"
-              className="fixed right-5 sm:right-[max(1.5rem,calc(50%-290px))] bottom-22 z-30 w-14 h-14 min-w-[56px] min-h-[56px] rounded-full bg-[#C41E3A] hover:bg-[#A3162E] text-white border-2 border-[#0F172A] shadow-lg flex items-center justify-center transition-transform active:scale-90"
+              className="fixed right-5 sm:right-[max(1.5rem,calc(50%-290px))] bottom-22 z-30 w-14 h-14 min-w-[56px] min-h-[56px] rounded-full bg-[#C41E3A] hover:bg-[#A3162E] text-white border-2 border-[#0F172A] shadow-[0_4px_0_0_#0F172A] flex items-center justify-center transition-transform active:scale-90"
             >
               <Plus className="w-6 h-6 stroke-[2.75]" aria-hidden="true" />
             </button>
-          </section>
+          </motion.section>
         )}
 
-        {/* TAB 2: MATA KULIAH (2-Column Illustrated Aptivo Bento Grid + Single-Line Badge) */}
+        {/* TAB 2: MATA KULIAH (2-Column Illustrated Aptivo Bento Grid + Zero Blur/Zoom Hover) */}
         {bottomTab === 'matakuliah' && (
-          <section
+          <motion.section
+            key="tab-matakuliah"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18 }}
             aria-label="Direktori Mata Kuliah"
             className="flex-1 flex flex-col"
           >
@@ -1271,7 +1528,7 @@ export default function App() {
                     )
                   }
                   aria-label="Ubah tampilan grid atau detail mata kuliah"
-                  className={`min-w-[42px] min-h-[42px] rounded-2xl border-2 flex items-center justify-center ${
+                  className={`min-w-[42px] min-h-[42px] rounded-2xl border-2 flex items-center justify-center shadow-[0_2px_0_0_#0F172A] active:translate-y-0.5 transition-all ${
                     isDarkMode
                       ? 'bg-[#1F242D] border-[#2E3440] text-white'
                       : 'bg-white border-[#0F172A] text-[#0F172A]'
@@ -1290,7 +1547,7 @@ export default function App() {
                     setEditingCourse(null);
                     setIsAddCourseOpen(true);
                   }}
-                  className="min-h-[42px] px-3.5 rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-white text-xs font-extrabold border-2 border-[#0F172A] flex items-center gap-1.5 shadow-2xs transition-colors"
+                  className="min-h-[42px] px-3.5 rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-white text-xs font-extrabold border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] flex items-center gap-1.5 active:translate-y-0.5 transition-all"
                 >
                   <Plus className="w-4 h-4 stroke-[2.5]" aria-hidden="true" />
                   <span>Matkul</span>
@@ -1300,7 +1557,7 @@ export default function App() {
 
             <div className="px-4 sm:px-6 pt-1">
               {courseLayoutMode === 'grid' ? (
-                /* 2-Column Illustrated Bento Grid (Aptivo Reference Style) */
+                /* 2-Column Illustrated Bento Grid (Zero Hover Blur/Zoom) */
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {courses.map((course) => {
                     const courseTasks = tasks.filter(
@@ -1314,6 +1571,9 @@ export default function App() {
                       courseTasks.length > 0
                         ? Math.round((doneCount / courseTasks.length) * 100)
                         : 0;
+                    const readableBadgeText = getReadableTextColor(
+                      course.iconBg
+                    );
 
                     return (
                       <article
@@ -1329,20 +1589,23 @@ export default function App() {
                         className={`rounded-[28px] border-2 p-3.5 flex flex-col justify-between transition-all ${
                           isDarkMode
                             ? 'bg-[#1F242D] border-[#2E3440]'
-                            : 'shadow-xs'
+                            : 'shadow-[0_3px_0_0_#0F172A]'
                         }`}
                       >
-                        {/* Top Header: Single-Line Code · SKS Pill + Edit/Delete */}
+                        {/* Top Header: Single-Line Code · SKS Pill + Crisp Edit/Delete */}
                         <div>
                           <div className="flex items-center justify-between gap-1">
                             <span
-                              style={{ backgroundColor: course.iconBg }}
-                              className="px-2.5 py-0.5 rounded-xl text-[10px] font-extrabold text-white whitespace-nowrap shrink-0 border border-[#0F172A]/20"
+                              style={{
+                                backgroundColor: course.iconBg,
+                                color: readableBadgeText,
+                              }}
+                              className="px-2.5 py-0.5 rounded-xl text-[10px] font-extrabold whitespace-nowrap shrink-0 border border-[#0F172A]"
                             >
                               {course.code} · {course.credits} SKS
                             </span>
 
-                            <div className="flex items-center shrink-0 -mr-1">
+                            <div className="flex items-center gap-1 shrink-0">
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1350,7 +1613,7 @@ export default function App() {
                                   setIsAddCourseOpen(true);
                                 }}
                                 aria-label={`Edit mata kuliah ${course.name}`}
-                                className="w-7 h-7 rounded-lg flex items-center justify-center text-[#0F172A] dark:text-white hover:bg-white/60"
+                                className="w-7 h-7 rounded-lg bg-white border border-[#0F172A] flex items-center justify-center text-[#0F172A] hover:bg-[#F8FAFC]"
                               >
                                 <Pencil
                                   className="w-3.5 h-3.5"
@@ -1361,7 +1624,7 @@ export default function App() {
                                 type="button"
                                 onClick={() => handleDeleteCourse(course)}
                                 aria-label={`Hapus mata kuliah ${course.name}`}
-                                className="w-7 h-7 rounded-lg flex items-center justify-center text-[#C41E3A] hover:bg-white/60"
+                                className="w-7 h-7 rounded-lg bg-white border border-[#0F172A] flex items-center justify-center text-[#C41E3A] hover:bg-[#FFF1F2]"
                               >
                                 <Trash2
                                   className="w-3.5 h-3.5"
@@ -1371,19 +1634,19 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* Large Clean 2D Character Art (Full-bleed pastel without inner white box) */}
+                          {/* Large Clean 2D Character Art (Static & Crisp on Hover) */}
                           <div
                             onClick={() => {
                               setSelectedCourseFilter(course.name);
                               setActiveFilterTab('Semua');
                               setBottomTab('tugas');
                             }}
-                            className="mt-2.5 w-full h-28 sm:h-32 rounded-2xl border-2 border-[#0F172A] overflow-hidden flex items-center justify-center cursor-pointer shadow-2xs group"
+                            className="mt-2.5 w-full h-28 sm:h-32 rounded-2xl border-2 border-[#0F172A] bg-white overflow-hidden flex items-center justify-center cursor-pointer"
                           >
                             <img
                               src={course.stickerUrl}
                               alt={course.name}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                              className="w-full h-full object-cover"
                             />
                           </div>
 
@@ -1396,14 +1659,14 @@ export default function App() {
                           </h2>
                           <p
                             className={`text-[11px] font-semibold truncate mt-0.5 ${
-                              isDarkMode ? 'text-[#94A3B8]' : 'text-[#475569]'
+                              isDarkMode ? 'text-[#94A3B8]' : 'text-[#334155]'
                             }`}
                           >
                             {course.lecturer}
                           </p>
                           <p
                             className={`text-[10px] font-bold truncate mt-0.5 ${
-                              isDarkMode ? 'text-[#64748B]' : 'text-[#64748B]'
+                              isDarkMode ? 'text-[#64748B]' : 'text-[#475569]'
                             }`}
                           >
                             {course.schedule}
@@ -1418,7 +1681,7 @@ export default function App() {
                             </span>
                             <span>{rate}%</span>
                           </div>
-                          <div className="h-2 rounded-full bg-white/80 border border-black/15 overflow-hidden mb-2.5">
+                          <div className="h-2 rounded-full bg-white border border-[#0F172A]/30 overflow-hidden mb-2.5">
                             <div
                               style={{
                                 width: `${rate}%`,
@@ -1432,7 +1695,7 @@ export default function App() {
                             <button
                               type="button"
                               onClick={() => handleOpenAddSheet(course.name)}
-                              className="min-h-[36px] rounded-xl bg-white border border-[#0F172A] text-[#0F172A] text-[11px] font-extrabold flex items-center justify-center gap-0.5"
+                              className="min-h-[36px] rounded-xl bg-white border-2 border-[#0F172A] text-[#0F172A] text-[11px] font-extrabold flex items-center justify-center gap-0.5"
                             >
                               <Plus className="w-3 h-3" aria-hidden="true" />
                               <span>Tugas</span>
@@ -1444,8 +1707,11 @@ export default function App() {
                                 setActiveFilterTab('Semua');
                                 setBottomTab('tugas');
                               }}
-                              style={{ backgroundColor: course.iconBg }}
-                              className="min-h-[36px] rounded-xl border border-[#0F172A] text-white text-[11px] font-extrabold flex items-center justify-center"
+                              style={{
+                                backgroundColor: course.iconBg,
+                                color: readableBadgeText,
+                              }}
+                              className="min-h-[36px] rounded-xl border-2 border-[#0F172A] text-[11px] font-extrabold flex items-center justify-center"
                             >
                               Buka
                             </button>
@@ -1466,6 +1732,9 @@ export default function App() {
                     const activeCourseTasks = courseTasks.filter(
                       (t) => t.status === 'Belum Dikerjakan'
                     ).length;
+                    const readableBadgeText = getReadableTextColor(
+                      course.iconBg
+                    );
 
                     return (
                       <article
@@ -1481,12 +1750,12 @@ export default function App() {
                         className={`rounded-3xl border-2 p-4 transition-all ${
                           isDarkMode
                             ? 'bg-[#1F242D] border-[#2E3440]'
-                            : 'shadow-xs'
+                            : 'shadow-[0_3px_0_0_#0F172A]'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-16 h-16 rounded-2xl border-2 border-[#0F172A] overflow-hidden shrink-0">
+                            <div className="w-16 h-16 rounded-2xl border-2 border-[#0F172A] bg-white overflow-hidden shrink-0">
                               <img
                                 src={course.stickerUrl}
                                 alt={course.name}
@@ -1495,8 +1764,11 @@ export default function App() {
                             </div>
                             <div className="min-w-0">
                               <span
-                                style={{ backgroundColor: course.iconBg }}
-                                className="px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold text-white whitespace-nowrap"
+                                style={{
+                                  backgroundColor: course.iconBg,
+                                  color: readableBadgeText,
+                                }}
+                                className="px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold whitespace-nowrap border border-[#0F172A]"
                               >
                                 {course.code} · {course.credits} SKS
                               </span>
@@ -1514,7 +1786,7 @@ export default function App() {
                                 setIsAddCourseOpen(true);
                               }}
                               aria-label={`Edit ${course.name}`}
-                              className="w-9 h-9 rounded-xl bg-white/80 border border-[#0F172A] flex items-center justify-center text-[#0F172A]"
+                              className="w-9 h-9 rounded-xl bg-white border-2 border-[#0F172A] flex items-center justify-center text-[#0F172A]"
                             >
                               <Pencil className="w-4 h-4" aria-hidden="true" />
                             </button>
@@ -1522,7 +1794,7 @@ export default function App() {
                               type="button"
                               onClick={() => handleDeleteCourse(course)}
                               aria-label={`Hapus ${course.name}`}
-                              className="w-9 h-9 rounded-xl bg-white/80 border border-[#0F172A] flex items-center justify-center text-[#C41E3A]"
+                              className="w-9 h-9 rounded-xl bg-white border-2 border-[#0F172A] flex items-center justify-center text-[#C41E3A]"
                             >
                               <Trash2 className="w-4 h-4" aria-hidden="true" />
                             </button>
@@ -1530,15 +1802,15 @@ export default function App() {
                         </div>
 
                         <div
-                          className={`mt-3 rounded-2xl p-3 space-y-1.5 text-xs border ${
+                          className={`mt-3 rounded-2xl p-3 space-y-1.5 text-xs border-2 ${
                             isDarkMode
                               ? 'bg-[#141821] border-[#2E3440] text-[#CBD5E1]'
-                              : 'bg-white/90 border-black/10 text-[#1E293B]'
+                              : 'bg-white border-[#0F172A] text-[#0F172A]'
                           }`}
                         >
                           <div className="flex items-center gap-2">
                             <UserCheck
-                              className="w-3.5 h-3.5 shrink-0"
+                              className="w-3.5 h-3.5 shrink-0 text-[#C41E3A]"
                               aria-hidden="true"
                             />
                             <span className="truncate">
@@ -1547,7 +1819,7 @@ export default function App() {
                           </div>
                           <div className="flex items-center gap-2">
                             <Calendar
-                              className="w-3.5 h-3.5 shrink-0"
+                              className="w-3.5 h-3.5 shrink-0 text-[#C41E3A]"
                               aria-hidden="true"
                             />
                             <span className="font-semibold truncate">
@@ -1556,7 +1828,7 @@ export default function App() {
                           </div>
                           <div className="flex items-center gap-2">
                             <MapPin
-                              className="w-3.5 h-3.5 shrink-0"
+                              className="w-3.5 h-3.5 shrink-0 text-[#C41E3A]"
                               aria-hidden="true"
                             />
                             <span className="truncate">
@@ -1584,8 +1856,11 @@ export default function App() {
                                 setActiveFilterTab('Semua');
                                 setBottomTab('tugas');
                               }}
-                              style={{ backgroundColor: course.iconBg }}
-                              className="min-h-[40px] px-3.5 rounded-xl border-2 border-[#0F172A] text-xs font-extrabold text-white flex items-center gap-1"
+                              style={{
+                                backgroundColor: course.iconBg,
+                                color: readableBadgeText,
+                              }}
+                              className="min-h-[40px] px-3.5 rounded-xl border-2 border-[#0F172A] text-xs font-extrabold flex items-center gap-1"
                             >
                               <span>Lihat Tugas</span>
                               <ChevronRight className="w-3.5 h-3.5" />
@@ -1598,16 +1873,20 @@ export default function App() {
                 </div>
               )}
             </div>
-          </section>
+          </motion.section>
         )}
 
-        {/* TAB 3: PROGRES (Personal Productivity Leaderboard: Mata Kuliah & Kategori Tugas) */}
+        {/* TAB 3: PROGRES (Dominant Red & White Hero, Crisp Tactile Stat Cards, Colorful Leaderboard, Proportional Bar Chart) */}
         {bottomTab === 'progres' && (
-          <section
+          <motion.section
+            key="tab-progres"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18 }}
             aria-label="Progres Belajar dan Peringkat Ketuntasan Pribadi"
             className="flex-1 flex flex-col"
           >
-            <header className="px-4 sm:px-6 pt-4 pb-3 flex items-center justify-between">
+            <header className="px-4 sm:px-6 pt-4 pb-3 flex items-center justify-between gap-2">
               <div>
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight">
                   Progres & Capaianmu
@@ -1617,35 +1896,55 @@ export default function App() {
                     isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                   }`}
                 >
-                  Analitik ketuntasan mata kuliah & fokus belajar pribadi
+                  Analitik ketuntasan mata kuliah & distribusi tugas riil
                 </p>
               </div>
-              <div className="px-3 py-1.5 rounded-2xl bg-[#FEE2E2] border-2 border-[#0F172A] text-[#C41E3A] text-xs font-extrabold flex items-center gap-1.5">
-                <Flame
-                  className="w-4 h-4 fill-[#C41E3A] text-[#C41E3A]"
-                  aria-hidden="true"
-                />
-                <span>{STUDENT_METADATA.streakDays} Hari</span>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (taskMetrics.pending > 0) {
+                    setActiveFilterTab('Belum Dikerjakan');
+                    setBottomTab('tugas');
+                  }
+                }}
+                title="Jumlah tugas yang masih menunggu diselesaikan"
+                className={`px-3 py-1.5 rounded-2xl text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] text-xs font-black flex items-center gap-1.5 shrink-0 ${
+                  taskMetrics.pending > 0 ? 'bg-[#C41E3A]' : 'bg-[#059669]'
+                }`}
+              >
+                {taskMetrics.pending > 0 ? (
+                  <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+                ) : (
+                  <CheckCircle2
+                    className="w-4 h-4 shrink-0"
+                    aria-hidden="true"
+                  />
+                )}
+                <span>
+                  {taskMetrics.pending > 0
+                    ? `${taskMetrics.pending} Mendesak`
+                    : 'Semua Tuntas'}
+                </span>
+              </button>
             </header>
 
             <div className="px-4 sm:px-6 pt-1 space-y-4">
-              {/* Learning Olympiad Hero Card with Illustrated Golden Trophy */}
-              <div className="rounded-[28px] bg-[#EDE9FE] border-2 border-[#0F172A] p-4 sm:p-5 flex items-center justify-between gap-3.5 shadow-xs">
+              {/* Dominant Red & Crisp White Hero Card with Golden Trophy (Zero XP Clutter) */}
+              <div className="rounded-[28px] bg-[#C41E3A] text-white border-2 border-[#0F172A] p-4 sm:p-5 flex items-center justify-between gap-3.5 shadow-[0_4px_0_0_#0F172A]">
                 <div className="flex-1 min-w-0">
-                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#4F46E5] text-white text-[10px] font-extrabold uppercase tracking-wider">
+                  <span className="inline-block px-3 py-0.5 rounded-full bg-white text-[#C41E3A] border border-[#0F172A] text-[10px] font-black uppercase tracking-wider">
                     Target {studentUser.semester}
                   </span>
-                  <h2 className="mt-1.5 text-2xl sm:text-3xl font-black text-[#1E1B4B]">
+                  <h2 className="mt-2 text-2xl sm:text-3xl font-black text-white">
                     {taskMetrics.completionRate}% Tuntas
                   </h2>
-                  <p className="text-xs font-semibold text-[#3730A3] mt-0.5 leading-snug">
-                    {taskMetrics.completed} dari {taskMetrics.total} tugas kuliah selesai ·{' '}
-                    {taskMetrics.completed * 85 + taskMetrics.total * 20} XP Belajar
+                  <p className="text-xs font-bold text-white/95 mt-0.5 leading-snug">
+                    {taskMetrics.completed} dari {taskMetrics.total} tugas kuliah
+                    selesai · {courses.length} Mata Kuliah Aktif
                   </p>
                 </div>
 
-                <div className="w-22 h-22 sm:w-24 sm:h-24 rounded-2xl border-2 border-[#0F172A] overflow-hidden bg-white shrink-0 shadow-xs">
+                <div className="w-22 h-22 sm:w-24 sm:h-24 rounded-2xl border-2 border-[#0F172A] overflow-hidden bg-white shrink-0 shadow-[0_2px_0_0_#0F172A]">
                   <img
                     src="/assets/olympiad-trophy.jpg"
                     alt="Trofi Ketuntasan Akademik"
@@ -1654,43 +1953,82 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 3 Colorful Bento Stat Tiles */}
+              {/* 3 High-Contrast Crisp Tactile Stat Cards (Replacing Faded Pastel Boxes) */}
               <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-                <div className="rounded-3xl bg-[#D1FAE5] border-2 border-[#0F172A] p-3.5 text-center">
-                  <span className="text-2xl font-black text-[#065F46]">
-                    {taskMetrics.total}
-                  </span>
-                  <span className="block text-[11px] font-extrabold text-[#047857] mt-0.5">
+                <div
+                  className={`rounded-3xl border-2 border-[#0F172A] p-3 text-center shadow-[0_3px_0_0_#0F172A] flex flex-col items-center justify-between ${
+                    isDarkMode ? 'bg-[#1F242D] text-white' : 'bg-white text-[#0F172A]'
+                  }`}
+                >
+                  <span className="px-2.5 py-0.5 rounded-lg bg-[#0F172A] text-white text-[10px] font-black uppercase tracking-wide">
                     Total Tugas
                   </span>
+                  <span className="text-2xl sm:text-3xl font-black mt-1.5 leading-none">
+                    {taskMetrics.total}
+                  </span>
+                  <span
+                    className={`text-[10px] font-bold mt-1 ${
+                      isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
+                    }`}
+                  >
+                    Terdaftar
+                  </span>
                 </div>
 
-                <div className="rounded-3xl bg-[#FCE7F3] border-2 border-[#0F172A] p-3.5 text-center">
-                  <span className="text-2xl font-black text-[#9D174D]">
-                    {taskMetrics.completed}
-                  </span>
-                  <span className="block text-[11px] font-extrabold text-[#BE185D] mt-0.5">
+                <div
+                  className={`rounded-3xl border-2 border-[#0F172A] p-3 text-center shadow-[0_3px_0_0_#0F172A] flex flex-col items-center justify-between ${
+                    isDarkMode ? 'bg-[#1F242D] text-white' : 'bg-white text-[#0F172A]'
+                  }`}
+                >
+                  <span className="px-2.5 py-0.5 rounded-lg bg-[#059669] text-white border border-[#0F172A] text-[10px] font-black uppercase tracking-wide">
                     Selesai
                   </span>
+                  <span className="text-2xl sm:text-3xl font-black text-[#059669] mt-1.5 leading-none">
+                    {taskMetrics.completed}
+                  </span>
+                  <span
+                    className={`text-[10px] font-bold mt-1 ${
+                      isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
+                    }`}
+                  >
+                    Tuntas
+                  </span>
                 </div>
 
-                <div className="rounded-3xl bg-[#FEF3C7] border-2 border-[#0F172A] p-3.5 text-center">
-                  <span className="text-2xl font-black text-[#92400E]">
+                <div
+                  className={`rounded-3xl border-2 border-[#0F172A] p-3 text-center shadow-[0_3px_0_0_#0F172A] flex flex-col items-center justify-between ${
+                    isDarkMode ? 'bg-[#1F242D] text-white' : 'bg-white text-[#0F172A]'
+                  }`}
+                >
+                  <span className="px-2.5 py-0.5 rounded-lg bg-[#C41E3A] text-white border border-[#0F172A] text-[10px] font-black uppercase tracking-wide">
+                    Menunggu
+                  </span>
+                  <span className="text-2xl sm:text-3xl font-black text-[#C41E3A] mt-1.5 leading-none">
                     {taskMetrics.pending}
                   </span>
-                  <span className="block text-[11px] font-extrabold text-[#B45309] mt-0.5">
-                    Menunggu
+                  <span
+                    className={`text-[10px] font-bold mt-1 ${
+                      isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
+                    }`}
+                  >
+                    Mendesak
                   </span>
                 </div>
               </div>
 
-              {/* Personal Productivity Leaderboard (Mata Kuliah vs Kategori Tugas — Zero Other Students!) */}
-              <div className="rounded-[28px] bg-[#134E4A] border-2 border-[#0F172A] p-4 sm:p-5 text-white shadow-sm">
+              {/* Personal Productivity Leaderboard (Distinct Colorful Bento Rows for #1, #2, #3, #4, #5!) */}
+              <div
+                className={`rounded-[28px] border-2 border-[#0F172A] p-4 sm:p-5 shadow-[0_4px_0_0_#0F172A] ${
+                  isDarkMode
+                    ? 'bg-[#1F242D] text-white'
+                    : 'bg-white text-[#0F172A]'
+                }`}
+              >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3.5">
                   <div>
                     <h3 className="text-base font-black tracking-tight flex items-center gap-1.5">
                       <Award
-                        className="w-4 h-4 text-[#FBBF24]"
+                        className="w-4 h-4 text-[#C41E3A]"
                         aria-hidden="true"
                       />
                       <span>
@@ -1699,7 +2037,11 @@ export default function App() {
                           : 'Leaderboard Kategori Tugas'}
                       </span>
                     </h3>
-                    <p className="text-[11px] text-[#99F6E4] font-medium">
+                    <p
+                      className={`text-[11px] font-semibold ${
+                        isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
+                      }`}
+                    >
                       {leaderboardMode === 'course'
                         ? 'Urutan mata kuliah paling tuntas hingga yang perlu dikejar'
                         : 'Distribusi ketuntasan berdasarkan jenis tugas kuliahmu'}
@@ -1707,14 +2049,20 @@ export default function App() {
                   </div>
 
                   {/* Switcher: Per Matkul vs Per Kategori */}
-                  <div className="p-1 rounded-2xl bg-[#0F766E] border border-white/15 flex items-center self-start sm:self-auto">
+                  <div
+                    className={`p-1 rounded-2xl border-2 border-[#0F172A] flex items-center self-start sm:self-auto ${
+                      isDarkMode ? 'bg-[#141821]' : 'bg-[#F8FAFC]'
+                    }`}
+                  >
                     <button
                       type="button"
                       onClick={() => setLeaderboardMode('course')}
-                      className={`px-3 py-1.5 rounded-xl text-[11px] font-extrabold transition-colors ${
+                      className={`px-3 py-1.5 rounded-xl text-[11px] font-extrabold transition-all ${
                         leaderboardMode === 'course'
-                          ? 'bg-white text-[#134E4A]'
-                          : 'text-[#CCFBF1]'
+                          ? 'bg-[#C41E3A] text-white border border-[#0F172A]'
+                          : isDarkMode
+                          ? 'text-[#CBD5E1]'
+                          : 'text-[#0F172A]'
                       }`}
                     >
                       Per Matkul
@@ -1722,10 +2070,12 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => setLeaderboardMode('category')}
-                      className={`px-3 py-1.5 rounded-xl text-[11px] font-extrabold transition-colors ${
+                      className={`px-3 py-1.5 rounded-xl text-[11px] font-extrabold transition-all ${
                         leaderboardMode === 'category'
-                          ? 'bg-white text-[#134E4A]'
-                          : 'text-[#CCFBF1]'
+                          ? 'bg-[#C41E3A] text-white border border-[#0F172A]'
+                          : isDarkMode
+                          ? 'text-[#CBD5E1]'
+                          : 'text-[#0F172A]'
                       }`}
                     >
                       Per Kategori
@@ -1736,19 +2086,10 @@ export default function App() {
                 <div className="space-y-2.5">
                   {personalLeaderboardEntries.map((entry, index) => {
                     const rankNumber = index + 1;
-                    const isTop1 = rankNumber === 1;
-                    const isTop2 = rankNumber === 2;
-                    const isTop3 = rankNumber === 3;
-
-                    const rowSurface = isTop1
-                      ? '#FDA4AF'
-                      : isTop2
-                      ? '#FFFFFF'
-                      : isTop3
-                      ? '#FDE68A'
-                      : '#115E59';
-
-                    const textColor = rankNumber <= 3 ? '#0F172A' : '#FFFFFF';
+                    const paletteItem =
+                      LEADERBOARD_ROW_PALETTE[
+                        index % LEADERBOARD_ROW_PALETTE.length
+                      ];
 
                     return (
                       <div
@@ -1761,10 +2102,10 @@ export default function App() {
                           }
                         }}
                         style={{
-                          backgroundColor: rowSurface,
-                          color: textColor,
+                          backgroundColor: paletteItem.bg,
+                          color: '#0F172A',
                         }}
-                        className={`rounded-2xl border-2 border-[#0F172A] p-2.5 sm:p-3 flex items-center justify-between gap-2.5 transition-transform ${
+                        className={`rounded-2xl border-2 border-[#0F172A] p-2.5 sm:p-3 flex items-center justify-between gap-2.5 shadow-[0_2px_0_0_#0F172A] transition-transform ${
                           leaderboardMode === 'course'
                             ? 'cursor-pointer hover:scale-[1.01]'
                             : ''
@@ -1773,10 +2114,9 @@ export default function App() {
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span
                             style={{
-                              backgroundColor:
-                                rankNumber <= 3 ? entry.accentColor : '#0F766E',
+                              backgroundColor: paletteItem.badgeBg,
                             }}
-                            className="w-9 h-9 rounded-xl font-black text-xs text-white flex items-center justify-center shrink-0 border border-[#0F172A]"
+                            className="w-9 h-9 rounded-xl font-black text-xs text-white flex items-center justify-center shrink-0 border-2 border-[#0F172A]"
                           >
                             #{rankNumber}
                           </span>
@@ -1784,28 +2124,28 @@ export default function App() {
                           <img
                             src={entry.avatarUrl}
                             alt={entry.title}
-                            className="w-10 h-10 rounded-xl object-cover border border-[#0F172A] bg-white shrink-0"
+                            className="w-10 h-10 rounded-xl object-cover border-2 border-[#0F172A] bg-white shrink-0"
                           />
 
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-xs sm:text-[13px] font-black truncate">
+                              <span className="text-xs sm:text-[13px] font-black text-[#0F172A] truncate">
                                 {entry.title}
                               </span>
                               {entry.completionRate === 100 &&
                                 entry.totalCount > 0 && (
-                                  <span className="px-1.5 py-0.5 rounded-md bg-[#059669] text-white text-[9px] font-extrabold shrink-0">
+                                  <span className="px-1.5 py-0.5 rounded-md bg-[#059669] text-white border border-[#0F172A] text-[9px] font-extrabold shrink-0">
                                     Tuntas
                                   </span>
                                 )}
                             </div>
-                            <span className="block text-[11px] font-bold opacity-85 truncate">
-                              {entry.subtitle} · {entry.xpPoints} XP
+                            <span className="block text-[11px] font-bold text-[#334155] truncate">
+                              {entry.subtitle}
                             </span>
                           </div>
                         </div>
 
-                        <span className="px-2.5 py-1 rounded-xl bg-white text-[#0F172A] border border-[#0F172A] text-xs font-black shrink-0">
+                        <span className="px-2.5 py-1 rounded-xl bg-white text-[#0F172A] border-2 border-[#0F172A] text-xs font-black shrink-0">
                           {entry.completionRate}%
                         </span>
                       </div>
@@ -1814,66 +2154,138 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Weekly Study Rhythm Bar Chart */}
+              {/* Proportional Weekly Task Load Distribution Chart */}
               <div
-                className={`rounded-[28px] border-2 p-4 sm:p-5 ${
+                className={`rounded-[28px] border-2 border-[#0F172A] p-4 sm:p-5 shadow-[0_3px_0_0_#0F172A] ${
                   isDarkMode
-                    ? 'bg-[#1F242D] border-[#2E3440]'
-                    : 'bg-[#FFF7ED] border-[#0F172A] shadow-xs'
+                    ? 'bg-[#1F242D] text-white'
+                    : 'bg-white text-[#0F172A]'
                 }`}
               >
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between gap-2 mb-3">
                   <div>
-                    <h3 className="text-sm font-black">
-                      Aktivitas Belajar Mingguan
+                    <h3 className="text-sm font-black flex items-center gap-1.5">
+                      <BarChart3
+                        className="w-4 h-4 text-[#C41E3A]"
+                        aria-hidden="true"
+                      />
+                      <span>Distribusi Beban Tugas Mingguan</span>
                     </h3>
                     <p
                       className={`text-[11px] font-semibold ${
                         isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                       }`}
                     >
-                      Distribusi jam belajar & pengerjaan modul
+                      Jumlah tenggat tugas per hari (Skala proporsional · Ketuk batang untuk filter)
                     </p>
                   </div>
-                  <span className="px-2.5 py-1 rounded-xl bg-[#C41E3A] text-white text-xs font-extrabold">
-                    26.7 Jam
+                  <span className="px-2.5 py-1 rounded-xl bg-[#C41E3A] text-white border-2 border-[#0F172A] text-xs font-black shrink-0">
+                    {taskMetrics.completed}/{taskMetrics.total} Selesai
                   </span>
                 </div>
 
-                <div className="grid grid-cols-7 gap-2 items-end h-28 pt-4 px-1">
-                  {WEEKLY_CALENDAR_DAYS.map((day) => {
-                    const heightPercent = Math.round(
-                      (day.studyHours / 5.5) * 100
-                    );
+                <div className="grid grid-cols-7 gap-2 items-end h-36 pt-4 px-1">
+                  {weeklyTaskDistribution.perDay.map((day) => {
+                    const heightPercent =
+                      day.totalCount > 0
+                        ? Math.min(
+                            100,
+                            Math.max(
+                              32,
+                              Math.round(
+                                (day.totalCount /
+                                  weeklyTaskDistribution.scaleCeiling) *
+                                  100
+                              )
+                            )
+                          )
+                        : 10;
+                    const isAllDoneOnDay =
+                      day.totalCount > 0 &&
+                      day.completedCount === day.totalCount;
+
                     return (
-                      <div
+                      <button
                         key={day.dayShort}
-                        className="flex flex-col items-center justify-end h-full gap-1"
+                        type="button"
+                        onClick={() => {
+                          setSelectedExactDate(null);
+                          setSelectedDayOfWeek(day.dayFull);
+                          setBottomTab('tugas');
+                        }}
+                        className="flex flex-col items-center justify-end h-full gap-1.5 group cursor-pointer"
+                        title={`Hari ${day.dayFull}: ${day.completedCount}/${day.totalCount} tugas selesai`}
                       >
-                        <span className="text-[10px] font-bold opacity-75">
-                          {day.studyHours}j
+                        <span
+                          className={`text-[10px] font-black leading-none ${
+                            day.totalCount > 0
+                              ? isAllDoneOnDay
+                                ? 'text-[#059669]'
+                                : 'text-[#C41E3A]'
+                              : isDarkMode
+                              ? 'text-[#64748B]'
+                              : 'text-[#94A3B8]'
+                          }`}
+                        >
+                          {day.totalCount} tgs
                         </span>
-                        <div className="w-full bg-[#FED7AA] rounded-xl h-20 flex items-end overflow-hidden border border-[#0F172A]/20">
+                        <div
+                          className={`w-full rounded-2xl h-24 flex items-end overflow-hidden border-2 border-[#0F172A] p-1 transition-colors ${
+                            isDarkMode ? 'bg-[#141821]' : 'bg-[#F8FAFC]'
+                          }`}
+                        >
                           <div
                             style={{ height: `${heightPercent}%` }}
-                            className="w-full bg-[#C41E3A] rounded-t-lg transition-all duration-300"
+                            className={`w-full rounded-xl transition-all duration-300 ${
+                              day.totalCount === 0
+                                ? 'bg-[#CBD5E1]'
+                                : isAllDoneOnDay
+                                ? 'bg-[#059669] border border-[#0F172A]'
+                                : 'bg-[#C41E3A] border border-[#0F172A]'
+                            }`}
                           />
                         </div>
-                        <span className="text-[10px] font-extrabold">
+                        <span className="text-[11px] font-black">
                           {day.dayShort}
                         </span>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
+
+                <div
+                  className={`mt-3 pt-2.5 border-t flex flex-wrap items-center justify-between gap-2 text-[11px] font-bold ${
+                    isDarkMode
+                      ? 'border-[#2E3440] text-[#94A3B8]'
+                      : 'border-[#E2E8F0] text-[#475569]'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-[#C41E3A] border border-[#0F172A]" />
+                      <span>Ada Tugas Aktif</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-[#059669] border border-[#0F172A]" />
+                      <span>Tuntas 100%</span>
+                    </span>
+                  </div>
+                  <span className="font-extrabold text-[#C41E3A]">
+                    {weeklyTaskDistribution.activeDaysCount} Hari Memiliki Tenggat
+                  </span>
+                </div>
               </div>
             </div>
-          </section>
+          </motion.section>
         )}
 
-        {/* TAB 4: PROFIL (Universal Editable Campus Identity, All 8 Avatars, Authentic Google Card & Full Mobile Settings) */}
+        {/* TAB 4: PROFIL (Crisp Tactile Badges, Sharp 8 Avatars, Authentic Google Card & Solid Mobile Settings Icons) */}
         {bottomTab === 'profil' && (
-          <section
+          <motion.section
+            key="tab-profil"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18 }}
             aria-label="Profil Mahasiswa dan Pengaturan TaskDar"
             className="flex-1 flex flex-col"
           >
@@ -1894,7 +2306,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={handleOpenEditProfile}
-                className="min-h-[40px] px-3.5 rounded-2xl bg-[#FEE2E2] hover:bg-[#FECACA] text-[#C41E3A] border-2 border-[#0F172A] text-xs font-extrabold flex items-center gap-1.5 transition-colors"
+                className="min-h-[40px] px-3.5 rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] text-xs font-extrabold flex items-center gap-1.5 active:translate-y-0.5 transition-all"
               >
                 <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>Ubah Profil</span>
@@ -1904,26 +2316,32 @@ export default function App() {
             <div className="px-4 sm:px-6 pt-1 space-y-4">
               {/* Unclipped Expressive Character Identity Card */}
               <div
-                className={`rounded-[28px] border-2 p-5 text-center relative ${
+                className={`rounded-[28px] border-2 border-[#0F172A] p-5 text-center relative shadow-[0_4px_0_0_#0F172A] ${
                   isDarkMode
-                    ? 'bg-[#1F242D] border-[#2E3440]'
-                    : 'bg-white border-[#0F172A] shadow-xs'
+                    ? 'bg-[#1F242D] text-white'
+                    : 'bg-white text-[#0F172A]'
                 }`}
               >
-                {/* Dynamic Editable Campus Pill */}
+                {/* Solid Tactile Editable Campus Pill */}
                 <button
                   type="button"
                   onClick={handleOpenEditProfile}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#FEE2E2] hover:bg-[#FECACA] text-[#C41E3A] text-xs font-extrabold mb-3 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white hover:bg-[#FFF1F2] text-[#0F172A] border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] text-xs font-extrabold mb-3.5 active:translate-y-0.5 transition-all"
                 >
-                  <Building2 className="w-3.5 h-3.5" aria-hidden="true" />
+                  <Building2
+                    className="w-3.5 h-3.5 text-[#C41E3A]"
+                    aria-hidden="true"
+                  />
                   <span>{studentUser.institution}</span>
-                  <Pencil className="w-3 h-3 ml-0.5 opacity-75" aria-hidden="true" />
+                  <Pencil
+                    className="w-3 h-3 ml-0.5 text-[#C41E3A]"
+                    aria-hidden="true"
+                  />
                 </button>
 
                 {/* Large Unclipped Avatar with Upload Trigger */}
                 <div className="relative w-24 h-24 mx-auto">
-                  <div className="w-24 h-24 rounded-[28px] border-3 border-[#0F172A] overflow-hidden bg-[#FFF7ED] shadow-md">
+                  <div className="w-24 h-24 rounded-[28px] border-3 border-[#0F172A] overflow-hidden bg-white shadow-[0_3px_0_0_#0F172A]">
                     <img
                       src={studentUser.avatarUrl}
                       alt={studentUser.name}
@@ -1942,7 +2360,7 @@ export default function App() {
                     onClick={() => avatarFileInputRef.current?.click()}
                     aria-label="Unggah foto atau ganti karakter profil"
                     title="Unggah Foto Profil"
-                    className="absolute -bottom-1 -right-1 w-9 h-9 rounded-xl bg-[#C41E3A] text-white border-2 border-[#0F172A] flex items-center justify-center shadow-xs"
+                    className="absolute -bottom-1 -right-1 w-9 h-9 rounded-xl bg-[#C41E3A] text-white border-2 border-[#0F172A] flex items-center justify-center shadow-[0_2px_0_0_#0F172A]"
                   >
                     <Camera className="w-4 h-4" aria-hidden="true" />
                   </button>
@@ -1963,8 +2381,12 @@ export default function App() {
                   {studentUser.program}
                 </p>
 
-                {/* Complete 8-Character Avatar Switcher (All 8 Generated Avatars Included!) */}
-                <div className="mt-4 pt-3.5 border-t border-[#E2E8F0] dark:border-[#2E3440]">
+                {/* Complete 8-Character Avatar Switcher (100% Sharp & Clear — Zero Blur/Fade!) */}
+                <div
+                  className={`mt-4 pt-3.5 border-t-2 ${
+                    isDarkMode ? 'border-[#2E3440]' : 'border-[#F1F5F9]'
+                  }`}
+                >
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-extrabold text-[#64748B]">
                       Pilih Karakter Avatar Cepat (8 Karakter)
@@ -1972,7 +2394,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => avatarFileInputRef.current?.click()}
-                      className="text-[11px] font-extrabold text-[#C41E3A] hover:underline"
+                      className="px-2.5 py-1 rounded-xl bg-[#C41E3A] text-white border border-[#0F172A] text-[10px] font-extrabold"
                     >
                       + Foto Galeri
                     </button>
@@ -1992,22 +2414,22 @@ export default function App() {
                             }))
                           }
                           title={item.label}
-                          className={`p-1 rounded-2xl border-2 flex flex-col items-center gap-1 transition-all ${
+                          className={`p-1.5 rounded-2xl border-2 flex flex-col items-center gap-1 transition-transform active:scale-95 ${
                             isCurrent
-                              ? 'border-[#C41E3A] bg-[#FFF1F2] scale-105 shadow-xs'
+                              ? 'border-[#C41E3A] bg-[#FFF1F2] text-[#0F172A] shadow-[0_2px_0_0_#C41E3A] scale-[1.03]'
                               : isDarkMode
-                              ? 'border-[#2E3440] bg-[#141821] opacity-80 hover:opacity-100'
-                              : 'border-[#E2E8F0] bg-[#F8FAFC] opacity-85 hover:opacity-100'
+                              ? 'border-[#323A48] bg-[#141821] text-white hover:border-[#C41E3A]'
+                              : 'border-[#0F172A] bg-white text-[#0F172A] hover:bg-[#FFF1F2]'
                           }`}
                         >
-                          <div className="w-11 h-11 rounded-xl overflow-hidden border border-black/10">
+                          <div className="w-11 h-11 rounded-xl overflow-hidden border border-[#0F172A]/25 bg-white">
                             <img
                               src={item.imageUrl}
                               alt={item.label}
                               className="w-full h-full object-cover"
                             />
                           </div>
-                          <span className="text-[9px] font-bold truncate max-w-full">
+                          <span className="text-[9px] font-extrabold truncate max-w-full">
                             {item.label.replace('Karakter ', '')}
                           </span>
                         </button>
@@ -2018,7 +2440,7 @@ export default function App() {
 
                 {/* Academic Stats Bar */}
                 <div
-                  className={`mt-4 pt-3.5 border-t grid grid-cols-3 ${
+                  className={`mt-4 pt-3.5 border-t-2 grid grid-cols-3 ${
                     isDarkMode ? 'border-[#2E3440]' : 'border-[#F1F5F9]'
                   }`}
                 >
@@ -2035,7 +2457,7 @@ export default function App() {
                     </span>
                   </div>
                   <div
-                    className={`border-x ${
+                    className={`border-x-2 ${
                       isDarkMode ? 'border-[#2E3440]' : 'border-[#F1F5F9]'
                     }`}
                   >
@@ -2065,17 +2487,17 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Authentic Google Account Card */}
+              {/* Authentic Google Account Card with Crisp Status Badge */}
               <div
-                className={`rounded-[28px] border-2 p-4 sm:p-5 ${
+                className={`rounded-[28px] border-2 border-[#0F172A] p-4 sm:p-5 shadow-[0_3px_0_0_#0F172A] ${
                   isDarkMode
-                    ? 'bg-[#1F242D] border-[#2E3440]'
-                    : 'bg-white border-[#0F172A] shadow-xs'
+                    ? 'bg-[#1F242D] text-white'
+                    : 'bg-white text-[#0F172A]'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-white border border-[#E2E8F0] flex items-center justify-center shadow-2xs">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-white border-2 border-[#0F172A] flex items-center justify-center shadow-[0_2px_0_0_#0F172A]">
                       <svg
                         className="w-4 h-4"
                         viewBox="0 0 24 24"
@@ -2103,28 +2525,26 @@ export default function App() {
                       <h3 className="text-xs sm:text-sm font-black">
                         Akun Google & Cadangan Cloud
                       </h3>
-                      <p className="text-[11px] font-medium text-[#64748B]">
+                      <p className="text-[11px] font-semibold text-[#64748B]">
                         Sinkronisasi otomatis tugas kuliah di semua perangkat
                       </p>
                     </div>
                   </div>
 
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                    className={`px-3 py-1 rounded-xl text-[10px] font-black border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] shrink-0 ${
                       isCloudSynced
-                        ? 'bg-[#D1FAE5] text-[#065F46]'
-                        : 'bg-[#FEF3C7] text-[#92400E]'
+                        ? 'bg-[#059669] text-white'
+                        : 'bg-[#0F172A] text-white'
                     }`}
                   >
-                    {isCloudSynced ? 'Aktif' : 'Lokal'}
+                    {isCloudSynced ? 'Cloud Aktif' : 'Simpan Perangkat'}
                   </span>
                 </div>
 
                 <div
-                  className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
-                    isDarkMode
-                      ? 'bg-[#141821] border-[#2E3440]'
-                      : 'bg-[#F8FAFC] border-[#E2E8F0]'
+                  className={`p-3 rounded-2xl border-2 border-[#0F172A] flex items-center justify-between gap-3 ${
+                    isDarkMode ? 'bg-[#141821]' : 'bg-[#F8FAFC]'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -2137,7 +2557,7 @@ export default function App() {
                       <span className="text-xs sm:text-sm font-extrabold block truncate">
                         {studentUser.name}
                       </span>
-                      <span className="text-[11px] font-medium text-[#64748B] block truncate">
+                      <span className="text-[11px] font-semibold text-[#64748B] block truncate">
                         {studentUser.email}
                       </span>
                     </div>
@@ -2145,9 +2565,9 @@ export default function App() {
 
                   <button
                     type="button"
-                    onClick={handleGoogleSignIn}
+                    onClick={() => void handleGoogleSignIn()}
                     disabled={isGoogleLoading}
-                    className="min-h-[38px] px-3.5 rounded-xl bg-white hover:bg-[#F1F5F9] text-[#0F172A] border-2 border-[#0F172A] text-xs font-extrabold shrink-0 transition-colors"
+                    className="min-h-[38px] px-3.5 rounded-xl bg-[#C41E3A] hover:bg-[#A3162E] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] text-xs font-extrabold shrink-0 active:translate-y-0.5 transition-all"
                   >
                     {isGoogleLoading
                       ? 'Memuat...'
@@ -2158,16 +2578,16 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Expanded Mobile App Settings List */}
+              {/* Expanded Mobile App Settings List with Solid Tactile Icon Boxes */}
               <div
-                className={`rounded-[28px] border-2 p-3.5 space-y-1 ${
+                className={`rounded-[28px] border-2 border-[#0F172A] p-3.5 space-y-1 shadow-[0_3px_0_0_#0F172A] ${
                   isDarkMode
-                    ? 'bg-[#1F242D] border-[#2E3440]'
-                    : 'bg-white border-[#0F172A] shadow-xs'
+                    ? 'bg-[#1F242D] text-white'
+                    : 'bg-white text-[#0F172A]'
                 }`}
               >
                 <div className="px-3 pt-1 pb-1.5">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#64748B]">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#C41E3A]">
                     Pengaturan Aplikasi & Akademik
                   </span>
                 </div>
@@ -2176,10 +2596,12 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handleOpenEditProfile}
-                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl hover:bg-[#F8FAFC] dark:hover:bg-[#141821] text-left transition-colors"
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-left transition-colors ${
+                    isDarkMode ? 'hover:bg-[#141821]' : 'hover:bg-[#FFF1F2]'
+                  }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-2xl bg-[#FEF3C7] text-[#D97706] flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-[#C41E3A] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] flex items-center justify-center shrink-0">
                       <Building2 className="w-4 h-4" aria-hidden="true" />
                     </div>
                     <div>
@@ -2196,15 +2618,15 @@ export default function App() {
                     </div>
                   </div>
                   <ChevronRight
-                    className="w-4 h-4 text-[#64748B] shrink-0"
+                    className="w-4 h-4 text-[#C41E3A] shrink-0"
                     aria-hidden="true"
                   />
                 </button>
 
                 {/* Row 2: Pengingat Tugas H-1 */}
-                <div className="flex items-center justify-between px-3 py-2 min-h-[50px]">
+                <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-2xl bg-[#FEE2E2] text-[#C41E3A] flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-[#0F172A] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#C41E3A] flex items-center justify-center shrink-0">
                       <Bell className="w-4 h-4" aria-hidden="true" />
                     </div>
                     <div>
@@ -2240,21 +2662,21 @@ export default function App() {
                     className="min-w-[48px] min-h-[44px] flex items-center justify-end"
                   >
                     <span
-                      className={`w-12 h-7 rounded-full p-1 transition-colors flex items-center ${
+                      className={`w-12 h-7 rounded-full p-1 border-2 border-[#0F172A] transition-colors flex items-center ${
                         reminderEnabled
                           ? 'bg-[#C41E3A] justify-end'
                           : 'bg-[#CBD5E1] justify-start'
                       }`}
                     >
-                      <span className="w-5 h-5 rounded-full bg-white shadow-xs" />
+                      <span className="w-4 h-4 rounded-full bg-white border border-[#0F172A]" />
                     </span>
                   </button>
                 </div>
 
                 {/* Row 3: Sinkronisasi Google Calendar */}
-                <div className="flex items-center justify-between px-3 py-2 min-h-[50px]">
+                <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-2xl bg-[#D1FAE5] text-[#059669] flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-[#059669] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] flex items-center justify-center shrink-0">
                       <Calendar className="w-4 h-4" aria-hidden="true" />
                     </div>
                     <div>
@@ -2290,71 +2712,73 @@ export default function App() {
                     className="min-w-[48px] min-h-[44px] flex items-center justify-end"
                   >
                     <span
-                      className={`w-12 h-7 rounded-full p-1 transition-colors flex items-center ${
+                      className={`w-12 h-7 rounded-full p-1 border-2 border-[#0F172A] transition-colors flex items-center ${
                         googleCalendarSync
                           ? 'bg-[#C41E3A] justify-end'
                           : 'bg-[#CBD5E1] justify-start'
                       }`}
                     >
-                      <span className="w-5 h-5 rounded-full bg-white shadow-xs" />
+                      <span className="w-4 h-4 rounded-full bg-white border border-[#0F172A]" />
                     </span>
                   </button>
                 </div>
 
-                {/* Row 4: Pembaruan Jadwal Portal Kampus Otomatis */}
-                <div className="flex items-center justify-between px-3 py-2 min-h-[50px]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-2xl bg-[#EEF2FF] text-[#4F46E5] flex items-center justify-center shrink-0">
-                      <RefreshCw className="w-4 h-4" aria-hidden="true" />
+                {/* Row 4: Pembaruan Jadwal Portal Kampus (Only visible for STIKOM Poltek Cirebon) */}
+                {isStikomCampus && (
+                  <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-[#4F46E5] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] flex items-center justify-center shrink-0">
+                        <RefreshCw className="w-4 h-4" aria-hidden="true" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-extrabold block">
+                          Pembaruan Jadwal Portal Kampus
+                        </span>
+                        <span
+                          className={`text-[11px] block ${
+                            isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
+                          }`}
+                        >
+                          {siakadAutoUpdate
+                            ? `Terhubung dengan portal akademik ${studentUser.institution}`
+                            : 'Pembaruan otomatis jadwal kampus dimatikan'}
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-xs font-extrabold block">
-                        Pembaruan Jadwal Portal Kampus
-                      </span>
+
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={siakadAutoUpdate}
+                      aria-label="Aktifkan atau nonaktifkan pembaruan jadwal otomatis"
+                      onClick={() => {
+                        const next = !siakadAutoUpdate;
+                        setSiakadAutoUpdate(next);
+                        showToastMessage(
+                          next
+                            ? 'Pembaruan Jadwal Kampus diaktifkan.'
+                            : 'Pembaruan Jadwal Kampus dinonaktifkan.'
+                        );
+                      }}
+                      className="min-w-[48px] min-h-[44px] flex items-center justify-end"
+                    >
                       <span
-                        className={`text-[11px] block ${
-                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
+                        className={`w-12 h-7 rounded-full p-1 border-2 border-[#0F172A] transition-colors flex items-center ${
+                          siakadAutoUpdate
+                            ? 'bg-[#C41E3A] justify-end'
+                            : 'bg-[#CBD5E1] justify-start'
                         }`}
                       >
-                        {siakadAutoUpdate
-                          ? `Terhubung dengan portal akademik ${studentUser.institution}`
-                          : 'Pembaruan otomatis jadwal kampus dimatikan'}
+                        <span className="w-4 h-4 rounded-full bg-white border border-[#0F172A]" />
                       </span>
-                    </div>
+                    </button>
                   </div>
-
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={siakadAutoUpdate}
-                    aria-label="Aktifkan atau nonaktifkan pembaruan jadwal otomatis"
-                    onClick={() => {
-                      const next = !siakadAutoUpdate;
-                      setSiakadAutoUpdate(next);
-                      showToastMessage(
-                        next
-                          ? 'Pembaruan Jadwal Kampus diaktifkan.'
-                          : 'Pembaruan Jadwal Kampus dinonaktifkan.'
-                      );
-                    }}
-                    className="min-w-[48px] min-h-[44px] flex items-center justify-end"
-                  >
-                    <span
-                      className={`w-12 h-7 rounded-full p-1 transition-colors flex items-center ${
-                        siakadAutoUpdate
-                          ? 'bg-[#C41E3A] justify-end'
-                          : 'bg-[#CBD5E1] justify-start'
-                      }`}
-                    >
-                      <span className="w-5 h-5 rounded-full bg-white shadow-xs" />
-                    </span>
-                  </button>
-                </div>
+                )}
 
                 {/* Row 5: Mode Tampilan */}
-                <div className="flex items-center justify-between px-3 py-2 min-h-[50px]">
+                <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-2xl bg-[#CFFAFE] text-[#0891B2] flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-[#D97706] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] flex items-center justify-center shrink-0">
                       {isDarkMode ? (
                         <Moon className="w-4 h-4" aria-hidden="true" />
                       ) : (
@@ -2394,13 +2818,13 @@ export default function App() {
                     className="min-w-[48px] min-h-[44px] flex items-center justify-end"
                   >
                     <span
-                      className={`w-12 h-7 rounded-full p-1 transition-colors flex items-center ${
+                      className={`w-12 h-7 rounded-full p-1 border-2 border-[#0F172A] transition-colors flex items-center ${
                         isDarkMode
                           ? 'bg-[#C41E3A] justify-end'
                           : 'bg-[#CBD5E1] justify-start'
                       }`}
                     >
-                      <span className="w-5 h-5 rounded-full bg-white shadow-xs" />
+                      <span className="w-4 h-4 rounded-full bg-white border border-[#0F172A]" />
                     </span>
                   </button>
                 </div>
@@ -2411,10 +2835,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handleResetTasks}
-                  className={`min-h-[48px] rounded-2xl border-2 text-xs font-extrabold flex items-center justify-center gap-1.5 transition-colors ${
+                  className={`min-h-[48px] rounded-2xl border-2 border-[#0F172A] shadow-[0_3px_0_0_#0F172A] text-xs font-extrabold flex items-center justify-center gap-1.5 active:translate-y-0.5 transition-all ${
                     isDarkMode
-                      ? 'bg-[#1F242D] border-[#2E3440] text-white'
-                      : 'bg-white hover:bg-[#F8FAFC] text-[#0F172A] border-[#0F172A]'
+                      ? 'bg-[#1F242D] text-white'
+                      : 'bg-white hover:bg-[#F8FAFC] text-[#0F172A]'
                   }`}
                 >
                   <RotateCcw className="w-4 h-4" aria-hidden="true" />
@@ -2424,23 +2848,23 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="min-h-[48px] rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-white border-2 border-[#0F172A] text-xs font-extrabold flex items-center justify-center gap-1.5 transition-colors"
+                  className="min-h-[48px] rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-white border-2 border-[#0F172A] shadow-[0_3px_0_0_#0F172A] text-xs font-extrabold flex items-center justify-center gap-1.5 active:translate-y-0.5 transition-all"
                 >
                   <LogOut className="w-4 h-4" aria-hidden="true" />
                   <span>Keluar Akun</span>
                 </button>
               </div>
             </div>
-          </section>
+          </motion.section>
         )}
 
-        {/* Persistent Responsive 4-Tab Floating Bottom Navigation Bar */}
+        {/* Persistent Responsive 4-Tab Floating Bottom Navigation Bar (100% Aligned with Content Container) */}
         <nav
           aria-label="Navigasi Utama TaskDar"
-          className={`fixed bottom-3 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[600px] z-30 rounded-[28px] border-2 p-1.5 flex items-center justify-between shadow-lg transition-colors ${
+          className={`fixed bottom-3 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[592px] z-30 rounded-[28px] border-2 border-[#0F172A] p-1.5 flex items-center justify-between shadow-[0_4px_0_0_#0F172A] transition-colors ${
             isDarkMode
-              ? 'bg-[#1F242D]/95 border-[#2E3440] backdrop-blur-md'
-              : 'bg-white/95 border-[#0F172A] backdrop-blur-md'
+              ? 'bg-[#1F242D]/95 backdrop-blur-md'
+              : 'bg-white/95 backdrop-blur-md'
           }`}
         >
           {(
@@ -2479,7 +2903,7 @@ export default function App() {
                 aria-label={item.label}
                 className={`min-h-[44px] min-w-[48px] px-4 rounded-[22px] flex items-center justify-center gap-1.5 text-xs font-extrabold transition-all duration-150 ${
                   isSelected
-                    ? 'bg-[#C41E3A] text-white shadow-xs flex-1 max-w-[160px]'
+                    ? 'bg-[#C41E3A] text-white border-2 border-[#0F172A] flex-1 max-w-[165px]'
                     : isDarkMode
                     ? 'text-[#94A3B8] hover:text-white'
                     : 'text-[#64748B] hover:text-[#0F172A]'
@@ -2499,7 +2923,7 @@ export default function App() {
           })}
         </nav>
 
-        {/* Full-Screen Aptivo Red Splash Animation + Universal Login/Register */}
+        {/* Full-Screen Aptivo Red Splash Animation + Unified Single-Screen Login & 2-Step Google Flow */}
         <WelcomeSplashModal
           screenPhase={screenPhase}
           onFinishSplash={() =>
@@ -2508,7 +2932,9 @@ export default function App() {
           onLoginSuccess={(session) => {
             setStudentUser(session);
             setScreenPhase('main');
-            showToastMessage(`Selamat datang di TaskDar, ${session.shortName}!`);
+            showToastMessage(
+              `Selamat datang di TaskDar, ${session.shortName}!`
+            );
           }}
           onGoogleLogin={handleGoogleSignIn}
           isGoogleLoading={isGoogleLoading}
@@ -2524,47 +2950,46 @@ export default function App() {
           aria-labelledby="edit-profile-modal-title"
         >
           <div
-            className={`w-full max-w-[460px] rounded-t-[32px] sm:rounded-[32px] border-2 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-150 ${
+            className={`w-full max-w-[460px] rounded-t-[32px] sm:rounded-[32px] border-2 border-[#0F172A] shadow-2xl overflow-hidden ${
               isDarkMode
-                ? 'bg-[#161A22] border-[#262C3A] text-white'
-                : 'bg-white border-[#0F172A] text-[#0F172A]'
+                ? 'bg-[#161A22] text-white'
+                : 'bg-white text-[#0F172A]'
             }`}
           >
-            <div className="pt-3 pb-1 flex justify-center">
-              <div className="w-11 h-1.5 rounded-full bg-[#CBD5E1]" />
-            </div>
+            <div className="bg-[#C41E3A] text-white px-4 pt-3 pb-3 border-b-2 border-[#0F172A]">
+              <div className="pb-2 flex justify-center">
+                <div className="w-11 h-1.5 rounded-full bg-white/40" />
+              </div>
 
-            <form onSubmit={handleSaveProfile} noValidate>
-              <div
-                className={`px-4 pb-2.5 flex items-center justify-between border-b ${
-                  isDarkMode ? 'border-[#262C3A]' : 'border-[#F1F5F9]'
-                }`}
-              >
+              <div className="flex items-center justify-between">
                 <button
                   type="button"
                   onClick={() => setIsEditProfileOpen(false)}
-                  className="min-h-[44px] px-2 text-sm font-semibold text-[#64748B]"
+                  className="min-h-[38px] px-3 rounded-xl bg-white/15 text-white text-xs font-extrabold border border-white/30"
                 >
                   Batal
                 </button>
                 <div className="flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-[#C41E3A]" />
+                  <Sparkles className="w-4 h-4 text-white" />
                   <h2
                     id="edit-profile-modal-title"
-                    className="text-[15px] font-extrabold"
+                    className="text-[15px] font-black"
                   >
                     Ubah Profil Akademik
                   </h2>
                 </div>
                 <button
                   type="submit"
-                  className="min-h-[44px] px-2 text-sm font-extrabold text-[#C41E3A]"
+                  form="edit-profile-form"
+                  className="min-h-[38px] px-3.5 rounded-xl bg-white text-[#C41E3A] border-2 border-[#0F172A] text-xs font-black shadow-[0_2px_0_0_#0F172A]"
                 >
                   Simpan
                 </button>
               </div>
+            </div>
 
-              <div className="p-5 space-y-3.5 max-h-[75vh] overflow-y-auto">
+            <form id="edit-profile-form" onSubmit={handleSaveProfile} noValidate>
+              <div className="p-5 space-y-3.5 max-h-[75vh] overflow-y-auto no-scrollbar">
                 <div>
                   <label
                     htmlFor="profile-edit-name"
@@ -2580,7 +3005,7 @@ export default function App() {
                     className={`w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 text-sm font-semibold outline-none ${
                       isDarkMode
                         ? 'bg-[#232934] border-[#323A48] text-white'
-                        : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A]'
+                        : 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A]'
                     }`}
                   />
                 </div>
@@ -2601,7 +3026,7 @@ export default function App() {
                       className={`w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 text-sm font-semibold outline-none ${
                         isDarkMode
                           ? 'bg-[#232934] border-[#323A48] text-white'
-                          : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A]'
+                          : 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A]'
                       }`}
                     />
                   </div>
@@ -2621,7 +3046,7 @@ export default function App() {
                       className={`w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 text-sm font-semibold outline-none ${
                         isDarkMode
                           ? 'bg-[#232934] border-[#323A48] text-white'
-                          : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A]'
+                          : 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A]'
                       }`}
                     />
                   </div>
@@ -2643,7 +3068,7 @@ export default function App() {
                     className={`w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 text-sm font-semibold outline-none ${
                       isDarkMode
                         ? 'bg-[#232934] border-[#323A48] text-white'
-                        : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A]'
+                        : 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A]'
                     }`}
                   />
                 </div>
@@ -2664,7 +3089,7 @@ export default function App() {
                       className={`w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 text-sm font-semibold outline-none ${
                         isDarkMode
                           ? 'bg-[#232934] border-[#323A48] text-white'
-                          : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A]'
+                          : 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A]'
                       }`}
                     />
                   </div>
@@ -2684,7 +3109,7 @@ export default function App() {
                       className={`w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 text-sm font-semibold outline-none ${
                         isDarkMode
                           ? 'bg-[#232934] border-[#323A48] text-white'
-                          : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A]'
+                          : 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A]'
                       }`}
                     />
                   </div>
@@ -2692,7 +3117,7 @@ export default function App() {
 
                 <button
                   type="submit"
-                  className="w-full min-h-[48px] rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-white text-sm font-extrabold border-2 border-[#0F172A] shadow-xs"
+                  className="w-full min-h-[48px] rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-white text-sm font-black border-2 border-[#0F172A] shadow-[0_3px_0_0_#0F172A]"
                 >
                   Simpan Identitas Profil
                 </button>
@@ -2735,17 +3160,14 @@ export default function App() {
       <CalendarModal
         isOpen={isCalendarModalOpen}
         onClose={() => setIsCalendarModalOpen(false)}
-        selectedDateLabel={
-          selectedDayDate === 'Semua'
-            ? calendarHighlightedDate
-            : selectedDayDate
-        }
+        selectedDateLabel={selectedExactDate ?? calendarHighlightedDate}
         onSelectDate={(dateLabel) => {
           setCalendarHighlightedDate(dateLabel);
           if (calendarPickerCallback) {
             calendarPickerCallback(dateLabel);
           } else {
-            setSelectedDayDate(dateLabel);
+            setSelectedDayOfWeek('Semua');
+            setSelectedExactDate(dateLabel);
           }
         }}
         tasks={tasks}

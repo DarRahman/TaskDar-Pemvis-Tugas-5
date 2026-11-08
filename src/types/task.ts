@@ -22,6 +22,15 @@ export type CourseIconKey =
   | 'palette'
   | 'briefcase';
 
+export interface TaskAttachment {
+  id: string;
+  name: string;
+  mimeType: string;
+  sizeLabel: string;
+  dataUrl: string;
+  kind: 'image' | 'video' | 'document';
+}
+
 export interface AcademicTask {
   id: string;
   title: string;
@@ -30,6 +39,7 @@ export interface AcademicTask {
   description: string;
   deadline: string;
   status: TaskStatus;
+  attachments?: TaskAttachment[];
 }
 
 export interface NewTaskPayload {
@@ -38,6 +48,7 @@ export interface NewTaskPayload {
   category: TaskCategory;
   description: string;
   deadline: string;
+  attachments?: TaskAttachment[];
 }
 
 export interface EditTaskPayload extends NewTaskPayload {

@@ -1,6 +1,6 @@
 {
-  "summary":  "Rencana pembaruan menyeluruh aplikasi TaskDar: Full-screen Aptivo splash screen, layout responsif penuh tanpa bingkai kaku, perbaikan kalender dan badge tanggal TaskCard, animasi FAB morph saat tambah tugas, kustomisasi penuh form Mata Kuliah (hari Minggu, SKS ketik sendiri, jam mulai/selesai ala HP, warna RGB kustom), regenerasi 4 stiker karakter tanpa latar putih, Leaderboard produktivitas pribadi (Matkul & Kategori), serta halaman Profil & Akun Google lengkap yang dapat diedit untuk kampus mana pun.",
-  "updatedAt":  "2026-11-08T11:18:53.233350800Z",
+  "summary":  "Rencana penyempurnaan akhir TaskDar: penyatuan form Login/Daftar tanpa tab ganda, pembuatan maskot utama baru berwarna Merah #C41E3A & Putih, font Serif Italic mewah (Playfair Display Italic) dan subjudul tanpa kotak di layar loading, penggantian strip tanggal statis menjadi Filter Hari Kuliah (Sen s/d Min) dengan indikator jumlah jadwal matkul per hari, penggantian lencana Streak 6 Hari dan penghapusan XP menjadi Indikator Tugas Mendesak/Aktif, perbaikan skala bar grafik beban tugas, penghapusan efek blur/zoom saat hover gambar Mata Kuliah, perombakan 3 kotak metrik & ikon pengaturan agar solid kontras, penyembunyian otomatis opsi portal kampus jika bukan STIKOM Poltek Cirebon, serta penyimpanan lokal permanen (localStorage) + kalender real-time akurat.",
+  "updatedAt":  "2026-11-08T13:11:48.097320762Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

@@ -1,45 +1,92 @@
-# Rencana Pembaruan UI/UX & Fungsionalitas: TaskDar (Aplikasi Manajemen Tugas Kuliah Universal)
+# Penyempurnaan Akhir UI/UX, Maskot Merah Baru, Filter Hari & Penyimpanan Permanen TaskDar
 
-## 1. Rebranding ke **TaskDar** & Full-Screen Splash Screen (Gaya Aptivo)
-- **Identitas Universal**: Mengubah nama aplikasi menjadi **TaskDar** dan menghapus seluruh label statis `"STIKOM"` pada header maupun subjudul. Nama kampus kini menjadi data profil dinamis yang dapat diisi dan diubah oleh mahasiswa dari universitas mana pun.
-- **Full-Screen Loading Merah Koral (`#E6534E` / `#C41E3A`)**:
-  - Merombak layar pembuka menjadi 100% *full-screen* merah koral hangat persis seperti referensi **Aptivo**.
-  - Menampilkan ekspresi mata karakter 2D yang hidup di tengah layar dengan tipografi bulat **TaskDar** yang bergerak naik secara mulus sebelum berpindah ke layar Masuk / Daftar Akun.
+Rencana ini menindaklanjuti seluruh hasil diskusi dan preferensi Anda untuk menyempurnakan **TaskDar** menjadi aplikasi manajemen tugas kuliah dan jadwal akademik yang siap dipakai sehari-hari dengan identitas visual **Merah Utama (`#C41E3A`)** dan **Putih Bersih (`#FFFFFF`)** yang utuh.
 
-## 2. Layout Responsif Penuh di Semua Ukuran Layar
-- Menghapus bingkai ponsel hitam kaku (`852px`) dan status bar tiruan (`09:41 5G`), menggantinya dengan kontainer aplikasi responsif penuh yang beradaptasi secara proporsional di layar HP, tablet, maupun jendela browser desktop tanpa teks terpotong atau *scrollbar* ganda.
-- Mempertahankan *Floating Bottom Navigation Bar* 4 tab yang ergonomis dan responsif.
+## Keputusan Pengguna yang Dikonfirmasi
 
-## 3. Regenerasi 4 Aset Stiker Karakter 2D Tanpa Bingkai Putih
-- Memperbarui 4 aset ilustrasi yang sebelumnya memiliki bingkai putih di dalam gambar (`sticker-coding.jpg`, `sticker-robotics.jpg`, `sticker-data.jpg`, `sticker-security.jpg`) agar tampil bersih, penuh, dan berfokus langsung pada karakter seperti stiker Sistem, Pintar, Visual, dan Maskot.
+> [!IMPORTANT]
+> Seluruh poin berikut telah dikonfirmasi melalui pilihan Anda dan menjadi acuan utama pengerjaan:
 
-## 4. Perbaikan Halaman Utama (`Tugas`) & Animasi Mekar Tombol `+`
-- **Perbaikan Angka Kalender Mingguan**:
-  - Mengganti font angka tanggal (`03` s/d `09`) dari monospace bergaris tengah ke sans-serif tebal (`Plus Jakarta Sans`) agar angka `0` tidak terlihat seperti angka `8`.
-  - Merapikan ukuran tombol hari dan indikator jumlah tugas agar proporsional dan tidak memanjang ke bawah.
-- **Perbaikan Kartu Tugas (`TaskCard`)**:
-  - Menghapus bug kotak hitam (`dark:bg-[#141821]`) pada *badge* tenggat waktu.
-  - Mengatur tanggal tenggat (`08 Nov 2026`) dengan `whitespace-nowrap` di dalam *pill* bersih berbatas tegas yang sejajar 1 baris dengan tombol **Rincian** dan aksi kanan (**Centang**, **Edit**, **Hapus**).
-- **Animasi Mekar dari Tombol `+` (FAB Morph)**:
-  - Menambahkan transisi *scale & opacity* dengan titik tumbuh dari posisi tombol `+` di kanan bawah (`origin-bottom-right`), sehingga layar **Tambah Tugas** tampak membesar langsung dari tombol `+` saat ditekan.
+- **Filter Hari `Sen` s/d `Min` dengan Jumlah Jadwal Matkul**: Baris `Sen` sampai `Min` di halaman **Tugas** berfungsi sebagai filter hari kuliah (`Senin` s/d `Minggu` lintas minggu, sehingga tugas minggu depan atau bulan depan tetap terfilter sesuai harinya). Angka di bagian bawah tiap tombol hari menampilkan **jumlah jadwal mata kuliah** pada hari tersebut (contoh: `1 MK`, `2 MK`), sedangkan gelembung kecil di sudut menampilkan jumlah tugas aktif pada hari itu. Untuk memilih tanggal spesifik (`18 Nov 2026`, dll.), tombol **Kalender Bulan** tetap tersedia.
+- **Ganti Lencana Streak `6 Hari` dengan Indikator Tugas Mendesak & Hapus XP**: Lencana api `6h` / `6 Hari` dan poin `XP` dihapus karena mahasiswa tidak memiliki tugas setiap hari. Sebagai gantinya, pojok kanan atas menampilkan **Lencana Tugas Mendesak / Aktif** (contoh: `2 Mendesak` atau `Semua Tuntas`) yang langsung memfilter daftar tugas yang belum selesai saat diketuk.
+- **Logo Loading Screen *Serif Italic* Mewah + Maskot Merah Baru**:
+  1. Teks **TaskDar** pada layar *loading* menggunakan font *Serif Italic* mewah dan elegan (**Playfair Display Black Italic**) dengan subjudul `Manajer Tugas & Jadwal Kuliah Mahasiswa` tampil bersih berupa teks putih tanpa kotak (*box*) pembungkus.
+  2. Membuat aset ilustrasi **Maskot Utama TaskDar Baru** (`mascot-splash.jpg` dan ikon aplikasi) yang berfokus pada karakter 2D berwarna **Merah TaskDar (`#C41E3A`)** dan **Putih (`#FFFFFF`)** dengan garis tepi hitam tegas di atas latar putih bersih (menggantikan maskot lama yang berwarna oranye dengan kotak krem).
+- **Simpan Permanen Otomatis (`localStorage` + Cloud) & Kalender *Real-Time* Akurat**: Seluruh perubahan tugas, mata kuliah, lampiran file, profil mahasiswa, dan pengaturan tersimpan otomatis di perangkat (`localStorage`) serta tersinkron ke Firestore saat login Google, didukung perhitungan hari kalender asli (`Date` *real-time*).
 
-## 5. Penyempurnaan Halaman `Mata Kuliah` & Form `Tambah/Ubah Mata Kuliah`
-- **Badge `Kode · SKS` Sejajar 1 Baris**: Menambahkan `whitespace-nowrap` dan tata letak fleksibel pada *badge* `TI361 · 3 SKS` di kartu Bento 2 kolom agar tidak pernah patah menjadi 2 baris.
-- **Hari Kuliah Senin s/d Minggu**: Menambahkan opsi hari **Minggu (`Min`)** pada deretan pemilih hari perkuliahan.
-- **Input SKS Kustom**: Mengubah opsi SKS menjadi pilihan cepat (`2`, `3`) ditambah kolom **Ketik SKS Kustom** (`1` hingga `8` SKS) sesuai kebutuhan mata kuliah pengguna.
-- **Pemilih Jam Mulai & Selesai ala HP + Ketik Bebas**: Menyediakan pemilih jam mulai dan jam selesai interaktif (`Jam Mulai` - `Jam Selesai`) dilengkapi mode ketik bebas.
-- **Pemilih Warna Kustom RGB / Spektrum Penuh**: Menambahkan pemilih warna bebas (`<input type="color">` / palet RGB) di samping 5 warna kurasi, yang secara otomatis menghasilkan warna aksen pekat dan warna latar pastel lembut untuk kartu Bento.
+---
 
-## 6. Perombakan Halaman `Progres`: Leaderboard Produktivitas Pribadi
-- Menghapus daftar mahasiswa lain dan mengubah kartu **Leaderboard** menjadi **Leaderboard Produktivitas Pribadi** dengan pengalih:
-  1. **Peringkat Mata Kuliah**: Mengurutkan mata kuliah pengguna sendiri (`#1` s/d `#5`) berdasarkan tingkat ketuntasan tugas dan perolehan poin XP.
-  2. **Peringkat Kategori Tugas**: Mengurutkan kategori tugas (`Praktikum`, `Proyek`, `Teori`, `Kuis`) untuk melihat jenis tugas mana yang paling banyak diselesaikan.
-- Dilengkapi pengalih periode (**Mingguan** dan **Semester**) sehingga tetap mempertahankan tampilan visual kartu *Learning Olympiad* yang kaya namun 100% relevan untuk penggunaan pribadi.
+## 1. Gambaran Umum Perubahan per Halaman
 
-## 7. Perombakan Halaman `Profil`, Edit Identitas Kampus & Kartu Akun Google
-- **Edit Profil & Identitas Kampus Bebas**: Menambahkan modal/form **Ubah Profil Akademik** untuk menyunting **Nama Lengkap**, **NIM / NPM**, **Nama Kampus / Perguruan Tinggi**, **Program Studi**, **Semester**, dan **Kelas**.
-- **Galeri Avatar Lengkap (8 Karakter + Upload Foto)**: Menampilkan seluruh 8 karakter stiker di pemilih avatar cepat (tanpa pemotongan 5 item) serta fitur unggah foto profil dari perangkat.
-- **Kartu Akun Google Autentik & Pengaturan Mobile Lengkap**:
-  - Mendesain ulang kartu sinkronisasi menyerupai tampilan **Akun Google** resmi (ikon G multi-warna, foto profil, nama akun, email Google, status sinkronisasi Cloud Firestore, dan tombol kelola/sinkronkan).
-  - Menyusun daftar pengaturan layaknya aplikasi mobile modern: **Preferensi Tampilan (Mode Gelap/Terang)**, **Notifikasi & Pengingat H-1**, **Integrasi Kalender**, **Manajemen Data (Reset Tugas ke Awal)**, dan **Keluar Akun**.
-- **Sinkronisasi Kode Expo (`App.js`)**: Memperbarui file `/App.js` agar seluruh perubahan desain, nama **TaskDar**, dan fitur baru selaras dengan versi web.
+### A. Layar Loading (*Splash Screen*) & Halaman Masuk Tunggal
+1. **Tipografi *Serif Italic* Mewah & Tanpa Kotak Subjudul**:
+   - Memuat font **Playfair Display (Italic 800/900)** untuk judul **TaskDar** di layar *loading* merah `#C41E3A`.
+   - Menghapus kotak putih pada teks `Manajer Tugas & Jadwal Kuliah Mahasiswa` sehingga tampil sebagai teks putih bersih yang simpel dan elegan di bawah logo.
+2. **Penyatuan Login & Register Menjadi Satu Form Langsung**:
+   - Menghapus tab pengalih `Masuk Akun | Daftar Baru` di bagian atas kartu.
+   - Menyajikan satu form terpadu yang ringkas: tombol **Lanjutkan dengan Akun Google** (dengan alur Langkah 2 isi Kampus & NIM) atau pengisian langsung identitas mahasiswa (Nama Lengkap, NIM/NPM, Nama Kampus, Program Studi, Semester, Kelas) dalam satu langkah.
+3. **Maskot Utama Merah TaskDar Baru**:
+   - Mengganti maskot oranye berlatar krem dengan maskot 2D baru berwarna merah `#C41E3A` bertopi toga hitam-emas dengan latar putih bersih.
+
+### B. Tab 1: Halaman Tugas (`Tugas`)
+1. **Filter Hari Kuliah (`Sen` s/d `Min`) + Angka Jumlah Matkul**:
+   - Setiap tombol hari menampilkan nama hari (`Sen`, `Sel`, `Rab`, `Kam`, `Jum`, `Sab`, `Min`) di baris atas dan **jumlah mata kuliah pada hari tersebut** (misal `1 MK`) di baris bawah.
+   - Mengetuk salah satu hari (misal `Sel`) akan memfilter tugas yang jatuh pada hari Selasa (di minggu mana pun) atau tugas dari mata kuliah hari Selasa, sementara tombol **Kalender Bulan** memungkinkan filter tanggal spesifik lintas bulan/tahun.
+2. **Indikator Tugas Mendesak (Pengganti Streak `6h`)**:
+   - Mengganti tombol api `6h` di kanan atas dengan tombol taktil **`X Mendesak`** (atau **`0 Mendesak`** berwarna hijau saat tuntas) yang langsung mengarahkan pengguna ke daftar tugas yang belum dikerjakan.
+
+### C. Tab 2: Halaman Mata Kuliah (`Mata Kuliah`)
+1. **Penghapusan Efek Blur / Zoom Saat Kursor Menyentuh Gambar**:
+   - Menghapus *class* `group-hover:scale-105 transition-transform` pada gambar karakter mata kuliah sehingga ilustrasi tetap tajam 100% dan tenang saat kursor diarahkan ke kartu.
+
+### D. Tab 3: Halaman Progres (`Progres`)
+1. **Hapus Poin XP & Ganti Lencana Streak**:
+   - Pojok kanan atas menampilkan status **`X Tugas Mendesak`** (bukan `6 Hari Aktif`).
+   - Kartu utama dan baris *Leaderboard* menampilkan rasio penyelesaian nyata (`3 dari 5 tugas kuliah selesai · 60% Tuntas`) tanpa embel-embel poin `XP`.
+2. **Perombakan 3 Kotak Ringkasan (`Total Tugas`, `Selesai`, `Menunggu`)**:
+   - Mengganti 3 kotak pastel pudar dengan kartu taktil **Putih Bersih (`#FFFFFF`)** bergaris tepi tebal (`border-2 border-[#0F172A] shadow-[0_3px_0_0_#0F172A]`) yang dilengkapi lencana warna tegas (`#0F172A` Hitam untuk Total, `#059669` Hijau untuk Selesai, dan `#C41E3A` Merah untuk Menunggu).
+3. **Perbaikan Proporsi Grafik Distribusi Beban Tugas (`Sen` s/d `Min`)**:
+   - Menghitung beban tugas berdasarkan hari dalam seminggu (`Senin` s/d `Minggu`) dengan skala kapasitas proporsional (1 tugas = 30%, 2 tugas = 55%, 3 tugas = 80%, 4+ tugas = 100%) sehingga batang grafik dengan `1 tgs` tidak lagi memenuhi 100% tinggi kotak seperti persegi penuh.
+   - Di dalam tiap batang ditampilkan indikator visual terpisah antara tugas yang sudah selesai (hijau `#059669`) dan tugas yang masih menunggu (merah `#C41E3A`).
+
+### E. Tab 4: Halaman Profil & Pengaturan (`Profil`)
+1. **Ikon Pengaturan Solid & Kontras Tinggi**:
+   - Mengganti lingkaran ikon pastel pudar pada bagian **Pengaturan Aplikasi & Akademik** menjadi kotak ikon solid bertepi tegas (`border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A]`) dengan warna utama merah `#C41E3A` dan putih `#FFFFFF`.
+2. **Penyembunyian Otomatis Opsi Portal Kampus**:
+   - Baris pengaturan *Pembaruan Jadwal Portal Kampus* hanya ditampilkan apabila nama kampus pengguna mengandung kata `stikom` (`studentUser.institution.toLowerCase().includes('stikom')`). Jika pengguna mengisi kampus lain, baris tersebut otomatis disembunyikan tanpa menyebut nama kampus tertentu.
+
+---
+
+## 2. Arsitektur Teknis & Alur Data Permanen
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                   PENYIMPANAN PERMANEN OTOMATIS                         │
+│  localStorage ('taskdar_tasks_v2', 'taskdar_courses_v2',                │
+│                'taskdar_user_v2', 'taskdar_settings_v2')                │
+│         + Sinkronisasi Cloud Firestore (Saat Login Google)              │
+└───────────────────────────────────┬─────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     MESIN KALENDER & FILTER HARI                        │
+│  • Deteksi Hari Otomatis dari Tanggal ('08 Nov 2026' -> 'Minggu')       │
+│  • Filter Strip Hari ('Sen'..'Min') + Hitung Jadwal Matkul per Hari     │
+│  • Filter Tanggal Spesifik via Kalender Bulan Real-Time                 │
+└─────────┬───────────────────┬────────────────────┬──────────────────────┘
+          │                   │                    │
+          ▼                   ▼                    ▼
+┌───────────────────┐ ┌──────────────────┐ ┌──────────────────────────────┐
+│   Tab 1: Tugas    │ │ Tab 2: Matkul    │ │   Tab 3 & 4: Progres/Profil  │
+│ • Badge Mendesak  │ │ • Stiker Stabil  │ │ • 3 Kartu Metrik Putih-Merah │
+│ • Strip Sen..Min  │ │   (Tanpa Zoom)   │ │ • Bar Proporsional Sen..Min  │
+│   (Jumlah Matkul) │ │ • Kontras RGB    │ │ • Tanpa XP & Ikon Solid      │
+└───────────────────┘ └──────────────────┘ └──────────────────────────────┘
+```
+
+### Pemetaan Interaksi & State Utama
+- **Deteksi Hari Akurat (`getIndonesianDayNameFromDateLabel`)**: Setiap tanggal tenggat tugas (contoh: `04 Nov 2026` atau tanggal mana pun di bulan/tahun lain) dipetakan menggunakan objek `new Date(year, monthIndex, day)` asli ke nama hari Indonesia (`Senin` s/d `Minggu`).
+- **Filter Hari vs Filter Tanggal Kalender**:
+  - Mengetuk kotak hari `Sen` s/d `Min` menyaring tugas berdasarkan hari tenggat atau hari kuliah (`selectedDayOfWeek: 'Senin' | ... | 'Minggu' | 'Semua'`).
+  - Memilih tanggal dari **Kalender Bulan** menyaring tugas pada tanggal spesifik tersebut (`selectedExactDate`).
+- **Persistensi Data (`localStorage`)**: Saat pengguna menambah tugas, mengunggah file lampiran, menambah mata kuliah, atau mengubah profil/pengaturan, data langsung disimpan ke `localStorage` sehingga tidak hilang ketika halaman dimuat ulang (*refresh*).

@@ -22,7 +22,7 @@ export const StudentMascotAvatar: React.FC<MascotAvatarProps> = ({
 
   return (
     <div
-      className={`${dimensionClass} bg-[#FFF7ED] border-2 border-[#0F172A] flex items-center justify-center shrink-0 overflow-hidden shadow-xs`}
+      className={`${dimensionClass} bg-white border-2 border-[#0F172A] flex items-center justify-center shrink-0 overflow-hidden shadow-xs`}
       aria-hidden="true"
     >
       <img
@@ -40,12 +40,12 @@ export const StudentMascotAvatar: React.FC<MascotAvatarProps> = ({
 export const WelcomeSplashMascot: React.FC = () => {
   return (
     <div
-      className="w-44 h-44 mx-auto rounded-[36px] border-3 border-[#0F172A] overflow-hidden bg-[#FFF7ED] flex items-center justify-center shadow-md"
+      className="w-44 h-44 mx-auto rounded-[36px] border-3 border-[#0F172A] overflow-hidden bg-white flex items-center justify-center shadow-md"
       aria-hidden="true"
     >
       <img
         src="/assets/mascot-splash.jpg"
-        alt="Maskot Sambutan STIKOM"
+        alt="Maskot Sambutan TaskDar"
         className="w-full h-full object-cover"
       />
     </div>
