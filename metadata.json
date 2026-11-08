@@ -1,0 +1,6 @@
+{
+  "name": "Tugas Kuliah: Manajer Tugas Akademik TI361",
+  "description": "Aplikasi manajemen tugas kuliah Semester 5 Teknik Informatika STIKOM Poltek Cirebon berbasis arsitektur React Native Hooks dan Props.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
