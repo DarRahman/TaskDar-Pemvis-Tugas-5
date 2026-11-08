@@ -4,20 +4,75 @@ import {
   CourseDetail,
   CourseColorTheme,
   CourseIconKey,
+  CourseStickerOption,
   PodiumTrophyItem,
+  ClassLeaderboardPeer,
 } from '../types/task';
 
 export const STUDENT_METADATA = {
   name: 'Badar Rahman',
   shortName: 'Badar',
   nim: '14524303',
-  classGroup: 'Kelas TI-1',
+  classGroup: 'TI-1',
   semester: 'Semester 5',
   program: 'Teknik Informatika',
   institution: 'STIKOM Poltek Cirebon',
+  email: 'badarrahman1905@gmail.com',
+  avatarUrl: '/assets/mascot-splash.jpg',
   attendanceRate: '100%',
   streakDays: 6,
 } as const;
+
+export const COURSE_STICKER_GALLERY: readonly CourseStickerOption[] = [
+  {
+    id: 'sticker-coding',
+    label: 'Karakter Koding',
+    imageUrl: '/assets/sticker-coding.jpg',
+    defaultIconKey: 'code',
+  },
+  {
+    id: 'sticker-robotics',
+    label: 'Karakter Robotik',
+    imageUrl: '/assets/sticker-robotics.jpg',
+    defaultIconKey: 'cpu',
+  },
+  {
+    id: 'sticker-data',
+    label: 'Karakter Data',
+    imageUrl: '/assets/sticker-data.jpg',
+    defaultIconKey: 'database',
+  },
+  {
+    id: 'sticker-security',
+    label: 'Karakter Siber',
+    imageUrl: '/assets/sticker-security.jpg',
+    defaultIconKey: 'shield',
+  },
+  {
+    id: 'sticker-oop',
+    label: 'Karakter Sistem',
+    imageUrl: '/assets/sticker-oop.jpg',
+    defaultIconKey: 'layers',
+  },
+  {
+    id: 'sticker-ai',
+    label: 'Karakter Pintar',
+    imageUrl: '/assets/sticker-ai.jpg',
+    defaultIconKey: 'book-open',
+  },
+  {
+    id: 'sticker-design',
+    label: 'Karakter Visual',
+    imageUrl: '/assets/sticker-design.jpg',
+    defaultIconKey: 'palette',
+  },
+  {
+    id: 'sticker-mascot',
+    label: 'Maskot Kampus',
+    imageUrl: '/assets/mascot-splash.jpg',
+    defaultIconKey: 'briefcase',
+  },
+];
 
 export const SUBJECT_ICON_OPTIONS: readonly {
   key: CourseIconKey;
@@ -90,6 +145,7 @@ export const INITIAL_COURSES: CourseDetail[] = [
     room: 'Lab Mobile 1',
     credits: 3,
     iconKey: 'code',
+    stickerUrl: '/assets/sticker-coding.jpg',
     pastelBg: '#FEE2E2',
     pastelBorder: '#FECACA',
     accentColor: '#C41E3A',
@@ -104,6 +160,7 @@ export const INITIAL_COURSES: CourseDetail[] = [
     room: 'Lab IoT & Robotika',
     credits: 3,
     iconKey: 'cpu',
+    stickerUrl: '/assets/sticker-robotics.jpg',
     pastelBg: '#EEF2FF',
     pastelBorder: '#C7D2FE',
     accentColor: '#4F46E5',
@@ -118,6 +175,7 @@ export const INITIAL_COURSES: CourseDetail[] = [
     room: 'Ruang 304',
     credits: 3,
     iconKey: 'database',
+    stickerUrl: '/assets/sticker-data.jpg',
     pastelBg: '#FEF3C7',
     pastelBorder: '#FDE68A',
     accentColor: '#D97706',
@@ -132,6 +190,7 @@ export const INITIAL_COURSES: CourseDetail[] = [
     room: 'Lab Jaringan',
     credits: 3,
     iconKey: 'shield',
+    stickerUrl: '/assets/sticker-security.jpg',
     pastelBg: '#D1FAE5',
     pastelBorder: '#A7F3D0',
     accentColor: '#059669',
@@ -146,6 +205,7 @@ export const INITIAL_COURSES: CourseDetail[] = [
     room: 'Lab Pemrograman 2',
     credits: 3,
     iconKey: 'layers',
+    stickerUrl: '/assets/sticker-oop.jpg',
     pastelBg: '#CFFAFE',
     pastelBorder: '#A5F3FC',
     accentColor: '#0891B2',
@@ -158,6 +218,70 @@ export const COURSE_DIRECTORY = INITIAL_COURSES;
 export const SEMESTER_5_COURSES: readonly string[] = INITIAL_COURSES.map(
   (course) => course.name
 );
+
+export const CLASS_TI1_LEADERBOARD: readonly ClassLeaderboardPeer[] = [
+  {
+    id: 'peer-badar',
+    name: 'Badar Rahman',
+    nim: '14524303',
+    avatarUrl: '/assets/mascot-splash.jpg',
+    weeklyBasePoints: 340,
+    monthlyBasePoints: 1280,
+    weeklyCompletion: 88,
+    monthlyCompletion: 92,
+    badgeColor: '#C41E3A',
+    surfaceColor: '#FEE2E2',
+    isCurrentUser: true,
+  },
+  {
+    id: 'peer-nadia',
+    name: 'Nadia Putri Lestari',
+    nim: '14524308',
+    avatarUrl: '/assets/sticker-ai.jpg',
+    weeklyBasePoints: 390,
+    monthlyBasePoints: 1340,
+    weeklyCompletion: 90,
+    monthlyCompletion: 94,
+    badgeColor: '#4F46E5',
+    surfaceColor: '#EEF2FF',
+  },
+  {
+    id: 'peer-rizky',
+    name: 'Rizky Pratama Wijaya',
+    nim: '14524312',
+    avatarUrl: '/assets/sticker-robotics.jpg',
+    weeklyBasePoints: 310,
+    monthlyBasePoints: 1190,
+    weeklyCompletion: 76,
+    monthlyCompletion: 84,
+    badgeColor: '#D97706',
+    surfaceColor: '#FEF3C7',
+  },
+  {
+    id: 'peer-siti',
+    name: 'Siti Nurhaliza Rahma',
+    nim: '14524319',
+    avatarUrl: '/assets/sticker-design.jpg',
+    weeklyBasePoints: 280,
+    monthlyBasePoints: 1120,
+    weeklyCompletion: 70,
+    monthlyCompletion: 79,
+    badgeColor: '#059669',
+    surfaceColor: '#D1FAE5',
+  },
+  {
+    id: 'peer-dimas',
+    name: 'Dimas Aditya Saputra',
+    nim: '14524325',
+    avatarUrl: '/assets/sticker-oop.jpg',
+    weeklyBasePoints: 245,
+    monthlyBasePoints: 980,
+    weeklyCompletion: 62,
+    monthlyCompletion: 72,
+    badgeColor: '#0891B2',
+    surfaceColor: '#CFFAFE',
+  },
+];
 
 export const PODIUM_TROPHY_SHELF: readonly PodiumTrophyItem[] = [
   {
@@ -203,15 +327,17 @@ export const INITIAL_TASKS: AcademicTask[] = [
     id: 'task-ti361-01',
     title: 'Tugas Pertemuan 5 - Aplikasi Manajemen Tugas Mahasiswa',
     course: 'Pemrograman Visual I',
+    category: 'Proyek',
     description:
       'Merancang antarmuka aplikasi daftar tugas mahasiswa dengan fitur pencarian langsung, filter status penyelesaian, dan ringkasan progres.',
-    deadline: '09 Nov 2026',
+    deadline: '08 Nov 2026',
     status: 'Belum Dikerjakan',
   },
   {
     id: 'task-rob-02',
     title: 'Latihan 4 - Kinematika Ruang dan Transformasi Koordinat',
     course: 'Robotika',
+    category: 'Praktikum',
     description:
       'Konversi koordinat bola ke kartesian dan matriks rotasi end-effector robot manipulator.',
     deadline: '04 Nov 2026',
@@ -221,6 +347,7 @@ export const INITIAL_TASKS: AcademicTask[] = [
     id: 'task-dwdm-03',
     title: 'Analisis 3V Big Data Tokopedia dan Shopee',
     course: 'Data Warehouse & Data Mining',
+    category: 'Teori',
     description:
       'Arsitektur data lake, pemrosesan aliran data, dan pemisahan sistem transaksi dengan analitik.',
     deadline: '07 Nov 2026',
@@ -230,6 +357,7 @@ export const INITIAL_TASKS: AcademicTask[] = [
     id: 'task-kij-04',
     title: 'Praktikum Modul 1.4.1 - Uji Port Nmap Kali Linux',
     course: 'Keamanan Informasi & Jaringan',
+    category: 'Praktikum',
     description:
       'Pengujian pemindaian port jaringan menggunakan Nmap 7.99 pada lingkungan Kali Linux.',
     deadline: '05 Nov 2026',
@@ -239,16 +367,17 @@ export const INITIAL_TASKS: AcademicTask[] = [
     id: 'task-pbo-05',
     title: 'Analisis OOM Perancangan Sistem Pasar Cirebon',
     course: 'Pemodelan Berorientasi Objek',
+    category: 'Proyek',
     description:
       'Pemodelan diagram kelas dan skenario kebutuhan spesifikasi harga pangan daerah Cirebon.',
-    deadline: '14 Nov 2026',
+    deadline: '09 Nov 2026',
     status: 'Belum Dikerjakan',
   },
 ];
 
 /*
  * Central state reducer guaranteeing immutable task array updates across
- * creation, deletion, status toggling, and dataset restoration.
+ * creation, editing, deletion, status toggling, cloud sync, and restoration.
  */
 export function taskReducer(
   state: AcademicTask[],
@@ -260,11 +389,27 @@ export function taskReducer(
         id: `task-${Date.now()}`,
         title: action.payload.title.trim(),
         course: action.payload.course.trim(),
+        category: action.payload.category || 'Praktikum',
         description: action.payload.description.trim(),
         deadline: action.payload.deadline.trim(),
         status: 'Belum Dikerjakan',
       };
       return [newTask, ...state];
+    }
+
+    case 'EDIT_TASK': {
+      return state.map((task) =>
+        task.id === action.payload.id
+          ? {
+              ...task,
+              title: action.payload.title.trim(),
+              course: action.payload.course.trim(),
+              category: action.payload.category,
+              description: action.payload.description.trim(),
+              deadline: action.payload.deadline.trim(),
+            }
+          : task
+      );
     }
 
     case 'DELETE_TASK': {
@@ -281,6 +426,10 @@ export function taskReducer(
             }
           : task
       );
+    }
+
+    case 'SET_TASKS': {
+      return action.payload;
     }
 
     case 'RESET_TASKS': {

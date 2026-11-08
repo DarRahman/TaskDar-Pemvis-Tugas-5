@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "StudentProfile": {
+      "title": "StudentProfile",
+      "description": "Profil identitas mahasiswa STIKOM Poltek Cirebon",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "UID autentikasi pengguna",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Nama lengkap mahasiswa",
+          "maxLength": 100
+        },
+        "nim": {
+          "type": "string",
+          "description": "Nomor Induk Mahasiswa",
+          "maxLength": 32
+        },
+        "classGroup": {
+          "type": "string",
+          "description": "Kelas mahasiswa",
+          "maxLength": 32
+        },
+        "semester": {
+          "type": "string",
+          "description": "Semester aktif",
+          "maxLength": 32
+        },
+        "program": {
+          "type": "string",
+          "description": "Program studi",
+          "maxLength": 64
+        },
+        "avatarUrl": {
+          "type": "string",
+          "description": "Path atau URL avatar karakter mahasiswa",
+          "maxLength": 500
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Waktu pembaruan profil",
+          "maxLength": 64
+        }
+      },
+      "required": ["uid", "name", "nim", "classGroup", "semester", "program", "avatarUrl", "updatedAt"]
+    },
+    "AcademicTaskDoc": {
+      "title": "AcademicTaskDoc",
+      "description": "Dokumen tugas kuliah mahasiswa",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "ownerId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "course": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Praktikum", "Proyek", "Teori", "Kuis"],
+          "maxLength": 32
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "deadline": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Belum Dikerjakan", "Selesai"],
+          "maxLength": 32
+        }
+      },
+      "required": ["id", "ownerId", "title", "course", "category", "description", "deadline", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/StudentProfile" },
+      "description": "Dokumen profil mahasiswa pemilik akun"
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/AcademicTaskDoc" },
+      "description": "Subkoleksi tugas kuliah milik mahasiswa"
+    }
+  }
+}

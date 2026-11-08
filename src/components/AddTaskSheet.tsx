@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, RotateCcw, Calendar } from 'lucide-react';
-import { NewTaskPayload, CourseDetail } from '../types/task';
+import { Calendar, AlertCircle, Sparkles, Pencil } from 'lucide-react';
+import {
+  NewTaskPayload,
+  EditTaskPayload,
+  CourseDetail,
+  AcademicTask,
+  TaskCategory,
+} from '../types/task';
 import { INITIAL_COURSES } from '../data/initialTasks';
 
 export interface AddTaskSheetProps {
   isOpen: boolean;
   onClose: () => void;
   onAddTask: (payload: NewTaskPayload) => void;
+  onEditTask?: (payload: EditTaskPayload) => void;
+  editingTask?: AcademicTask | null;
   titleInputRef: React.RefObject<HTMLInputElement | null>;
   courses?: readonly CourseDetail[];
   initialCourse?: string;
@@ -17,21 +25,35 @@ export interface AddTaskSheetProps {
   isDarkMode?: boolean;
 }
 
-const QUICK_DEADLINE_OPTIONS = [
-  { label: 'Hari Ini', value: '08 Nov 2026' },
-  { label: 'Besok', value: '09 Nov 2026' },
-  { label: 'Senin Depan', value: '16 Nov 2026' },
-] as const;
+interface QuickDateChip {
+  label: string;
+  dateValue: string;
+}
+
+const QUICK_DATE_CHIPS: readonly QuickDateChip[] = [
+  { label: 'Hari Ini', dateValue: '08 Nov 2026' },
+  { label: 'Besok', dateValue: '09 Nov 2026' },
+  { label: 'Rabu Depan', dateValue: '11 Nov 2026' },
+  { label: 'Senin Depan', dateValue: '16 Nov 2026' },
+];
+
+const TASK_CATEGORIES: readonly TaskCategory[] = [
+  'Praktikum',
+  'Proyek',
+  'Teori',
+  'Kuis',
+];
 
 /*
- * Slide-up bottom sheet modal for adding a new academic assignment.
- * Includes quick date selection chips, interactive calendar picker trigger,
- * and programmatic useRef focus on the task title input.
+ * Slide-up bottom sheet modal for creating or editing a coursework task.
+ * Integrates useRef auto-focus, Category chips, Quick Date chips, and Full Month Calendar picker.
  */
 export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
   isOpen,
   onClose,
   onAddTask,
+  onEditTask,
+  editingTask = null,
   titleInputRef,
   courses = INITIAL_COURSES,
   initialCourse,
@@ -40,21 +62,33 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
 }) => {
   const [title, setTitle] = useState<string>('');
   const [course, setCourse] = useState<string>(
-    initialCourse || courses[0]?.name || 'Pemrograman Visual I'
+    initialCourse || courses[0]?.name || INITIAL_COURSES[0].name
   );
+  const [category, setCategory] = useState<TaskCategory>('Praktikum');
+  const [deadline, setDeadline] = useState<string>('08 Nov 2026');
   const [description, setDescription] = useState<string>('');
-  const [deadline, setDeadline] = useState<string>('09 Nov 2026');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (initialCourse) {
-      setCourse(initialCourse);
+    if (editingTask) {
+      setTitle(editingTask.title);
+      setCourse(editingTask.course);
+      setCategory(editingTask.category || 'Praktikum');
+      setDeadline(editingTask.deadline);
+      setDescription(editingTask.description);
+      setErrorMessage(null);
+    } else {
+      setTitle('');
+      setCourse(initialCourse || courses[0]?.name || INITIAL_COURSES[0].name);
+      setCategory('Praktikum');
+      setDeadline('08 Nov 2026');
+      setDescription('');
+      setErrorMessage(null);
     }
-  }, [initialCourse]);
+  }, [editingTask, initialCourse, courses, isOpen]);
 
   useEffect(() => {
     if (isOpen) {
-      setErrorMessage(null);
       const focusTimer = window.setTimeout(() => {
         titleInputRef.current?.focus();
       }, 60);
@@ -66,15 +100,6 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
     return null;
   }
 
-  const handleClearForm = () => {
-    setTitle('');
-    setCourse(initialCourse || courses[0]?.name || 'Pemrograman Visual I');
-    setDescription('');
-    setDeadline('09 Nov 2026');
-    setErrorMessage(null);
-    titleInputRef.current?.focus();
-  };
-
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -83,48 +108,53 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
       titleInputRef.current?.focus();
       return;
     }
-    if (!course.trim()) {
-      setErrorMessage('Pilih atau ketik nama mata kuliah.');
-      return;
-    }
-    if (!description.trim()) {
-      setErrorMessage('Deskripsi atau rincian tugas wajib diisi.');
-      return;
-    }
+
     if (!deadline.trim()) {
-      setErrorMessage('Tenggat waktu pengumpulan wajib diisi.');
+      setErrorMessage('Tenggat pengumpulan wajib diisi.');
       return;
     }
 
-    onAddTask({
-      title: title.trim(),
-      course: course.trim(),
-      description: description.trim(),
-      deadline: deadline.trim(),
-    });
+    const cleanDescription =
+      description.trim() ||
+      `Tugas ${category.toLowerCase()} mata kuliah ${course} Semester 5.`;
 
-    setTitle('');
-    setDescription('');
-    setErrorMessage(null);
-    titleInputRef.current?.focus();
+    if (editingTask && onEditTask) {
+      onEditTask({
+        id: editingTask.id,
+        title: title.trim(),
+        course,
+        category,
+        deadline: deadline.trim(),
+        description: cleanDescription,
+      });
+    } else {
+      onAddTask({
+        title: title.trim(),
+        course,
+        category,
+        deadline: deadline.trim(),
+        description: cleanDescription,
+      });
+    }
+
     onClose();
   };
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/55 backdrop-blur-[2px] p-0 sm:p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/55 backdrop-blur-[2px] p-0 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-task-sheet-title"
     >
       <div
-        className={`w-full max-w-[430px] rounded-t-[32px] sm:rounded-[32px] border shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-150 ${
+        className={`w-full max-w-[430px] rounded-t-[32px] sm:rounded-[32px] border-2 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-150 ${
           isDarkMode
             ? 'bg-[#161A22] border-[#262C3A] text-white'
-            : 'bg-white border-[#E2E8F0] text-[#0F172A]'
+            : 'bg-white border-[#0F172A] text-[#0F172A]'
         }`}
       >
-        {/* Drag Handle Bar */}
+        {/* Drag Handle */}
         <div className="pt-3 pb-1 flex justify-center">
           <div
             className={`w-11 h-1.5 rounded-full ${
@@ -135,7 +165,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} noValidate>
-          {/* Header Bar: Batal · Tambah Tugas · Simpan */}
+          {/* Sheet Header */}
           <div
             className={`px-4 pb-2.5 flex items-center justify-between border-b ${
               isDarkMode ? 'border-[#262C3A]' : 'border-[#F1F5F9]'
@@ -144,7 +174,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className={`min-h-[44px] min-w-[64px] px-2 flex items-center justify-start text-sm font-semibold transition-colors ${
+              className={`min-h-[44px] min-w-[64px] px-2 flex items-center justify-start text-sm font-semibold ${
                 isDarkMode
                   ? 'text-[#94A3B8] hover:text-white'
                   : 'text-[#64748B] hover:text-[#0F172A]'
@@ -153,62 +183,58 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
               Batal
             </button>
 
-            <h2
-              id="add-task-sheet-title"
-              className="text-[15px] font-bold tracking-tight"
-            >
-              Tambah Tugas Baru
-            </h2>
+            <div className="flex items-center gap-1.5">
+              {editingTask ? (
+                <Pencil className="w-4 h-4 text-[#C41E3A]" aria-hidden="true" />
+              ) : (
+                <Sparkles className="w-4 h-4 text-[#C41E3A]" aria-hidden="true" />
+              )}
+              <h2
+                id="add-task-sheet-title"
+                className="text-[15px] font-extrabold tracking-tight"
+              >
+                {editingTask ? 'Edit Tugas Kuliah' : 'Tambah Tugas Baru'}
+              </h2>
+            </div>
 
             <button
               type="submit"
-              className="min-h-[44px] min-w-[64px] px-2 flex items-center justify-end text-sm font-bold text-[#C41E3A] hover:text-[#A3162E] transition-colors"
+              className="min-h-[44px] min-w-[64px] px-2 flex items-center justify-end text-sm font-extrabold text-[#C41E3A] hover:text-[#A3162E]"
             >
               Simpan
             </button>
           </div>
 
-          {/* Form Body */}
           <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
             {errorMessage && (
               <div
                 role="alert"
-                className="flex items-center gap-2 p-3 rounded-2xl bg-[#FFE4E6] border border-[#FECDD3] text-xs font-semibold text-[#BE123C]"
+                className="flex items-center gap-2 p-3 rounded-2xl bg-[#FEE2E2] border border-[#FECACA] text-xs font-semibold text-[#C41E3A]"
               >
                 <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
                 <span>{errorMessage}</span>
               </div>
             )}
 
-            {/* Judul Tugas */}
+            {/* Judul Tugas Input (Bound to useRef) */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label
-                  htmlFor="task-title-input"
-                  className="block text-xs font-bold"
-                >
-                  Judul Tugas
-                </label>
-                <span
-                  className={`text-[11px] font-mono tabular-nums ${
-                    isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
-                  }`}
-                >
-                  {title.length}/100
-                </span>
-              </div>
+              <label
+                htmlFor="sheet-task-title"
+                className="block text-xs font-extrabold mb-1.5"
+              >
+                Judul Tugas Kuliah
+              </label>
               <input
                 ref={titleInputRef}
-                id="task-title-input"
+                id="sheet-task-title"
                 type="text"
-                maxLength={100}
                 value={title}
                 onChange={(e) => {
                   setTitle(e.target.value);
                   if (errorMessage) setErrorMessage(null);
                 }}
-                placeholder="Contoh: Tugas Pertemuan 6 - Navigasi Layar"
-                className={`w-full min-h-[44px] px-4 py-2.5 rounded-2xl border text-sm outline-none transition-colors ${
+                placeholder="Contoh: Laporan Praktikum Sensor Ultrasonik"
+                className={`w-full min-h-[46px] px-4 py-2.5 rounded-2xl border-2 text-sm font-semibold outline-none transition-colors ${
                   isDarkMode
                     ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#C41E3A]'
                     : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] placeholder:text-[#94A3B8] focus:border-[#C41E3A] focus:bg-white'
@@ -216,90 +242,83 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
               />
             </div>
 
-            {/* Pilihan Mata Kuliah */}
+            {/* Kategori Tugas Chips */}
             <div>
-              <label
-                htmlFor="task-course-input"
-                className="block text-xs font-bold mb-1.5"
-              >
-                Mata Kuliah
-              </label>
-              <div className="flex flex-wrap gap-1.5 mb-2.5">
-                {courses.map((courseItem) => {
-                  const isSelected = course === courseItem.name;
+              <span className="block text-xs font-extrabold mb-1.5">
+                Jenis / Kategori Tugas
+              </span>
+              <div className="grid grid-cols-4 gap-1.5">
+                {TASK_CATEGORIES.map((cat) => {
+                  const isSelected = category === cat;
                   return (
                     <button
-                      key={courseItem.id}
+                      key={cat}
                       type="button"
-                      onClick={() => setCourse(courseItem.name)}
-                      style={
+                      onClick={() => setCategory(cat)}
+                      className={`min-h-[40px] rounded-xl text-xs font-extrabold border-2 transition-colors ${
                         isSelected
-                          ? {
-                              backgroundColor: courseItem.iconBg,
-                              borderColor: courseItem.iconBg,
-                            }
-                          : undefined
-                      }
-                      className={`min-h-[44px] px-3.5 py-1.5 rounded-2xl text-xs font-bold border transition-colors ${
-                        isSelected
-                          ? 'text-white'
+                          ? 'bg-[#C41E3A] border-[#0F172A] text-white'
                           : isDarkMode
-                          ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1] hover:bg-[#2E3440]'
-                          : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] hover:bg-[#F1F5F9]'
+                          ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1]'
+                          : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#334155]'
                       }`}
                     >
-                      {courseItem.name}
+                      {cat}
                     </button>
                   );
                 })}
               </div>
-              <input
-                id="task-course-input"
-                type="text"
-                value={course}
-                onChange={(e) => setCourse(e.target.value)}
-                placeholder="Ketik atau pilih mata kuliah"
-                className={`w-full min-h-[44px] px-4 py-2.5 rounded-2xl border text-sm outline-none transition-colors ${
-                  isDarkMode
-                    ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#C41E3A]'
-                    : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] placeholder:text-[#94A3B8] focus:border-[#C41E3A] focus:bg-white'
-                }`}
-              />
             </div>
 
-            {/* Deskripsi Tugas */}
+            {/* Mata Kuliah Selector Chips with Character Sticker Preview */}
             <div>
-              <label
-                htmlFor="task-desc-input"
-                className="block text-xs font-bold mb-1.5"
-              >
-                Deskripsi dan Catatan
-              </label>
-              <textarea
-                id="task-desc-input"
-                rows={3}
-                value={description}
-                onChange={(e) => {
-                  setDescription(e.target.value);
-                  if (errorMessage) setErrorMessage(null);
-                }}
-                placeholder="Tuliskan rincian materi, spesifikasi laporan, atau instruksi praktikum..."
-                className={`w-full px-4 py-2.5 rounded-2xl border text-sm outline-none transition-colors resize-none ${
-                  isDarkMode
-                    ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#C41E3A]'
-                    : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] placeholder:text-[#94A3B8] focus:border-[#C41E3A] focus:bg-white'
-                }`}
-              />
+              <span className="block text-xs font-extrabold mb-1.5">
+                Pilih Mata Kuliah
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {courses.map((courseOption) => {
+                  const isSelected = course === courseOption.name;
+                  return (
+                    <button
+                      key={courseOption.id}
+                      type="button"
+                      onClick={() => setCourse(courseOption.name)}
+                      style={
+                        isSelected
+                          ? {
+                              backgroundColor: courseOption.iconBg,
+                              borderColor: '#0F172A',
+                            }
+                          : undefined
+                      }
+                      className={`min-h-[42px] px-3 py-1.5 rounded-2xl text-xs font-bold transition-all border-2 flex items-center gap-2 ${
+                        isSelected
+                          ? 'text-white shadow-xs'
+                          : isDarkMode
+                          ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1]'
+                          : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#334155] hover:bg-[#F1F5F9]'
+                      }`}
+                    >
+                      <img
+                        src={courseOption.stickerUrl}
+                        alt=""
+                        className="w-5 h-5 rounded-md object-cover border border-black/15"
+                      />
+                      <span>{courseOption.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Tenggat Pengumpulan + Quick Date Chips + Full Calendar Picker Trigger */}
+            {/* Quick Date Selection + Full Interactive Calendar Picker Trigger */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label
-                  htmlFor="task-deadline-input"
-                  className="block text-xs font-bold"
+                  htmlFor="sheet-task-deadline"
+                  className="block text-xs font-extrabold"
                 >
-                  Tenggat Pengumpulan
+                  Tanggal Tenggat Pengumpulan
                 </label>
                 {onRequestCalendarPicker && (
                   <button
@@ -309,77 +328,59 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                         setDeadline(picked)
                       )
                     }
-                    className="text-xs font-bold text-[#C41E3A] hover:underline flex items-center gap-1"
+                    className="text-xs font-extrabold text-[#C41E3A] hover:underline flex items-center gap-1"
                   >
                     <Calendar className="w-3.5 h-3.5" aria-hidden="true" />
-                    <span>Pilih dari Kalender</span>
+                    <span>Buka Kalender Bulan</span>
                   </button>
                 )}
               </div>
 
-              {/* Quick Date Selection Buttons: Hari Ini, Besok, Senin Depan */}
-              <div className="grid grid-cols-3 gap-2 mb-2.5">
-                {QUICK_DEADLINE_OPTIONS.map((option) => {
-                  const isSelected = deadline === option.value;
+              <div className="grid grid-cols-4 gap-1.5 mb-2.5">
+                {QUICK_DATE_CHIPS.map((chip) => {
+                  const isChipActive = deadline === chip.dateValue;
                   return (
                     <button
-                      key={option.label}
+                      key={chip.label}
                       type="button"
-                      onClick={() => setDeadline(option.value)}
-                      className={`min-h-[44px] px-2.5 py-1.5 rounded-2xl text-xs font-bold flex flex-col items-center justify-center transition-colors border ${
-                        isSelected
-                          ? 'bg-[#C41E3A] border-[#C41E3A] text-white'
+                      onClick={() => {
+                        setDeadline(chip.dateValue);
+                        if (errorMessage) setErrorMessage(null);
+                      }}
+                      className={`min-h-[40px] px-1.5 py-1.5 rounded-xl text-[11px] font-bold transition-colors border ${
+                        isChipActive
+                          ? 'bg-[#FFE4E6] border-[#C41E3A] text-[#C41E3A]'
                           : isDarkMode
-                          ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1] hover:border-[#C41E3A]'
-                          : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] hover:bg-[#FFF1F2]'
+                          ? 'bg-[#232934] border-[#323A48] text-[#CBD5E1]'
+                          : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#334155]'
                       }`}
                     >
-                      <span>{option.label}</span>
-                      <span
-                        className={`text-[10px] font-mono tabular-nums mt-0.5 ${
-                          isSelected
-                            ? 'text-white/90'
-                            : isDarkMode
-                            ? 'text-[#94A3B8]'
-                            : 'text-[#64748B]'
-                        }`}
-                      >
-                        {option.value}
-                      </span>
+                      {chip.label}
                     </button>
                   );
                 })}
               </div>
 
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1 flex items-center">
-                  <Calendar
-                    className={`w-4 h-4 absolute left-3.5 pointer-events-none ${
-                      isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
-                    }`}
-                    aria-hidden="true"
-                  />
-                  <input
-                    id="task-deadline-input"
-                    type="text"
-                    value={deadline}
-                    onClick={() => {
-                      if (onRequestCalendarPicker) {
-                        onRequestCalendarPicker(deadline, (picked) =>
-                          setDeadline(picked)
-                        );
-                      }
-                    }}
-                    onChange={(e) => setDeadline(e.target.value)}
-                    placeholder="Contoh: 18 Nov 2026"
-                    className={`w-full min-h-[44px] pl-10 pr-4 py-2.5 rounded-2xl border text-sm font-mono tabular-nums outline-none transition-colors cursor-pointer ${
-                      isDarkMode
-                        ? 'bg-[#232934] border-[#323A48] text-white focus:border-[#C41E3A]'
-                        : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] focus:border-[#C41E3A] focus:bg-white'
-                    }`}
-                  />
-                </div>
-
+              <div className="relative flex items-center">
+                <Calendar
+                  className="w-4 h-4 text-[#C41E3A] absolute left-3.5 pointer-events-none"
+                  aria-hidden="true"
+                />
+                <input
+                  id="sheet-task-deadline"
+                  type="text"
+                  value={deadline}
+                  onChange={(e) => {
+                    setDeadline(e.target.value);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
+                  placeholder="Contoh: 18 Nov 2026"
+                  className={`w-full min-h-[44px] pl-10 pr-28 py-2.5 rounded-2xl border-2 text-sm font-mono tabular-nums font-bold outline-none transition-colors ${
+                    isDarkMode
+                      ? 'bg-[#232934] border-[#323A48] text-white focus:border-[#C41E3A]'
+                      : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] focus:border-[#C41E3A] focus:bg-white'
+                  }`}
+                />
                 {onRequestCalendarPicker && (
                   <button
                     type="button"
@@ -388,37 +389,42 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                         setDeadline(picked)
                       )
                     }
-                    aria-label="Buka kalender bulan"
-                    className="min-w-[44px] min-h-[44px] px-3 rounded-2xl bg-[#FFE4E6] text-[#C41E3A] font-bold text-xs flex items-center justify-center shrink-0 hover:bg-[#FECDD3] transition-colors"
+                    className="absolute right-1.5 min-h-[34px] px-3 rounded-xl bg-[#C41E3A] text-white text-xs font-bold"
                   >
-                    <Calendar className="w-4 h-4" aria-hidden="true" />
+                    Pilih Tanggal
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Bottom Actions */}
-            <div className="pt-2 flex items-center justify-between gap-2.5">
-              <button
-                type="button"
-                onClick={handleClearForm}
-                className={`min-h-[44px] px-4 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-colors ${
+            {/* Rincian Instruksi */}
+            <div>
+              <label
+                htmlFor="sheet-task-desc"
+                className="block text-xs font-extrabold mb-1.5"
+              >
+                Catatan / Instruksi Tugas (Opsional)
+              </label>
+              <textarea
+                id="sheet-task-desc"
+                rows={2}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Tuliskan rincian materi, tautan pengumpulan, atau catatan kelompok..."
+                className={`w-full px-4 py-2.5 rounded-2xl border-2 text-sm outline-none resize-none transition-colors ${
                   isDarkMode
-                    ? 'bg-[#232934] hover:bg-[#2E3440] text-[#CBD5E1]'
-                    : 'bg-[#F8FAFC] border border-[#E2E8F0] hover:bg-[#F1F5F9] text-[#0F172A]'
+                    ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#C41E3A]'
+                    : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] placeholder:text-[#94A3B8] focus:border-[#C41E3A] focus:bg-white'
                 }`}
-              >
-                <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>Kosongkan</span>
-              </button>
-
-              <button
-                type="submit"
-                className="flex-1 min-h-[48px] px-5 rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-sm font-bold text-white shadow-sm transition-colors"
-              >
-                Simpan Tugas
-              </button>
+              />
             </div>
+
+            <button
+              type="submit"
+              className="w-full min-h-[48px] rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-white text-sm font-extrabold border-2 border-[#0F172A] shadow-xs transition-colors"
+            >
+              {editingTask ? 'Simpan Perubahan Tugas' : 'Simpan Tugas Kuliah'}
+            </button>
           </div>
         </form>
       </div>
