@@ -407,7 +407,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                   setTitle(e.target.value);
                   if (errorMessage) setErrorMessage(null);
                 }}
-                placeholder="Contoh: Laporan Praktikum Sensor Ultrasonik"
+                placeholder="Laporan praktikum robotik"
                 className="w-full min-h-[48px] px-4 py-2.5 rounded-2xl bg-[#F8FAFC] border-2 border-[#CBD5E1] text-[14px] font-bold text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:bg-white focus:border-[#0F172A] transition-colors"
               />
             </div>

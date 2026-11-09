@@ -418,7 +418,7 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
                       setName(e.target.value);
                       if (errorMessage) setErrorMessage(null);
                     }}
-                    placeholder="Contoh: Kecerdasan Buatan"
+                    placeholder="Pemvis 1"
                     className={`w-full min-h-[44px] px-4 py-2.5 rounded-2xl border-2 text-sm font-semibold outline-none transition-colors ${
                       isDarkMode
                         ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#C41E3A]'

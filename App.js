@@ -120,7 +120,7 @@ const INITIAL_COURSES = [
     name: 'Pemrograman Visual I',
     lecturer: 'Rifky Hilmanudin, S.Kom., M.Kom.',
     credits: 3,
-    schedule: 'Senin, 08:00 - 10:30 WIB',
+    schedule: 'Selasa, 08:00 - 10:30 WIB',
     room: 'Lab Multimedia',
     stickerSource: VISUAL_ASSETS.stickerCoding,
     pastelBg: '#FEE2E2',
@@ -133,8 +133,8 @@ const INITIAL_COURSES = [
     code: 'TI362',
     name: 'Robotika',
     lecturer: 'Dr. Faisal Akbar, S.Kom., M.T.',
-    credits: 3,
-    schedule: 'Selasa, 10:30 - 13:00 WIB',
+    credits: 2,
+    schedule: 'Selasa, 10:30 - 11:40 WIB',
     room: 'Ruang 203',
     stickerSource: VISUAL_ASSETS.stickerRobotics,
     pastelBg: '#EEF2FF',
@@ -148,7 +148,7 @@ const INITIAL_COURSES = [
     name: 'Data Warehouse & Data Mining',
     lecturer: 'Prio Wahono, M.Kom.',
     credits: 3,
-    schedule: 'Rabu, 08:00 - 10:30 WIB',
+    schedule: 'Sabtu, 08:00 - 10:30 WIB',
     room: 'Ruang 103',
     stickerSource: VISUAL_ASSETS.stickerData,
     pastelBg: '#FEF3C7',
@@ -176,7 +176,7 @@ const INITIAL_COURSES = [
     name: 'Pemodelan Berorientasi Objek',
     lecturer: 'Wahyu Ariandi, S.Kom., M.Cs.',
     credits: 3,
-    schedule: 'Jumat, 08:00 - 10:30 WIB',
+    schedule: 'Sabtu, 10:30 - 13:00 WIB',
     room: 'Ruang 103',
     stickerSource: VISUAL_ASSETS.stickerOop,
     pastelBg: '#CFFAFE',
@@ -1206,7 +1206,7 @@ export default function App() {
               ref={titleInputRef}
               value={taskTitle}
               onChangeText={setTaskTitle}
-              placeholder="Judul Tugas Kuliah"
+              placeholder="Laporan praktikum robotik"
               style={styles.textInput}
             />
             <View style={styles.quickDateRow}>
@@ -1252,7 +1252,7 @@ export default function App() {
             <TextInput
               value={courseName}
               onChangeText={setCourseName}
-              placeholder="Nama Mata Kuliah"
+              placeholder="Pemvis 1"
               style={styles.textInput}
             />
             <TextInput

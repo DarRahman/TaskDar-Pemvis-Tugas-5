@@ -1376,6 +1376,8 @@ export default function App() {
           ? 'Login Google dibatalkan oleh pengguna.'
           : err?.code === 'auth/unauthorized-domain'
           ? 'Domain ini belum diotorisasi di Firebase Authentication.'
+          : err?.code === 'auth/missing-initial-state' || err?.message?.includes('missing initial state')
+          ? 'Browser memblokir cookie sesi Google di alamat IP lokal (Storage Partitioning). Buka aplikasi lewat http://localhost:3000 atau izinkan Third-Party Cookies di browser.'
           : err?.message || 'Gagal masuk dengan Akun Google.';
       if (screenPhase === 'main') {
         showToastMessage(errorMsg);
