@@ -1,6 +1,6 @@
 # TaskDar - Aplikasi Manajemen Tugas Mahasiswa
 
-Aplikasi mobile pencatatan, pengelolaan, dan pemantauan tugas perkuliahan berbasis React Native dan Expo SDK 58. Proyek ini dikembangkan untuk memenuhi penugasan praktikum mata kuliah Pemrograman Visual I pada program studi S1 Teknik Informatika STIKOM Poltek Cirebon.
+Aplikasi mobile pencatatan, pengelolaan, dan pemantauan tugas perkuliahan berbasis React Native dan Expo SDK 58. Proyek ini dikembangkan untuk memenuhi penugasan praktikum Tugas 5 (Pertemuan 5) mata kuliah Pemrograman Visual I pada program studi S1 Teknik Informatika STIKOM Poltek Cirebon.
 
 ---
 
@@ -8,12 +8,70 @@ Aplikasi mobile pencatatan, pengelolaan, dan pemantauan tugas perkuliahan berbas
 
 - Nama Mahasiswa : Badar Rahman
 - NIM            : 14524303
-- Program Studi  : S1 Teknik Informatika (Kelas TI-1)
+- Program Studi  : S1 Teknik Informatika
+- Kelas          : TI
 - Semester       : 5 (Ganjil)
-- Perguruan Tinggi: STIKOM Poltek Cirebon
+- Kampus         : STIKOM Poltek Cirebon
 - Mata Kuliah    : Pemrograman Visual I (TI361)
+- Penugasan      : Tugas 5 (Pertemuan 5)
 - Dosen Pengampu : Rifky Hilmanudin, S.Kom., M.Kom.
 - Repositori Git : https://github.com/DarRahman/Pemvis
+
+---
+
+## Struktur Berkas & Arsitektur Direktori Proyek
+
+```text
+Pemvis/
+├── App.js                      # Entry point React Native Expo fungsional (7 Hooks & FlatList)
+├── app.json                    # Konfigurasi metadata aplikasi Expo (TaskDar SDK 58)
+├── package.json                # Dependensi pustaka proyek (React 19, Expo 58, Lucide, Tailwind)
+├── index.html                  # Dokumen induk simulator web
+├── vite.config.ts              # Konfigurasi bundler Vite dev server
+├── tsconfig.json               # Konfigurasi compiler TypeScript
+├── README.md                   # Dokumentasi resmi proyek akademik
+├── public/                     # Aset statis publik aplikasi
+│   ├── icon.png                # Ikon utama aplikasi TaskDar
+│   └── assets/                 # Maskot dan stiker visual format WebP
+│       ├── mascot-splash.webp  # Maskot utama layar pembuka TaskDar
+│       ├── olympiad-trophy.webp# Aset piala target capaian akademik
+│       ├── sticker-coding.webp # Stiker visual Pemrograman Visual I (TI361)
+│       ├── sticker-robotics.webp# Stiker visual Robotika (TI362)
+│       ├── sticker-data.webp   # Stiker visual Data Warehouse & Data Mining (SI309)
+│       ├── sticker-security.webp# Stiker visual Keamanan Informasi & Jaringan (TI364)
+│       └── sticker-oop.webp    # Stiker visual Pemodelan Berorientasi Objek (TI365)
+├── screenshots/                # Dokumentasi 12 tangkapan layar antarmuka aplikasi
+│   ├── 01_splash_screen.jpg
+│   ├── 02_onboarding_login.jpg
+│   ├── 03_halaman_utama_light.jpg
+│   ├── 04_halaman_utama_dark.jpg
+│   ├── 05_tambah_tugas_part1.jpg
+│   ├── 06_tambah_tugas_part2.jpg
+│   ├── 07_kalender_akademik.jpg
+│   ├── 08_katalog_mata_kuliah.jpg
+│   ├── 09_tambah_matkul_part1.jpg
+│   ├── 10_tambah_matkul_part2.jpg
+│   ├── 11_progres_leaderboard.jpg
+│   └── 12_profil_pengaturan.jpg
+└── src/                        # Kode sumber modular aplikasi antarmuka
+    ├── App.tsx                 # Komponen induk navigasi tab dan state manager terpusat
+    ├── main.tsx                # Titik masuk rendering root React DOM
+    ├── firebase.ts             # Inisialisasi Firebase Authentication dan Cloud Firestore
+    ├── index.css               # Gaya global Tailwind CSS dan utilitas Neo-brutalism
+    ├── components/             # Komponen antarmuka modular
+    │   ├── TaskCard.tsx        # Komponen kartu tugas (penerima Props dari induk)
+    │   ├── AddTaskSheet.tsx    # Formulir modal penambahan tugas baru
+    │   ├── AddCourseSheet.tsx  # Formulir modal penambahan mata kuliah baru
+    │   ├── CalendarModal.tsx   # Modal kalender akademik penanggalan tenggat
+    │   ├── StudentMascot.tsx   # Komponen render maskot interaktif mahasiswa
+    │   └── WelcomeSplashModal.tsx# Modal onboarding identitas mahasiswa baru
+    ├── data/
+    │   └── initialTasks.ts     # Data awal 5 tugas autentik semester 5 dan taskReducer
+    ├── types/
+    │   └── task.ts             # Definisi antarmuka TypeScript (Task, Course, Student)
+    └── utils/
+        └── imageOptimizer.ts   # Utilitas penanganan dan resolusi aset WebP
+```
 
 ---
 
