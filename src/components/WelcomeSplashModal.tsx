@@ -88,10 +88,17 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
 
   const handleTriggerGoogleStep = async () => {
     setAuthError(null);
-    const googleProfile = await onGoogleLogin();
-    setGoogleDraft(googleProfile);
-    setNameInput(googleProfile.name || STUDENT_METADATA.name);
-    setAuthStep('google-complete');
+    try {
+      const googleProfile = await onGoogleLogin();
+      setGoogleDraft(googleProfile);
+      setNameInput(googleProfile.name || '');
+      setAuthStep('google-complete');
+    } catch (err: any) {
+      setAuthError(
+        err?.message ||
+          'Gagal masuk dengan Google. Silakan coba lagi atau isi identitas mahasiswa di bawah.'
+      );
+    }
   };
 
   const handleIdentitySubmit = (e: React.FormEvent) => {
@@ -435,7 +442,7 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                           if (authError) setAuthError(null);
                         }}
                         placeholder="Contoh: Badar Rahman"
-                        className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold outline-none"
+                        className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold placeholder:text-[#94A3B8] placeholder:font-normal placeholder:opacity-70 outline-none"
                       />
                     </div>
 
@@ -456,7 +463,7 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                           if (authError) setAuthError(null);
                         }}
                         placeholder="Contoh: 14524303"
-                        className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold outline-none"
+                        className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold placeholder:text-[#94A3B8] placeholder:font-normal placeholder:opacity-70 outline-none"
                       />
                     </div>
                   </div>
@@ -475,7 +482,7 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                       value={institutionInput}
                       onChange={(e) => setInstitutionInput(e.target.value)}
                       placeholder="Contoh: STIKOM Poltek Cirebon"
-                      className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold outline-none"
+                      className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold placeholder:text-[#94A3B8] placeholder:font-normal placeholder:opacity-70 outline-none"
                     />
                   </div>
 
@@ -494,7 +501,7 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                         value={programInput}
                         onChange={(e) => setProgramInput(e.target.value)}
                         placeholder="Teknik Informatika"
-                        className="w-full min-h-[44px] px-3 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold outline-none"
+                        className="w-full min-h-[44px] px-3 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold placeholder:text-[#94A3B8] placeholder:font-normal placeholder:opacity-70 outline-none"
                       />
                     </div>
 
@@ -511,7 +518,7 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                         value={classInput}
                         onChange={(e) => setClassInput(e.target.value)}
                         placeholder="TI-1"
-                        className="w-full min-h-[44px] px-3 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold outline-none"
+                        className="w-full min-h-[44px] px-3 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold placeholder:text-[#94A3B8] placeholder:font-normal placeholder:opacity-70 outline-none"
                       />
                     </div>
                   </div>
@@ -594,8 +601,8 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                       type="text"
                       value={institutionInput}
                       onChange={(e) => setInstitutionInput(e.target.value)}
-                      placeholder="Contoh: Universitas / Politeknik Anda"
-                      className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold outline-none"
+                      placeholder="Nama universitas / kampus"
+                      className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold placeholder:text-[#94A3B8] placeholder:font-normal placeholder:opacity-70 outline-none"
                     />
                   </div>
 
@@ -612,8 +619,8 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                         type="text"
                         value={nimInput}
                         onChange={(e) => setNimInput(e.target.value)}
-                        placeholder="14524303"
-                        className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold outline-none"
+                        placeholder="NIM / NPM"
+                        className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold placeholder:text-[#94A3B8] placeholder:font-normal placeholder:opacity-70 outline-none"
                       />
                     </div>
 
@@ -630,7 +637,7 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                         value={semesterInput}
                         onChange={(e) => setSemesterInput(e.target.value)}
                         placeholder="Semester 5"
-                        className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold outline-none"
+                        className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold placeholder:text-[#94A3B8] placeholder:font-normal placeholder:opacity-70 outline-none"
                       />
                     </div>
                   </div>
@@ -649,7 +656,7 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                         value={programInput}
                         onChange={(e) => setProgramInput(e.target.value)}
                         placeholder="Teknik Informatika"
-                        className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold outline-none"
+                        className="w-full min-h-[44px] px-3 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold placeholder:text-[#94A3B8] placeholder:font-normal placeholder:opacity-70 outline-none"
                       />
                     </div>
 
@@ -666,7 +673,7 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                         value={classInput}
                         onChange={(e) => setClassInput(e.target.value)}
                         placeholder="TI-1"
-                        className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold outline-none"
+                        className="w-full min-h-[44px] px-3 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold placeholder:text-[#94A3B8] placeholder:font-normal placeholder:opacity-70 outline-none"
                       />
                     </div>
                   </div>

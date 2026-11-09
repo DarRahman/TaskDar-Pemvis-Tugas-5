@@ -1370,30 +1370,17 @@ export default function App() {
         email,
         avatarUrl,
       };
-    } catch {
-      const fallbackEmail = studentUser.email || STUDENT_METADATA.email;
-      const fallbackName = studentUser.name || STUDENT_METADATA.name;
-      const fallbackUid = `google-${studentUser.nim || '14524303'}`;
-      setStudentUser((prev) => ({
-        ...prev,
-        uid: fallbackUid,
-        email: fallbackEmail,
-        authMethod: 'google',
-      }));
-      setIsCloudSynced(true);
+    } catch (err: any) {
+      const errorMsg =
+        err?.code === 'auth/popup-closed-by-user'
+          ? 'Login Google dibatalkan oleh pengguna.'
+          : err?.code === 'auth/unauthorized-domain'
+          ? 'Domain ini belum diotorisasi di Firebase Authentication.'
+          : err?.message || 'Gagal masuk dengan Akun Google.';
       if (screenPhase === 'main') {
-        showToastMessage(
-          `Terhubung ke Akun Google (${fallbackEmail}).`
-        );
+        showToastMessage(errorMsg);
       }
-      return {
-        uid: fallbackUid,
-        name: fallbackName,
-        email: fallbackEmail,
-        avatarUrl: toWebpAssetPath(
-          studentUser.avatarUrl || STUDENT_METADATA.avatarUrl
-        ),
-      };
+      throw new Error(errorMsg);
     } finally {
       setIsGoogleLoading(false);
     }
