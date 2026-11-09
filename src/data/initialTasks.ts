@@ -7,6 +7,7 @@ import {
   CourseStickerOption,
   PodiumTrophyItem,
 } from '../types/task';
+import { toWebpAssetPath } from '../utils/imageOptimizer';
 
 export const STUDENT_METADATA = {
   name: 'Badar Rahman',
@@ -196,8 +197,32 @@ export function getTaskUrgencyMeta(
   };
 }
 
-export function getDynamicQuickDateChips(
+export function getNextDateForIndonesianDay(
+  dayName: string,
   referenceDate: Date = new Date()
+): string {
+  const base = new Date(
+    referenceDate.getFullYear(),
+    referenceDate.getMonth(),
+    referenceDate.getDate()
+  );
+  const targetDayIndex = INDONESIAN_DAY_NAMES_JS_ORDER.findIndex(
+    (d) => d.toLowerCase() === dayName.trim().toLowerCase()
+  );
+  if (targetDayIndex < 0) {
+    return formatDateToIndonesianLabel(base);
+  }
+  const currentDayIndex = base.getDay();
+  let delta = (targetDayIndex - currentDayIndex + 7) % 7;
+  if (delta === 0) delta = 0;
+  const next = new Date(base);
+  next.setDate(base.getDate() + delta);
+  return formatDateToIndonesianLabel(next);
+}
+
+export function getDynamicQuickDateChips(
+  referenceDate: Date = new Date(),
+  scheduledDayName?: string
 ): { label: string; value: string }[] {
   const base = new Date(
     referenceDate.getFullYear(),
@@ -211,10 +236,17 @@ export function getDynamicQuickDateChips(
     return formatDateToIndonesianLabel(next);
   };
 
+  const thirdChip = scheduledDayName
+    ? {
+        label: `Hari ${scheduledDayName}`,
+        value: getNextDateForIndonesianDay(scheduledDayName, base),
+      }
+    : { label: '3 Hari Lagi', value: addDays(3) };
+
   return [
     { label: 'Hari Ini', value: addDays(0) },
     { label: 'Besok', value: addDays(1) },
-    { label: '3 Hari Lagi', value: addDays(3) },
+    thirdChip,
     { label: 'Minggu Depan', value: addDays(7) },
   ];
 }
@@ -525,42 +557,54 @@ export const PODIUM_TROPHY_SHELF: readonly PodiumTrophyItem[] = [
   },
 ];
 
+/*
+ * Authentic academic tasks aligned 1:1 with each course's ID and scheduled day:
+ * - Pemrograman Visual I (course-ti361, Senin) -> 09 Nov 2026 (Senin)
+ * - Robotika (course-ti362, Selasa) -> 10 Nov 2026 (Selasa)
+ * - Data Warehouse & Data Mining (course-ti363, Rabu) -> 11 Nov 2026 (Rabu)
+ * - Keamanan Informasi & Jaringan (course-ti364, Kamis) -> 05 Nov 2026 (Kamis)
+ * - Pemodelan Berorientasi Objek (course-ti365, Jumat) -> 06 Nov 2026 (Jumat)
+ */
 export const INITIAL_TASKS: AcademicTask[] = [
   {
     id: 'task-ti361-01',
+    courseId: 'course-ti361',
     title: 'Tugas Pertemuan 5 - Aplikasi Manajemen Tugas Mahasiswa',
     course: 'Pemrograman Visual I',
     category: 'Proyek',
     description:
       'Merancang antarmuka aplikasi daftar tugas mahasiswa dengan fitur pencarian langsung, filter status penyelesaian, dan ringkasan progres.',
-    deadline: '08 Nov 2026',
+    deadline: '09 Nov 2026',
     status: 'Belum Dikerjakan',
     attachments: [],
   },
   {
     id: 'task-rob-02',
+    courseId: 'course-ti362',
     title: 'Latihan 4 - Kinematika Ruang dan Transformasi Koordinat',
     course: 'Robotika',
     category: 'Praktikum',
     description:
       'Konversi koordinat bola ke kartesian dan matriks rotasi end-effector robot manipulator.',
-    deadline: '04 Nov 2026',
+    deadline: '10 Nov 2026',
     status: 'Selesai',
     attachments: [],
   },
   {
     id: 'task-dwdm-03',
+    courseId: 'course-ti363',
     title: 'Analisis 3V Big Data Tokopedia dan Shopee',
     course: 'Data Warehouse & Data Mining',
     category: 'Teori',
     description:
       'Arsitektur data lake, pemrosesan aliran data, dan pemisahan sistem transaksi dengan analitik.',
-    deadline: '07 Nov 2026',
+    deadline: '11 Nov 2026',
     status: 'Selesai',
     attachments: [],
   },
   {
     id: 'task-kij-04',
+    courseId: 'course-ti364',
     title: 'Praktikum Modul 1.4.1 - Uji Port Nmap Kali Linux',
     course: 'Keamanan Informasi & Jaringan',
     category: 'Praktikum',
@@ -572,16 +616,126 @@ export const INITIAL_TASKS: AcademicTask[] = [
   },
   {
     id: 'task-pbo-05',
+    courseId: 'course-ti365',
     title: 'Analisis OOM Perancangan Sistem Pasar Cirebon',
     course: 'Pemodelan Berorientasi Objek',
     category: 'Proyek',
     description:
       'Pemodelan diagram kelas dan skenario kebutuhan spesifikasi harga pangan daerah Cirebon.',
-    deadline: '09 Nov 2026',
+    deadline: '06 Nov 2026',
     status: 'Belum Dikerjakan',
     attachments: [],
   },
 ];
+
+/*
+ * Strict relational resolver between an AcademicTask and its parent CourseDetail.
+ * Matches by courseId first, then by normalized course name. Never returns an unrelated course.
+ */
+export function resolveCourseForTask(
+  task: Pick<AcademicTask, 'courseId' | 'course'>,
+  courses: readonly CourseDetail[]
+): CourseDetail | undefined {
+  if (task.courseId) {
+    const byId = courses.find((c) => c.id === task.courseId);
+    if (byId) return byId;
+  }
+  const normalizedName = (task.course || '').trim().toLowerCase();
+  if (!normalizedName) return undefined;
+  return courses.find((c) => c.name.trim().toLowerCase() === normalizedName);
+}
+
+const LEGACY_INITIAL_DEADLINE_FIXES: Record<string, string> = {
+  'task-ti361-01:08 Nov 2026': '09 Nov 2026',
+  'task-rob-02:04 Nov 2026': '10 Nov 2026',
+  'task-dwdm-03:07 Nov 2026': '11 Nov 2026',
+  'task-pbo-05:09 Nov 2026': '06 Nov 2026',
+};
+
+/*
+ * Sanitizes, deduplicates, and enforces 1:1 referential integrity between courses and tasks.
+ * Any orphaned task whose parent course was deleted is pruned, and duplicate tasks are removed.
+ */
+export function sanitizeAndLinkCoursesAndTasks(
+  rawCourses: readonly CourseDetail[],
+  rawTasks: readonly AcademicTask[]
+): {
+  courses: CourseDetail[];
+  tasks: AcademicTask[];
+  removedTaskIds: string[];
+} {
+  const seenCourseIds = new Set<string>();
+  const seenCourseNames = new Set<string>();
+  const cleanCourses: CourseDetail[] = [];
+
+  for (const c of rawCourses) {
+    if (!c || !c.name) continue;
+    const normId = (c.id || '').trim();
+    const normName = c.name.trim().toLowerCase();
+    if (!normId || seenCourseIds.has(normId) || seenCourseNames.has(normName)) {
+      continue;
+    }
+    seenCourseIds.add(normId);
+    seenCourseNames.add(normName);
+    cleanCourses.push({
+      ...c,
+      id: normId,
+      name: c.name.trim(),
+      stickerUrl: toWebpAssetPath(c.stickerUrl),
+    });
+  }
+
+  const seenTaskIds = new Set<string>();
+  const seenTaskSignatures = new Set<string>();
+  const cleanTasks: AcademicTask[] = [];
+  const removedTaskIds: string[] = [];
+
+  for (const t of rawTasks) {
+    if (!t || !t.title) continue;
+    const normId = (t.id || '').trim();
+    const matchedCourse = resolveCourseForTask(t, cleanCourses);
+
+    /* If parent course no longer exists (deleted), prune this orphaned task */
+    if (!matchedCourse) {
+      if (normId) removedTaskIds.push(normId);
+      continue;
+    }
+
+    const upgradedDeadline =
+      LEGACY_INITIAL_DEADLINE_FIXES[`${normId}:${t.deadline}`] ||
+      t.deadline.trim();
+
+    const signature = `${matchedCourse.id}::${t.title.trim().toLowerCase()}`;
+    if (
+      !normId ||
+      seenTaskIds.has(normId) ||
+      seenTaskSignatures.has(signature)
+    ) {
+      if (normId && !seenTaskIds.has(normId)) {
+        removedTaskIds.push(normId);
+      }
+      continue;
+    }
+
+    seenTaskIds.add(normId);
+    seenTaskSignatures.add(signature);
+    cleanTasks.push({
+      ...t,
+      id: normId,
+      courseId: matchedCourse.id,
+      course: matchedCourse.name,
+      title: t.title.trim(),
+      category: (t.category || 'Praktikum').trim() || 'Praktikum',
+      deadline: upgradedDeadline,
+    });
+  }
+
+  return {
+    courses: cleanCourses,
+    tasks: cleanTasks,
+    removedTaskIds,
+  };
+}
 
 export function taskReducer(
   state: AcademicTask[],
@@ -589,8 +743,11 @@ export function taskReducer(
 ): AcademicTask[] {
   switch (action.type) {
     case 'ADD_TASK': {
+      const createdId = action.payload.id || `task-${Date.now()}`;
+      const filteredState = state.filter((t) => t.id !== createdId);
       const newTask: AcademicTask = {
-        id: `task-${Date.now()}`,
+        id: createdId,
+        courseId: action.payload.courseId,
         title: action.payload.title.trim(),
         course: action.payload.course.trim(),
         category: action.payload.category.trim() || 'Praktikum',
@@ -599,7 +756,7 @@ export function taskReducer(
         status: 'Belum Dikerjakan',
         attachments: action.payload.attachments || [],
       };
-      return [newTask, ...state];
+      return [newTask, ...filteredState];
     }
 
     case 'EDIT_TASK': {
@@ -607,6 +764,7 @@ export function taskReducer(
         task.id === action.payload.id
           ? {
               ...task,
+              courseId: action.payload.courseId ?? task.courseId,
               title: action.payload.title.trim(),
               course: action.payload.course.trim(),
               category: action.payload.category.trim() || 'Praktikum',
@@ -620,6 +778,34 @@ export function taskReducer(
 
     case 'DELETE_TASK': {
       return state.filter((task) => task.id !== action.payload);
+    }
+
+    case 'DELETE_TASKS_BY_COURSE': {
+      const targetId = action.payload.courseId;
+      const targetName = action.payload.courseName.trim().toLowerCase();
+      return state.filter(
+        (task) =>
+          task.courseId !== targetId &&
+          task.course.trim().toLowerCase() !== targetName
+      );
+    }
+
+    case 'UPDATE_COURSE_ON_TASKS': {
+      const { courseId, oldCourseName, newCourseName } = action.payload;
+      const oldNorm = oldCourseName.trim().toLowerCase();
+      return state.map((task) => {
+        if (
+          task.courseId === courseId ||
+          task.course.trim().toLowerCase() === oldNorm
+        ) {
+          return {
+            ...task,
+            courseId,
+            course: newCourseName.trim(),
+          };
+        }
+        return task;
+      });
     }
 
     case 'TOGGLE_STATUS': {

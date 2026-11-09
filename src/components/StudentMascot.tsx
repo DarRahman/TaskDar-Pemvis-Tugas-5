@@ -1,5 +1,8 @@
 import React from 'react';
-import { toWebpAssetPath } from '../utils/imageOptimizer';
+import {
+  toWebpAssetPath,
+  getStickerStageBackground,
+} from '../utils/imageOptimizer';
 
 export interface MascotAvatarProps {
   size?: 'sm' | 'md' | 'lg';
@@ -8,7 +11,7 @@ export interface MascotAvatarProps {
 
 /*
  * Expressive 2D character avatar in Aptivo and Charmi style,
- * properly framed in high-resolution WebP so the graduation cap and character are never clipped.
+ * properly framed edge-to-edge in 1:1 square containers with zero white margin.
  */
 export const StudentMascotAvatar: React.FC<MascotAvatarProps> = ({
   size = 'md',
@@ -21,15 +24,19 @@ export const StudentMascotAvatar: React.FC<MascotAvatarProps> = ({
       ? 'w-13 h-13 rounded-2xl'
       : 'w-11 h-11 rounded-2xl';
 
+  const resolvedUrl = toWebpAssetPath(avatarUrl);
+  const stageBg = getStickerStageBackground(resolvedUrl, '#FFFFFF');
+
   return (
     <div
-      className={`${dimensionClass} bg-white border-2 border-[#0F172A] flex items-center justify-center shrink-0 overflow-hidden shadow-xs`}
+      style={{ backgroundColor: stageBg }}
+      className={`${dimensionClass} border-2 border-[#0F172A] flex items-center justify-center shrink-0 overflow-hidden shadow-xs`}
       aria-hidden="true"
     >
       <img
-        src={toWebpAssetPath(avatarUrl)}
+        src={resolvedUrl}
         alt="Karakter Mahasiswa"
-        className="w-full h-full object-contain"
+        className="w-full h-full object-cover"
         referrerPolicy="no-referrer"
       />
     </div>
@@ -48,7 +55,7 @@ export const WelcomeSplashMascot: React.FC = () => {
       <img
         src="/assets/mascot-splash.webp"
         alt="Maskot Sambutan TaskDar"
-        className="w-full h-full object-contain"
+        className="w-full h-full object-cover"
         referrerPolicy="no-referrer"
       />
     </div>
@@ -68,7 +75,7 @@ export const CelebrationMascotIllustration: React.FC = () => {
       <img
         src="/assets/olympiad-trophy.webp"
         alt="Trofi Pencapaian Tugas"
-        className="w-full h-full object-contain"
+        className="w-full h-full object-cover"
         referrerPolicy="no-referrer"
       />
     </div>

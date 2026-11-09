@@ -26,6 +26,9 @@ import {
   INITIAL_COURSES,
   formatDateToIndonesianLabel,
   getDynamicQuickDateChips,
+  getCourseScheduledDay,
+  getNextDateForIndonesianDay,
+  resolveCourseForTask,
 } from '../data/initialTasks';
 import { toWebpAssetPath } from '../utils/imageOptimizer';
 import { CalendarModal } from './CalendarModal';
@@ -111,7 +114,6 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
       ? availableCourses
       : resolvedCourseList.map((c) => c.name);
 
-  const quickDateChips = useMemo(() => getDynamicQuickDateChips(new Date()), []);
   const defaultTodayLabel = useMemo(
     () => formatDateToIndonesianLabel(new Date()),
     []
@@ -130,13 +132,35 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
 
+  const selectedCourseDetail = useMemo(
+    () =>
+      resolvedCourseList.find(
+        (c) => c.name.trim().toLowerCase() === course.trim().toLowerCase()
+      ),
+    [resolvedCourseList, course]
+  );
+
+  const scheduledDayName = useMemo(
+    () =>
+      selectedCourseDetail
+        ? getCourseScheduledDay(selectedCourseDetail.schedule)
+        : undefined,
+    [selectedCourseDetail]
+  );
+
+  const quickDateChips = useMemo(
+    () => getDynamicQuickDateChips(new Date(), scheduledDayName),
+    [scheduledDayName]
+  );
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const customCategoryInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (editingTask) {
       setTitle(editingTask.title);
-      setCourse(editingTask.course);
+      const matched = resolveCourseForTask(editingTask, resolvedCourseList);
+      setCourse(matched ? matched.name : editingTask.course);
       const isPreset = PRESET_CATEGORIES.includes(editingTask.category);
       if (isPreset) {
         setCategory(editingTask.category);
@@ -152,21 +176,37 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
       setAttachments(editingTask.attachments || []);
       setErrorMessage(null);
     } else {
-      setTitle('');
-      setCourse(
-        resolvedPreselectedCourse ||
-          coursesToRender[0] ||
-          'Pemrograman Visual I'
+      const initialCourseName =
+        resolvedPreselectedCourse &&
+        resolvedCourseList.some(
+          (c) =>
+            c.name.trim().toLowerCase() ===
+            resolvedPreselectedCourse.trim().toLowerCase()
+        )
+          ? resolvedPreselectedCourse
+          : coursesToRender[0] || 'Pemrograman Visual I';
+      const initialDetail = resolvedCourseList.find(
+        (c) =>
+          c.name.trim().toLowerCase() ===
+          initialCourseName.trim().toLowerCase()
       );
+      setTitle('');
+      setCourse(initialCourseName);
       setCategory('Praktikum');
       setCustomCategoryText('');
       setIsCustomCategoryActive(false);
-      setDeadline(formatDateToIndonesianLabel(new Date()));
+      setDeadline(
+        initialDetail
+          ? getNextDateForIndonesianDay(
+              getCourseScheduledDay(initialDetail.schedule)
+            )
+          : formatDateToIndonesianLabel(new Date())
+      );
       setDescription('');
       setAttachments([]);
       setErrorMessage(null);
     }
-  }, [editingTask, sheetVisible, resolvedPreselectedCourse]);
+  }, [editingTask, sheetVisible, resolvedPreselectedCourse, resolvedCourseList]);
 
   if (!sheetVisible) return null;
 
@@ -263,8 +303,9 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
       : category.trim() || 'Praktikum';
 
     const payload: NewTaskInput = {
+      courseId: selectedCourseDetail?.id,
       title: title.trim(),
-      course,
+      course: selectedCourseDetail?.name || course,
       category: finalCategory,
       deadline: deadline.trim() || defaultTodayLabel,
       description:
@@ -382,7 +423,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                 </label>
                 {isCustomCategoryActive && (
                   <span className="text-[11px] font-extrabold text-[#C41E3A]">
-                    Kategori Kustom: {customCategoryText.trim() || 'Kuis'}
+                    Kategori: {customCategoryText.trim() || 'Kuis'}
                   </span>
                 )}
               </div>
@@ -425,7 +466,7 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                     onFocus={() => setIsCustomCategoryActive(true)}
                     onChange={(e) => handleCustomCategoryChange(e.target.value)}
                     placeholder="Ketik..."
-                    aria-label="Ketik kategori tugas kustom"
+                    aria-label="Ketik kategori tugas"
                     className={`w-full text-center text-[12px] font-extrabold bg-transparent focus:outline-none ${
                       isCustomCategoryActive
                         ? 'text-white placeholder:text-white/75'
@@ -456,7 +497,15 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                     <button
                       key={item}
                       type="button"
-                      onClick={() => setCourse(item)}
+                      onClick={() => {
+                        setCourse(item);
+                        if (!editingTask && detail) {
+                          const dayOfCourse = getCourseScheduledDay(
+                            detail.schedule
+                          );
+                          setDeadline(getNextDateForIndonesianDay(dayOfCourse));
+                        }
+                      }}
                       style={
                         isSelected
                           ? {
@@ -472,14 +521,12 @@ export const AddTaskSheet: React.FC<AddTaskSheetProps> = ({
                           : 'bg-white text-[#334155] border-[#CBD5E1] hover:border-[#0F172A]'
                       }`}
                     >
-                      <div className="w-7 h-7 rounded-lg overflow-hidden border border-[#0F172A]/20 bg-white shrink-0">
-                        <img
-                          src={stickerUrl}
-                          alt={item}
-                          className="w-full h-full object-contain"
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
+                      <img
+                        src={stickerUrl}
+                        alt={item}
+                        className="w-7 h-7 rounded-lg object-cover border border-[#0F172A]/20 shrink-0"
+                        referrerPolicy="no-referrer"
+                      />
                       <span>{item}</span>
                       {isSelected && (
                         <Check className="w-3.5 h-3.5 shrink-0 ml-0.5" />

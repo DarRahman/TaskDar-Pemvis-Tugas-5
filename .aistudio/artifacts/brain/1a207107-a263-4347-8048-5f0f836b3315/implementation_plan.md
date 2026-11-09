@@ -1,70 +1,80 @@
-# Rencana Penyempurnaan Akhir UI/UX, Fungsionalitas, & Audit Codebase TaskDar
+# TaskDar: Penyempurnaan Layar Pemuatan, Notifikasi Asli H-1, Sinkronisasi Google Calendar, dan Animasi Interaktif
 
-Rencana ini mencakup seluruh revisi visual, mekanisme kerja fitur, optimasi resolusi gambar (WebP), serta hasil audit menyeluruh agar aplikasi **TaskDar** siap digunakan secara nyata tanpa ada data statis (*hardcoded placeholder*).
+Pembaruan ini memperbaiki celah putih di dasar layar pemuatan, mengaktifkan notifikasi sistem perangkat asli (`Notification API`) untuk pengingat tugas H-1/Hari Ini, membatasi dan menghubungkan Sinkronisasi Google Calendar secara nyata khusus untuk akun yang sudah tertaut Google, serta mengembalikan animasi kapsul geser (*sliding pill*) pada navigasi bawah dan animasi kemunculan formulir dari tombol tambah (`+`).
 
----
+## User Review & Critical Decisions
 
-## 1. Layar Loading Cairan Bergelombang (*Bottom-to-Top Liquid Wave*)
-* **Animasi Cairan Naik Penuh**: Menggantikan bilah *loading* kecil di bawah dengan efek **cairan merah koral (`#C41E3A`) bergelombang (*animated SVG dual-wave crest*)** yang naik secara halus dari dasar layar berlatar putih bersih (`0%` di bawah hingga `100%` memenuhi seluruh layar).
-* **Transisi Kontras Otomatis**: Saat permukaan gelombang cairan merah naik melewati area tengah layar, ilustrasi mata karakter **TaskDar** dan tipografi *Serif Italic* mewah (`Playfair Display` / `Instrument Serif`) beserta subjudul bersih tanpa kotak akan tampil kontras dan tajam di atas cairan merah tersebut.
+> [!IMPORTANT]
+> Seluruh keputusan di bawah ini telah disesuaikan dengan jawaban klarifikasi Anda.
 
----
-
-## 2. Konsistensi Ikon Pengaturan & Lebar Penuh Navbar Bawah
-* **Ikon Pengaturan Ke-2 (`Pengingat Tugas H-1`)**: Menghapus bayangan merah (`shadow-[0_2px_0_0_#C41E3A]`) dan latar hitam pada ikon lonceng, lalu menyamakannya dengan 4 ikon pengaturan lainnya menggunakan garis tepi dan bayangan hitam pekat (`border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A]`) serta latar warna solid kontras (`#E11D48` / `#F43F5E` dengan ikon putih tajam).
-* **Lebar Navbar Bawah Sejajar Konten Utama**: Menyesuaikan ukuran kontainer navigasi bawah agar sejajar persis dengan lebar penuh kartu konten utama di atasnya (`max-w-[640px]` dengan *padding* horizontal yang sama persis `px-4 sm:px-6`), sehingga garis tepi kiri dan kanan *navbar* lurus sejajar dengan kartu-kartu di halaman Tugas, Mata Kuliah, Progres, dan Profil.
-
----
-
-## 3. Logika "Tugas Mendesak" (Tenggat H-3, Hari Ini, atau Terlewat)
-* **Perhitungan Kalender Akurat**: Lencana **Tugas Mendesak** di pojok kanan atas kini membandingkan tanggal tenggat setiap tugas berstatus `Belum Dikerjakan` terhadap tanggal hari ini (`new Date()`):
-  * Menghitung selisih hari (`diffDays`) antara tanggal tenggat tugas dan hari ini.
-  * Tugas dihitung sebagai **Mendesak** apabila statusnya `Belum Dikerjakan` dan `diffDays <= 3` (mencakup tugas yang tenggatnya lewat/terlambat, hari ini, H-1, H-2, hingga H-3).
-* **Filter Interaktif & Indikator Kartu**: Mengetuk lencana **Mendesak** di pojok kanan atas akan menyaring daftar tugas agar menampilkan khusus tugas-tugas mendesak tersebut, dilengkapi penanda sisa hari (contoh: `Hari Ini`, `Besok`, `2 Hari Lagi`, atau `Terlewat`).
+- **Keputusan Terkonfirmasi 1 (Sinkronisasi Google Calendar Nyata & Khusus Akun Google)**: Opsi **Sinkronisasi Google Calendar** di menu Pengaturan disembunyikan saat pengguna memakai sesi Lokal (NIM) dan hanya ditampilkan ketika akun Google sudah terhubung (`isCloudSynced`). Saat diaktifkan, penambahan atau pembaruan tugas otomatis dikirim ke Google Calendar utama pengguna melalui akses token OAuth Google (`calendar.events`), dilengkapi tombol pintas **Simpan ke Google Calendar** pada rincian kartu tugas.
+- **Keputusan Terkonfirmasi 2 (Notifikasi Sistem Perangkat Asli untuk Pengingat H-1)**: Mengaktifkan **Pengingat Tugas H-1** akan meminta izin notifikasi perangkat/peramban asli (`window.Notification.requestPermission()`) dan memicu pop-up notifikasi sistem nyata untuk tugas yang jatuh tempo Besok (H-1) atau Hari Ini, disertai tombol uji notifikasi langsung.
+- **Keputusan Terkonfirmasi 3 (Animasi Kapsul Geser Navbar Bawah Lebar Penuh)**: Navbar bawah tetap rata penuh mengikuti lebar kartu konten utama (`max-w-[640px]`), namun label teks hanya muncul pada tab yang sedang aktif dengan animasi kapsul merah (`layoutId`) yang bergeser mulus ke kiri dan kanan.
+- **Keputusan Terkonfirmasi 4 (Animasi Muncul Formulir dari Tombol `+` & Perbaikan Layar Pemuatan)**:
+  1. Kontainer cairan merah pada layar pemuatan dikunci rapat pada dasar layar (`-bottom-24 h-[135%]` bergerak dari `y: '100%'` ke `y: '0%'`) sehingga tidak ada celah putih di bagian bawah layar pada resolusi apa pun.
+  2. Menekan tombol mengambang `+` memicu animasi *spring morph* di mana lembar formulir **Tambah Tugas Baru** mekar langsung dari posisi tombol `+` di kanan bawah.
 
 ---
 
-## 4. Kategori Tugas Custom (Pengganti "Kuis") & Integrasi Menyeluruh
-* **Layout 4 Kolom Tetap Sama di `AddTaskSheet.tsx`**:
-  * Kolom 1: `Praktikum`
-  * Kolom 2: `Proyek`
-  * Kolom 3: `Teori`
-  * Kolom 4: **Input / Tombol Custom (`Ketik...`)** menggantikan `Kuis` dengan ukuran kotak dan tata letak 4 kolom yang tetap identik (seperti input SKS *custom* pada form Tambah Mata Kuliah). Pengguna dapat mengetik bebas jenis tugas apa saja (misalnya `Kuis`, `UTS`, `UAS`, `Makalah`, `Resume`, `Presentasi`).
-* **Integrasi Otomatis di Seluruh Komponen**:
-  * **Kartu Tugas (`TaskCard.tsx`)**: Mendukung kategori *custom* apa pun dengan palet warna lencana solid yang otomatis menyesuaikan.
-  * **Peringkat Kategori Tugas (Tab 3 `Progres`)**: Menghitung dan mengurutkan seluruh kategori tugas secara dinamis (termasuk kategori *custom* yang dibuat pengguna) lengkap dengan warna peringkat 1 s/d 5+ yang berbeda-beda.
-  * **Aturan Keamanan Cloud (`firestore.rules`)**: Memperbarui validasi `isValidTaskDoc` agar mengizinkan string kategori *custom* (`data.category is string && data.category.size() >= 1 && data.category.size() <= 60`).
+## 1. Overview & Core Concept
+
+- **What It Does**: Menjadikan seluruh fitur pengaturan, pengingat, sinkronisasi kalender, dan transisi antarmuka bekerja 100% secara fungsional tanpa elemen statis atau *placeholder*.
+- **Target Audience / Persona**: Mahasiswa STIKOM Poltek Cirebon dan perguruan tinggi lainnya yang membutuhkan pengingat tenggat nyata di perangkat serta integrasi langsung dengan Google Calendar pribadi.
+- **Key Value**: Pengalaman aplikasi *mobile-first* yang mulus, responsif, dan benar-benar terintegrasi dengan layanan sistem perangkat maupun akun Google pengguna.
 
 ---
 
-## 5. Skala Grafik Batang Proporsional Murni (Tab 3 `Progres`)
-* **Perhitungan Tinggi Batang Proporsional**:
-  * Menghapus batas minimum `32%` yang sebelumnya membuat batang 1 tugas terlihat terlalu tinggi.
-  * Patokan tinggi penuh (`100%`) diambil dari jumlah tugas terbanyak pada satu hari di minggu tersebut (`maxTasksInDay`, dengan batas dasar minimal `4` jika semua hari memiliki kurang dari 4 tugas agar 1 tugas tidak langsung memenuhi kotak).
-  * Contoh nyata: Jika **Senin = 1 tugas**, **Rabu = 7 tugas**, dan **Minggu = 15 tugas**, maka:
-    * **Minggu (15 tgs)**: Tinggi batang **100% penuh** menyentuh atas kapsul.
-    * **Rabu (7 tgs)**: Tinggi batang **47%** (setengah kapsul).
-    * **Senin (1 tgs)**: Tinggi batang **~8%** (sangat pendek di dasar kapsul, proporsional dengan 1/15).
+## 2. User Experience & Visual Design
+
+- **Key User Flows**:
+  1. **Layar Pemuatan Cairan Merah Tanpa Celah Putih**: Gelombang cairan merah (`#C41E3A`) naik dari dasar putih hingga menutupi 100% layar penuh tanpa menyisakan garis putih di bagian bawah.
+  2. **Notifikasi Perangkat H-1 & Hari Ini**: Saat sakelar **Pengingat Tugas H-1** dinyalakan, aplikasi meminta izin notifikasi sistem pada HP/laptop. Jika diizinkan, aplikasi otomatis memindai tugas aktif yang bertenggat Hari Ini atau H-1 dan mengirimkan pop-up notifikasi sistem perangkat (lengkap dengan judul tugas, mata kuliah, dan tenggat).
+  3. **Sinkronisasi Google Calendar Khusus Akun Google**:
+     - Jika pengguna masuk hanya dengan NIM lokal, baris **Sinkronisasi Google Calendar** disembunyikan agar tidak membingungkan.
+     - Begitu pengguna terhubung dengan Akun Google, baris pengaturan **Sinkronisasi Google Calendar** muncul. Saat aktif, tugas baru otomatis dikirim ke kalender akun Google pengguna dan setiap kartu tugas memiliki pintasan satu ketukan untuk membuka/menyimpan jadwal di Google Calendar.
+  4. **Navbar Bawah Lebar Penuh dengan Kapsul Geser (*Sliding Pill*)**: Kontainer navbar tetap lebar penuh sejajar kartu utama, dengan tab tidak aktif menampilkan ikon bersih dan tab aktif melebar mulus menampilkan ikon + teks di atas kapsul merah yang bergeser kiri-kanan.
+  5. **Animasi Mekar dari Tombol Tambah (`+`)**: Saat tombol `+` di kanan bawah ditekan, tombol `+` bertransformasi secara mulus (*origin bottom-right spring transition*) menjadi lembar **Tambah Tugas Baru**.
 
 ---
 
-## 6. Perbaikan Ketajaman Gambar Mata Kuliah & Optimasi WebP
-* **Solusi Gambar Mata Kuliah Tidak Buram / Tidak Terpotong**:
-  * Mengubah bingkai ilustrasi pada kartu Mata Kuliah dari `object-cover` (yang memotong atas-bawah dan menarik gambar persegi 1:1 menjadi melebar) menjadi tata letak proporsional (`object-contain` di dalam panggung berlatar warna aksen mata kuliah dengan tinggi yang pas), sehingga karakter stiker tampil 100% utuh dan beresolusi tajam.
-* **Konversi & Kompresi WebP Tanpa Menurunkan Resolusi**:
-  * Mengonversi seluruh aset gambar bawaan aplikasi (stiker mata kuliah dan maskot) ke format `.webp` kualitas tinggi.
-  * Menambahkan utilitas konversi otomatis HTML5 Canvas ke `image/webp` (`quality: 0.92`) khusus saat pengguna mengunggah foto profil atau ikon/stiker mata kuliah agar ringan di memori perangkat mobile/APK, sedangkan file lampiran tugas (Foto, PDF, Video) tetap disimpan utuh sesuai aslinya.
+## 3. Key Product Decisions & Trade-Offs
+
+- **Decision 1: Integrasi Ganda Google Calendar (API Langsung + Pintasan Kalender)**
+  - *Chosen Approach*: Meminta cakupan `https://www.googleapis.com/auth/calendar.events` saat autentikasi Google untuk mengirim jadwal tenggat secara otomatis ke Google Calendar pengguna, serta menyediakan tautan pintas Google Calendar pada rincian kartu tugas.
+  - *Why*: Menjamin jadwal benar-benar masuk ke akun Google masing-masing pengguna, sekaligus tetap berfungsi instan meskipun pengguna menutup pop-up izin tambahan.
+- **Decision 2: Mesin Notifikasi Perangkat Asli (`Web Notification API`) dengan Penjaga Duplikasi Harian**
+  - *Chosen Approach*: Memeriksa izin `window.Notification`, mengirim notifikasi sistem asli untuk tugas H-1 dan Hari Ini, serta mencatat ID tugas yang sudah dinotifikasi pada hari tersebut di penyimpanan lokal agar tidak membanjiri layar setiap kali halaman dimuat ulang.
+  - *Why*: Memberikan pengalaman notifikasi layaknya aplikasi *native* di HP/laptop tanpa pengulangan yang mengganggu.
 
 ---
 
-## 7. Isolasi Data Per Akun & Sinkronisasi Otomatis Lokal ke Google Cloud
-* **Penyimpanan Terpisah Per Akun (`NIM` / `UID`)**:
-  * Kunci penyimpanan lokal menggunakan identitas aktif (`taskdar_tasks_${accountKey}` dan `taskdar_courses_${accountKey}`), sehingga jika berganti akun atau NIM berbeda pada perangkat yang sama, daftar tugas dan mata kuliah masing-masing akun terpisah dengan aman.
-* **Sinkronisasi Dua Arah Lokal & Google (`Tasks` + `Courses`)**:
-  * Saat pengguna masuk dengan akun lokal lalu menghubungkan akun Google (atau masuk dengan Google), seluruh tugas dan mata kuliah yang telah dicatat di sesi lokal akan otomatis digabungkan (*merged*) dan diunggah ke koleksi Cloud Firestore (`users/{uid}/tasks` dan `users/{uid}/courses`).
+## 4. Technical Architecture & Data Strategy
 
----
+### Architecture & Component Diagram
 
-## 8. Pembersihan Nilai Statis (*Codebase Audit*)
-* **Tombol Tanggal Cepat Real-Time (`AddTaskSheet.tsx`)**: Mengubah tombol *Hari Ini*, *Besok*, *Rabu Depan*, dan *Senin Depan* beserta nilai tanggal awal (`default deadline`) agar dihitung langsung secara dinamis dari tanggal kalender perangkat saat ini (`new Date()`), bukan lagi tanggal statis `08 Nov 2026`.
-* **Validasi Seluruh Kontrol UI**: Memastikan seluruh tombol, filter hari (`Sen` s/d `Min` dengan angka jumlah jadwal matkul), pemilih jam mulai/selesai, unggah multi-file tugas, hingga pengaturan profil berfungsi penuh tanpa ada elemen statis.
+```
+┌───────────────────────────────────────────────────────────────────────────┐
+│                         TaskDar Application Core                          │
+├───────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  ┌──────────────────────────────┐     ┌────────────────────────────────┐  │
+│  │  Full-Bleed Liquid Splash    │     │  Real Device Notification Hub  │  │
+│  │  - Anchored bottom (-bottom) │     │  - Notification.requestPerm()  │  │
+│  │  - Zero bottom white gap     │     │  - H-1 & H-0 deadline scanner  │  │
+│  └──────────────────────────────┘     └────────────────────────────────┘  │
+│                                                                           │
+│  ┌──────────────────────────────┐     ┌────────────────────────────────┐  │
+│  │  Google Calendar Sync Engine │     │  Interactive Motion Layer      │  │
+│  │  - Hidden in Local NIM mode  │     │  - Full-width Navbar layoutId  │  │
+│  │  - OAuth calendar.events API │     │    sliding pill + active label │  │
+│  │  - Direct Calendar shortcut  │     │  - FAB (+) morph to Task Sheet │  │
+│  └──────────────────────────────┘     └────────────────────────────────┘  │
+│                                                                           │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+### Interactive Component & State Mapping
+- **Layar Pemuatan**: Kontainer gelombang memiliki tinggi ekstra di bawah batas layar (`-bottom-24 h-[135%]`) sehingga saat bergerak dari `y: '100%'` menuju `y: '0%'`, bagian dasar layar tetap tertutup warna `#C41E3A` sepenuhnya.
+- **Pengingat Tugas H-1**: Sakelar memverifikasi dukungan `Notification` di peramban, meminta izin jika belum diberikan, memicu notifikasi sistem perangkat untuk tugas H-1/Hari Ini, dan menampilkan status izin secara akurat pada subjudul pengaturan.
+- **Sinkronisasi Google Calendar**: Ditampilkan secara kondisional (`isCloudSynced && studentUser.authMethod === 'google'`), menyimpan *access token* Google di memori untuk mengirim *event* ke endpoint `https://www.googleapis.com/calendar/v3/calendars/primary/events`, serta menyediakan tombol pintas Google Calendar pada rincian tugas.
+- **Navigasi Bawah & FAB (`+`)**: Menggunakan `motion.div` dengan `layoutId="taskdar-active-nav-pill"` untuk pergeseran kapsul merah kiri-kanan dan `AnimatePresence` dengan `transformOrigin: 'calc(100% - 36px) calc(100% - 96px)'` agar formulir Tambah Tugas mekar langsung dari tombol `+`.

@@ -372,13 +372,11 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
                               : 'border-[#CBD5E1] bg-[#F8FAFC] text-[#0F172A]'
                           }`}
                         >
-                          <div className="w-12 h-12 rounded-xl overflow-hidden border border-[#0F172A]/20 bg-white p-0.5">
-                            <img
-                              src={toWebpAssetPath(sticker.imageUrl)}
-                              alt={sticker.label}
-                              className="w-full h-full object-contain"
-                            />
-                          </div>
+                          <img
+                            src={toWebpAssetPath(sticker.imageUrl)}
+                            alt={sticker.label}
+                            className="w-11 h-11 rounded-xl object-cover border border-[#0F172A]/20"
+                          />
                           <span className="text-[10px] font-extrabold truncate max-w-full">
                             {sticker.label.replace('Karakter ', '')}
                           </span>

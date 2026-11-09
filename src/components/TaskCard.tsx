@@ -25,6 +25,7 @@ import {
   INITIAL_COURSES,
   getReadableTextColor,
   getTaskUrgencyMeta,
+  resolveCourseForTask,
 } from '../data/initialTasks';
 import {
   toWebpAssetPath,
@@ -113,9 +114,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
   const resolvedCourseList = courses || courseList || INITIAL_COURSES;
   const matchedCourse =
-    resolvedCourseList.find(
-      (c) => c.name.toLowerCase() === task.course.toLowerCase()
-    ) ?? resolvedCourseList[0];
+    resolveCourseForTask(task, resolvedCourseList) ??
+    resolveCourseForTask(task, INITIAL_COURSES);
 
   const cardBg = isDarkMode
     ? '#1F242D'
@@ -157,18 +157,18 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         }`}
       >
         <div className="flex items-start gap-3.5">
-          {/* Course Character Sticker Avatar (Sharp WebP + Uncropped Framing) */}
+          {/* Course Character Sticker Avatar */}
           <div className="relative shrink-0">
             <div
               style={{
                 backgroundColor: stickerStageBg,
               }}
-              className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] flex items-center justify-center p-0.5"
+              className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A]"
             >
               <img
                 src={stickerUrl}
-                alt={task.course}
-                className="w-full h-full object-contain"
+                alt={matchedCourse?.name || task.course}
+                className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
               />
             </div>

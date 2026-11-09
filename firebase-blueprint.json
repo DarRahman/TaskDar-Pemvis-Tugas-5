@@ -35,6 +35,11 @@
           "description": "Program studi",
           "maxLength": 64
         },
+        "institution": {
+          "type": "string",
+          "description": "Nama perguruan tinggi atau kampus",
+          "maxLength": 120
+        },
         "avatarUrl": {
           "type": "string",
           "description": "Path atau URL avatar karakter mahasiswa",
@@ -50,7 +55,7 @@
     },
     "AcademicTaskDoc": {
       "title": "AcademicTaskDoc",
-      "description": "Dokumen tugas kuliah mahasiswa dengan dukungan kategori kustom",
+      "description": "Dokumen tugas kuliah mahasiswa dengan relasi courseId",
       "type": "object",
       "properties": {
         "id": {
@@ -58,6 +63,10 @@
           "maxLength": 128
         },
         "ownerId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "courseId": {
           "type": "string",
           "maxLength": 128
         },

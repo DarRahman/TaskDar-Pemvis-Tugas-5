@@ -117,6 +117,7 @@ export interface TaskAttachment {
 
 export interface AcademicTask {
   id: string;
+  courseId?: string;
   title: string;
   course: string;
   category: TaskCategory;
@@ -127,6 +128,8 @@ export interface AcademicTask {
 }
 
 export interface NewTaskInput {
+  id?: string;
+  courseId?: string;
   title: string;
   course: string;
   category: TaskCategory;
@@ -160,6 +163,18 @@ export type TaskAction =
   | { type: 'ADD_TASK'; payload: NewTaskInput }
   | { type: 'EDIT_TASK'; payload: EditTaskInput }
   | { type: 'DELETE_TASK'; payload: string }
+  | {
+      type: 'DELETE_TASKS_BY_COURSE';
+      payload: { courseId: string; courseName: string };
+    }
+  | {
+      type: 'UPDATE_COURSE_ON_TASKS';
+      payload: {
+        courseId: string;
+        oldCourseName: string;
+        newCourseName: string;
+      };
+    }
   | { type: 'TOGGLE_STATUS'; payload: string }
   | { type: 'SET_TASKS'; payload: AcademicTask[] }
   | { type: 'RESET_TASKS' };

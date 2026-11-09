@@ -16,7 +16,6 @@ import {
   BookOpen,
   PieChart,
   User,
-  AlertCircle,
   Award,
   Bell,
   Moon,
@@ -52,6 +51,8 @@ import {
   deriveBentoThemeFromHex,
   getReadableTextColor,
   isTaskUrgent,
+  resolveCourseForTask,
+  sanitizeAndLinkCoursesAndTasks,
   taskReducer,
 } from './data/initialTasks';
 import {
@@ -90,6 +91,7 @@ import {
   firebaseSignOut,
   onAuthStateChanged,
   doc,
+  getDoc,
   setDoc,
   collection,
   getDocs,
@@ -105,16 +107,27 @@ const FILTER_TABS: readonly TaskFilterTab[] = [
 ];
 
 const STORAGE_KEYS = {
-  TASKS_LEGACY: 'taskdar_tasks_v2',
-  COURSES_LEGACY: 'taskdar_courses_v2',
-  USER: 'taskdar_user_v2',
-  SETTINGS: 'taskdar_settings_v2',
+  USER: 'taskdar_user_v3',
+  SETTINGS: 'taskdar_settings_v3',
 } as const;
 
-function getAccountScopeId(user: Pick<StudentUserSession, 'nim' | 'uid'>): string {
-  const cleanNim = (user.nim || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
-  if (cleanNim) return `nim_${cleanNim}`;
+/*
+ * Distinct storage bucket per account:
+ * - Google accounts are scoped by their Firebase UID (`google_${uid}`) so switching from Gmail A to Gmail B is 100% isolated.
+ * - Local NIM accounts are scoped by their NIM (`nim_${nim}`).
+ */
+function getAccountScopeId(
+  user: Pick<StudentUserSession, 'nim' | 'uid' | 'authMethod'>
+): string {
   const cleanUid = (user.uid || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
+  const cleanNim = (user.nim || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
+
+  if (user.authMethod === 'google' && cleanUid) {
+    return `google_${cleanUid}`;
+  }
+  if (cleanNim) {
+    return `nim_${cleanNim}`;
+  }
   return cleanUid ? `uid_${cleanUid}` : 'default';
 }
 
@@ -141,14 +154,18 @@ function loadStoredUser(): StudentUserSession {
     authMethod: 'nim',
   };
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEYS.USER);
+    const raw =
+      window.localStorage.getItem(STORAGE_KEYS.USER) ||
+      window.localStorage.getItem('taskdar_user_v2');
     if (!raw) return defaultSession;
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === 'object' && parsed.name) {
       return {
         ...defaultSession,
         ...parsed,
-        avatarUrl: toWebpAssetPath(parsed.avatarUrl || defaultSession.avatarUrl),
+        avatarUrl: toWebpAssetPath(
+          parsed.avatarUrl || defaultSession.avatarUrl
+        ),
       };
     }
   } catch {
@@ -157,61 +174,56 @@ function loadStoredUser(): StudentUserSession {
   return defaultSession;
 }
 
-function loadStoredTasksForAccount(scopeId: string): AcademicTask[] {
+function loadSanitizedAccountBundle(scopeId: string): {
+  courses: CourseDetail[];
+  tasks: AcademicTask[];
+} {
+  let rawCourses: CourseDetail[] | null = null;
+  let rawTasks: AcademicTask[] | null = null;
+
   try {
-    const scopedRaw = window.localStorage.getItem(getScopedTasksKey(scopeId));
-    if (scopedRaw) {
-      const parsed = JSON.parse(scopedRaw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+    const scopedCoursesStr = window.localStorage.getItem(
+      getScopedCoursesKey(scopeId)
+    );
+    if (scopedCoursesStr) {
+      const parsed = JSON.parse(scopedCoursesStr);
+      if (Array.isArray(parsed)) {
+        rawCourses = parsed;
       }
     }
-    if (scopeId === `nim_${STUDENT_METADATA.nim}` || scopeId === 'default') {
-      const legacyRaw = window.localStorage.getItem(STORAGE_KEYS.TASKS_LEGACY);
-      if (legacyRaw) {
-        const parsedLegacy = JSON.parse(legacyRaw);
-        if (Array.isArray(parsedLegacy) && parsedLegacy.length > 0) {
-          return parsedLegacy;
-        }
+    const scopedTasksStr = window.localStorage.getItem(
+      getScopedTasksKey(scopeId)
+    );
+    if (scopedTasksStr) {
+      const parsed = JSON.parse(scopedTasksStr);
+      if (Array.isArray(parsed)) {
+        rawTasks = parsed;
       }
     }
   } catch {
-    // Fallback to initial tasks if storage is unavailable
+    // Ignore storage read errors
   }
-  return INITIAL_TASKS.map((t) => ({ ...t }));
-}
 
-function loadStoredCoursesForAccount(scopeId: string): CourseDetail[] {
-  try {
-    const scopedRaw = window.localStorage.getItem(getScopedCoursesKey(scopeId));
-    if (scopedRaw) {
-      const parsed = JSON.parse(scopedRaw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((c: CourseDetail) => ({
+  const fallbackCourses =
+    rawCourses !== null
+      ? rawCourses
+      : INITIAL_COURSES.map((c) => ({
           ...c,
           stickerUrl: toWebpAssetPath(c.stickerUrl),
         }));
-      }
-    }
-    if (scopeId === `nim_${STUDENT_METADATA.nim}` || scopeId === 'default') {
-      const legacyRaw = window.localStorage.getItem(STORAGE_KEYS.COURSES_LEGACY);
-      if (legacyRaw) {
-        const parsedLegacy = JSON.parse(legacyRaw);
-        if (Array.isArray(parsedLegacy) && parsedLegacy.length > 0) {
-          return parsedLegacy.map((c: CourseDetail) => ({
-            ...c,
-            stickerUrl: toWebpAssetPath(c.stickerUrl),
-          }));
-        }
-      }
-    }
-  } catch {
-    // Fallback to initial courses
-  }
-  return INITIAL_COURSES.map((c) => ({
-    ...c,
-    stickerUrl: toWebpAssetPath(c.stickerUrl),
-  }));
+
+  const fallbackTasks =
+    rawTasks !== null ? rawTasks : INITIAL_TASKS.map((t) => ({ ...t }));
+
+  const sanitized = sanitizeAndLinkCoursesAndTasks(
+    fallbackCourses,
+    fallbackTasks
+  );
+
+  return {
+    courses: sanitized.courses,
+    tasks: sanitized.tasks,
+  };
 }
 
 const PRESET_CATEGORY_METADATA: Record<
@@ -265,19 +277,22 @@ export default function App() {
 
   const activeAccountScope = useMemo(
     () => getAccountScopeId(studentUser),
-    [studentUser.nim, studentUser.uid]
+    [studentUser.nim, studentUser.uid, studentUser.authMethod]
   );
+
+  const initialBundle = useMemo(
+    () => loadSanitizedAccountBundle(activeAccountScope),
+    []
+  );
+
+  const [courses, setCourses] = useState<CourseDetail[]>(initialBundle.courses);
 
   /*
    * Hook 7 (useReducer): Central state engine managing task list mutations
-   * across ADD_TASK, EDIT_TASK, DELETE_TASK, TOGGLE_STATUS, SET_TASKS, and RESET_TASKS,
-   * initialized from per-account localStorage so each NIM/account is cleanly isolated.
+   * across ADD_TASK, EDIT_TASK, DELETE_TASK, DELETE_TASKS_BY_COURSE, UPDATE_COURSE_ON_TASKS,
+   * TOGGLE_STATUS, SET_TASKS, and RESET_TASKS, initialized with sanitized relational links.
    */
-  const [tasks, dispatch] = useReducer(
-    taskReducer,
-    activeAccountScope,
-    loadStoredTasksForAccount
-  );
+  const [tasks, dispatch] = useReducer(taskReducer, initialBundle.tasks);
 
   const [screenPhase, setScreenPhase] = useState<AppScreenPhase>('splash');
   const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
@@ -298,9 +313,6 @@ export default function App() {
     studentUser.classGroup
   );
 
-  const [courses, setCourses] = useState<CourseDetail[]>(() =>
-    loadStoredCoursesForAccount(activeAccountScope)
-  );
   const [bottomTab, setBottomTab] = useState<MainBottomTab>('tugas');
 
   /*
@@ -356,23 +368,57 @@ export default function App() {
   tasksRef.current = tasks;
   const coursesRef = useRef<CourseDetail[]>(courses);
   coursesRef.current = courses;
+  const studentUserRef = useRef<StudentUserSession>(studentUser);
+  studentUserRef.current = studentUser;
   const previousScopeRef = useRef<string>(activeAccountScope);
+
+  /*
+   * Tracks how Google sign-in was triggered:
+   * - 'profile-link': User clicked "Hubungkan Google" inside Tab 4 (Profil) to link their active local session.
+   * - 'auth-screen': User clicked "Masuk Cepat dengan Akun Google" on the Login screen (e.g. switching to Gmail B after logout or signing in on another device).
+   * - 'none': Automatic session restore on page reload.
+   */
+  const authFlowSourceRef = useRef<'none' | 'profile-link' | 'auth-screen'>(
+    'none'
+  );
 
   /* Switch local data cleanly when user switches to a different NIM/Account */
   useEffect(() => {
     if (previousScopeRef.current !== activeAccountScope) {
+      const prevScope = previousScopeRef.current;
       previousScopeRef.current = activeAccountScope;
-      const accountTasks = loadStoredTasksForAccount(activeAccountScope);
-      const accountCourses = loadStoredCoursesForAccount(activeAccountScope);
-      dispatch({ type: 'SET_TASKS', payload: accountTasks });
-      setCourses(accountCourses);
+
+      /*
+       * If the user linked their local NIM session to Google from inside Tab 4 ('profile-link'),
+       * carry their active sanitized courses & tasks into the newly linked Google scope.
+       * Otherwise (switching to a different NIM or logging into a different Gmail from Auth screen),
+       * load that target account's own isolated bundle!
+       */
+      if (
+        authFlowSourceRef.current === 'profile-link' &&
+        prevScope.startsWith('nim_') &&
+        activeAccountScope.startsWith('google_')
+      ) {
+        const sanitized = sanitizeAndLinkCoursesAndTasks(
+          coursesRef.current,
+          tasksRef.current
+        );
+        setCourses(sanitized.courses);
+        dispatch({ type: 'SET_TASKS', payload: sanitized.tasks });
+      } else {
+        const bundle = loadSanitizedAccountBundle(activeAccountScope);
+        setCourses(bundle.courses);
+        dispatch({ type: 'SET_TASKS', payload: bundle.tasks });
+      }
     }
   }, [activeAccountScope]);
 
   /* Load persisted app preferences on mount */
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEYS.SETTINGS);
+      const raw =
+        window.localStorage.getItem(STORAGE_KEYS.SETTINGS) ||
+        window.localStorage.getItem('taskdar_settings_v2');
       if (raw) {
         const parsed = JSON.parse(raw);
         if (typeof parsed.reminderEnabled === 'boolean') {
@@ -393,14 +439,13 @@ export default function App() {
     }
   }, []);
 
-  /* Automatically persist tasks, courses, studentUser, and settings per account */
+  /* Automatically persist tasks, courses, studentUser, and settings per isolated account scope */
   useEffect(() => {
     try {
       window.localStorage.setItem(
         getScopedTasksKey(activeAccountScope),
         JSON.stringify(tasks)
       );
-      window.localStorage.setItem(STORAGE_KEYS.TASKS_LEGACY, JSON.stringify(tasks));
     } catch {
       // Ignore quota errors
     }
@@ -410,10 +455,6 @@ export default function App() {
     try {
       window.localStorage.setItem(
         getScopedCoursesKey(activeAccountScope),
-        JSON.stringify(courses)
-      );
-      window.localStorage.setItem(
-        STORAGE_KEYS.COURSES_LEGACY,
         JSON.stringify(courses)
       );
     } catch {
@@ -463,18 +504,25 @@ export default function App() {
     if (!auth.currentUser || !auth.currentUser.emailVerified) return;
     const uid = auth.currentUser.uid;
     const safeId = taskItem.id.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 120);
+    if (!safeId) return;
     const path = `users/${uid}/tasks/${safeId}`;
+    const payload: Record<string, unknown> = {
+      id: safeId,
+      ownerId: uid,
+      title: taskItem.title.slice(0, 200),
+      course: taskItem.course.slice(0, 120),
+      category: (taskItem.category || 'Praktikum').slice(0, 60),
+      description: (taskItem.description || 'Tugas kuliah').slice(0, 1000),
+      deadline: taskItem.deadline.slice(0, 40),
+      status: taskItem.status,
+    };
+    if (taskItem.courseId) {
+      payload.courseId = taskItem.courseId
+        .replace(/[^a-zA-Z0-9_-]/g, '')
+        .slice(0, 120);
+    }
     try {
-      await setDoc(doc(db, 'users', uid, 'tasks', safeId), {
-        id: safeId,
-        ownerId: uid,
-        title: taskItem.title.slice(0, 200),
-        course: taskItem.course.slice(0, 120),
-        category: (taskItem.category || 'Praktikum').slice(0, 60),
-        description: (taskItem.description || 'Tugas kuliah').slice(0, 1000),
-        deadline: taskItem.deadline.slice(0, 40),
-        status: taskItem.status,
-      });
+      await setDoc(doc(db, 'users', uid, 'tasks', safeId), payload);
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, path);
     }
@@ -484,6 +532,7 @@ export default function App() {
     if (!auth.currentUser || !auth.currentUser.emailVerified) return;
     const uid = auth.currentUser.uid;
     const safeId = taskId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 120);
+    if (!safeId) return;
     const path = `users/${uid}/tasks/${safeId}`;
     try {
       await deleteDoc(doc(db, 'users', uid, 'tasks', safeId));
@@ -496,6 +545,7 @@ export default function App() {
     if (!auth.currentUser || !auth.currentUser.emailVerified) return;
     const uid = auth.currentUser.uid;
     const safeId = courseItem.id.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 120);
+    if (!safeId) return;
     const path = `users/${uid}/courses/${safeId}`;
     const safeStickerUrl =
       courseItem.stickerUrl && courseItem.stickerUrl.length <= 500
@@ -528,6 +578,7 @@ export default function App() {
     if (!auth.currentUser || !auth.currentUser.emailVerified) return;
     const uid = auth.currentUser.uid;
     const safeId = courseId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 120);
+    if (!safeId) return;
     const path = `users/${uid}/courses/${safeId}`;
     try {
       await deleteDoc(doc(db, 'users', uid, 'courses', safeId));
@@ -537,158 +588,283 @@ export default function App() {
   }, []);
 
   /*
-   * Observe Firebase Authentication state and automatically merge & sync
-   * local tasks and courses with Google Cloud Firestore.
+   * Observe Firebase Authentication state and handle all 3 scenarios cleanly:
+   * 1. 'profile-link': User is inside the app (Local NIM) and links Google -> active local courses & tasks are authoritative and synced to Firestore.
+   * 2. 'auth-screen': User signs in with Google from the Auth screen (e.g. switching to Gmail B after logout, or logging in on another device) -> loads Gmail B's own profile, courses, and tasks from Firestore without leaking previous account memory.
+   * 3. 'none': Page reload while already authenticated -> loads and sanitizes the account's courses & tasks and keeps Firestore in sync.
    */
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser && firebaseUser.emailVerified) {
-        const displayName = firebaseUser.displayName || STUDENT_METADATA.name;
-        const firstWord = displayName.split(' ')[0] || 'Mahasiswa';
-        const avatar = toWebpAssetPath(
-          firebaseUser.photoURL || STUDENT_METADATA.avatarUrl
+      if (!firebaseUser || !firebaseUser.emailVerified) {
+        return;
+      }
+
+      const uid = firebaseUser.uid;
+      const flowSource = authFlowSourceRef.current;
+      authFlowSourceRef.current = 'none';
+
+      const userDocPath = `users/${uid}`;
+      const coursesPath = `users/${uid}/courses`;
+      const tasksPath = `users/${uid}/tasks`;
+
+      try {
+        /* 1. Sync or fetch student profile metadata for cross-device support */
+        const userDocRef = doc(db, 'users', uid);
+        const userDocSnap = await getDoc(userDocRef);
+        const existingCloudProfile = userDocSnap.exists()
+          ? userDocSnap.data()
+          : null;
+
+        const currentProfile = studentUserRef.current;
+        const resolvedName =
+          flowSource === 'auth-screen' && existingCloudProfile?.name
+            ? String(existingCloudProfile.name)
+            : firebaseUser.displayName || currentProfile.name;
+        const resolvedNim =
+          flowSource === 'auth-screen' && existingCloudProfile?.nim
+            ? String(existingCloudProfile.nim)
+            : currentProfile.nim || STUDENT_METADATA.nim;
+        const resolvedClassGroup =
+          flowSource === 'auth-screen' && existingCloudProfile?.classGroup
+            ? String(existingCloudProfile.classGroup)
+            : currentProfile.classGroup || STUDENT_METADATA.classGroup;
+        const resolvedSemester =
+          flowSource === 'auth-screen' && existingCloudProfile?.semester
+            ? String(existingCloudProfile.semester)
+            : currentProfile.semester || STUDENT_METADATA.semester;
+        const resolvedProgram =
+          flowSource === 'auth-screen' && existingCloudProfile?.program
+            ? String(existingCloudProfile.program)
+            : currentProfile.program || STUDENT_METADATA.program;
+        const resolvedInstitution =
+          flowSource === 'auth-screen' && existingCloudProfile?.institution
+            ? String(existingCloudProfile.institution)
+            : currentProfile.institution || STUDENT_METADATA.institution;
+        const resolvedAvatar = toWebpAssetPath(
+          (flowSource === 'auth-screen' && existingCloudProfile?.avatarUrl
+            ? String(existingCloudProfile.avatarUrl)
+            : firebaseUser.photoURL || currentProfile.avatarUrl) ||
+            '/assets/mascot-splash.webp'
         );
+
         setStudentUser((prev) => ({
           ...prev,
-          uid: firebaseUser.uid,
-          name: displayName,
-          shortName: firstWord,
+          uid,
+          name: resolvedName,
+          shortName: resolvedName.split(' ')[0] || 'Mahasiswa',
+          nim: resolvedNim,
+          classGroup: resolvedClassGroup,
+          semester: resolvedSemester,
+          program: resolvedProgram,
+          institution: resolvedInstitution,
           email: firebaseUser.email || prev.email,
-          avatarUrl: avatar.startsWith('data:') ? prev.avatarUrl : avatar,
+          avatarUrl: resolvedAvatar.startsWith('data:')
+            ? prev.avatarUrl
+            : resolvedAvatar,
           authMethod: 'google',
         }));
         setIsCloudSynced(true);
 
-        const userDocPath = `users/${firebaseUser.uid}`;
-        try {
-          await setDoc(
-            doc(db, 'users', firebaseUser.uid),
-            {
-              uid: firebaseUser.uid,
-              name: displayName.slice(0, 100),
-              nim: STUDENT_METADATA.nim,
-              classGroup: STUDENT_METADATA.classGroup,
-              semester: STUDENT_METADATA.semester,
-              program: STUDENT_METADATA.program,
-              avatarUrl: (avatar.length <= 500
-                ? avatar
-                : '/assets/mascot-splash.webp'
-              ).slice(0, 500),
-              updatedAt: new Date().toISOString(),
-            },
-            { merge: true }
+        await setDoc(
+          userDocRef,
+          {
+            uid,
+            name: resolvedName.slice(0, 100),
+            nim: resolvedNim.slice(0, 32),
+            classGroup: resolvedClassGroup.slice(0, 32),
+            semester: resolvedSemester.slice(0, 32),
+            program: resolvedProgram.slice(0, 64),
+            institution: resolvedInstitution.slice(0, 120),
+            avatarUrl: (resolvedAvatar.length <= 500
+              ? resolvedAvatar
+              : '/assets/mascot-splash.webp'
+            ).slice(0, 500),
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, userDocPath);
+      }
+
+      try {
+        /* 2. Fetch existing Cloud courses & tasks for this Google UID */
+        const [courseSnap, taskSnap] = await Promise.all([
+          getDocs(collection(db, 'users', uid, 'courses')),
+          getDocs(collection(db, 'users', uid, 'tasks')),
+        ]);
+
+        const cloudCourses: CourseDetail[] = courseSnap.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: String(data.id || docSnap.id),
+            code: String(data.code || 'MK'),
+            name: String(data.name || ''),
+            lecturer: String(data.lecturer || ''),
+            schedule: String(data.schedule || 'Senin, 08:00 - 10:30 WIB'),
+            room: String(data.room || 'Ruang Kuliah'),
+            credits: Number(data.credits) || 3,
+            iconKey: (data.iconKey as CourseDetail['iconKey']) || 'code',
+            stickerUrl: toWebpAssetPath(
+              String(data.stickerUrl || '/assets/sticker-coding.webp')
+            ),
+            pastelBg: String(data.pastelBg || '#FEE2E2'),
+            pastelBorder: String(data.pastelBorder || '#FECACA'),
+            accentColor: String(data.accentColor || '#C41E3A'),
+            iconBg: String(data.iconBg || '#C41E3A'),
+          };
+        });
+
+        const cloudTasks: AcademicTask[] = taskSnap.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: String(data.id || docSnap.id),
+            courseId: data.courseId ? String(data.courseId) : undefined,
+            title: String(data.title || ''),
+            course: String(data.course || ''),
+            category:
+              (data.category as AcademicTask['category']) || 'Praktikum',
+            description: String(data.description || ''),
+            deadline: String(data.deadline || ''),
+            status:
+              data.status === 'Selesai' ? 'Selesai' : 'Belum Dikerjakan',
+          };
+        });
+
+        if (flowSource === 'profile-link') {
+          /*
+           * User clicked "Hubungkan Google" from Tab 4 (Profil) while working in the app:
+           * The current in-app courses & tasks are authoritative!
+           * Sync them to Cloud and delete any stale Cloud courses/tasks not in the current state.
+           */
+          const sanitized = sanitizeAndLinkCoursesAndTasks(
+            coursesRef.current,
+            tasksRef.current
           );
-        } catch (err) {
-          handleFirestoreError(err, OperationType.WRITE, userDocPath);
-        }
+          setCourses(sanitized.courses);
+          dispatch({ type: 'SET_TASKS', payload: sanitized.tasks });
 
-        /* Merge & Sync Tasks between Local and Cloud */
-        const tasksPath = `users/${firebaseUser.uid}/tasks`;
-        try {
-          const snap = await getDocs(
-            collection(db, 'users', firebaseUser.uid, 'tasks')
-          );
-          const cloudTasksMap = new Map<string, AcademicTask>();
-          snap.docs.forEach((docSnap) => {
-            const data = docSnap.data();
-            const id = String(data.id || docSnap.id);
-            cloudTasksMap.set(id, {
-              id,
-              title: String(data.title || ''),
-              course: String(data.course || ''),
-              category:
-                (data.category as AcademicTask['category']) || 'Praktikum',
-              description: String(data.description || ''),
-              deadline: String(data.deadline || ''),
-              status:
-                data.status === 'Selesai' ? 'Selesai' : 'Belum Dikerjakan',
-            });
-          });
+          const activeCourseIds = new Set(sanitized.courses.map((c) => c.id));
+          const activeTaskIds = new Set(sanitized.tasks.map((t) => t.id));
 
-          const currentLocalTasks = tasksRef.current;
-          const mergedTasksMap = new Map<string, AcademicTask>();
-
-          /* Keep cloud tasks and preserve local attachments if present */
-          cloudTasksMap.forEach((cloudTask, id) => {
-            const localMatch = currentLocalTasks.find((lt) => lt.id === id);
-            mergedTasksMap.set(id, {
-              ...cloudTask,
-              attachments: localMatch?.attachments || [],
-            });
-          });
-
-          /* Upload any local tasks not yet in Cloud */
-          for (const localTask of currentLocalTasks) {
-            if (!mergedTasksMap.has(localTask.id)) {
-              mergedTasksMap.set(localTask.id, localTask);
-              await syncTaskToCloud(localTask);
+          for (const cc of cloudCourses) {
+            if (!activeCourseIds.has(cc.id)) {
+              await deleteCourseFromCloud(cc.id);
             }
           }
-
-          const mergedList = Array.from(mergedTasksMap.values());
-          if (mergedList.length > 0) {
-            dispatch({ type: 'SET_TASKS', payload: mergedList });
-          }
-        } catch (err) {
-          handleFirestoreError(err, OperationType.LIST, tasksPath);
-        }
-
-        /* Merge & Sync Courses between Local and Cloud */
-        const coursesPath = `users/${firebaseUser.uid}/courses`;
-        try {
-          const courseSnap = await getDocs(
-            collection(db, 'users', firebaseUser.uid, 'courses')
-          );
-          const cloudCoursesMap = new Map<string, CourseDetail>();
-          courseSnap.docs.forEach((docSnap) => {
-            const data = docSnap.data();
-            const id = String(data.id || docSnap.id);
-            cloudCoursesMap.set(id, {
-              id,
-              code: String(data.code || 'MK'),
-              name: String(data.name || ''),
-              lecturer: String(data.lecturer || ''),
-              schedule: String(data.schedule || 'Senin, 08:00 - 10:30 WIB'),
-              room: String(data.room || 'Ruang Kuliah'),
-              credits: Number(data.credits) || 3,
-              iconKey:
-                (data.iconKey as CourseDetail['iconKey']) || 'code',
-              stickerUrl: toWebpAssetPath(
-                String(data.stickerUrl || '/assets/sticker-coding.webp')
-              ),
-              pastelBg: String(data.pastelBg || '#FEE2E2'),
-              pastelBorder: String(data.pastelBorder || '#FECACA'),
-              accentColor: String(data.accentColor || '#C41E3A'),
-              iconBg: String(data.iconBg || '#C41E3A'),
-            });
-          });
-
-          const currentLocalCourses = coursesRef.current;
-          const mergedCoursesMap = new Map<string, CourseDetail>();
-
-          cloudCoursesMap.forEach((cloudCourse, id) => {
-            mergedCoursesMap.set(id, cloudCourse);
-          });
-
-          for (const localCourse of currentLocalCourses) {
-            if (!mergedCoursesMap.has(localCourse.id)) {
-              mergedCoursesMap.set(localCourse.id, localCourse);
-              await syncCourseToCloud(localCourse);
+          for (const ct of cloudTasks) {
+            if (!activeTaskIds.has(ct.id)) {
+              await deleteTaskFromCloud(ct.id);
             }
           }
-
-          const mergedCoursesList = Array.from(mergedCoursesMap.values());
-          if (mergedCoursesList.length > 0) {
-            setCourses(mergedCoursesList);
+          for (const c of sanitized.courses) {
+            await syncCourseToCloud(c);
           }
-        } catch (err) {
-          handleFirestoreError(err, OperationType.LIST, coursesPath);
+          for (const t of sanitized.tasks) {
+            await syncTaskToCloud(t);
+          }
+        } else if (flowSource === 'auth-screen') {
+          /*
+           * User logged in with Google from the Auth screen (e.g. switched to Gmail B after logout,
+           * or signed in on another device):
+           * Use this Google account's own Cloud data (or initialize fresh if brand new).
+           */
+          const baseCourses =
+            cloudCourses.length > 0
+              ? cloudCourses
+              : INITIAL_COURSES.map((c) => ({ ...c }));
+          const baseTasks =
+            cloudCourses.length > 0
+              ? cloudTasks
+              : INITIAL_TASKS.map((t) => ({ ...t }));
+
+          const sanitized = sanitizeAndLinkCoursesAndTasks(
+            baseCourses,
+            baseTasks
+          );
+          setCourses(sanitized.courses);
+          dispatch({ type: 'SET_TASKS', payload: sanitized.tasks });
+
+          for (const orphanId of sanitized.removedTaskIds) {
+            await deleteTaskFromCloud(orphanId);
+          }
+          if (cloudCourses.length === 0) {
+            for (const c of sanitized.courses) {
+              await syncCourseToCloud(c);
+            }
+            for (const t of sanitized.tasks) {
+              await syncTaskToCloud(t);
+            }
+          }
+        } else {
+          /*
+           * Page reload with active Google session:
+           * Respect local state for `google_${uid}` if present, otherwise use Cloud state,
+           * and enforce 1:1 referential integrity between courses and tasks.
+           */
+          const googleScope = `google_${uid.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+          const hasLocalGoogleCourses =
+            window.localStorage.getItem(getScopedCoursesKey(googleScope)) !==
+            null;
+
+          const sourceCourses = hasLocalGoogleCourses
+            ? coursesRef.current
+            : cloudCourses.length > 0
+            ? cloudCourses
+            : coursesRef.current;
+
+          /* Preserve local attachments when merging tasks */
+          const localTasksById = new Map(
+            tasksRef.current.map((lt) => [lt.id, lt])
+          );
+          const sourceTasks = hasLocalGoogleCourses
+            ? tasksRef.current
+            : cloudTasks.length > 0
+            ? cloudTasks.map((ct) => ({
+                ...ct,
+                attachments: localTasksById.get(ct.id)?.attachments || [],
+              }))
+            : tasksRef.current;
+
+          const sanitized = sanitizeAndLinkCoursesAndTasks(
+            sourceCourses,
+            sourceTasks
+          );
+          setCourses(sanitized.courses);
+          dispatch({ type: 'SET_TASKS', payload: sanitized.tasks });
+
+          const validCourseIds = new Set(sanitized.courses.map((c) => c.id));
+          const validTaskIds = new Set(sanitized.tasks.map((t) => t.id));
+
+          for (const cc of cloudCourses) {
+            if (!validCourseIds.has(cc.id)) {
+              await deleteCourseFromCloud(cc.id);
+            }
+          }
+          for (const ct of cloudTasks) {
+            if (!validTaskIds.has(ct.id)) {
+              await deleteTaskFromCloud(ct.id);
+            }
+          }
+          for (const c of sanitized.courses) {
+            await syncCourseToCloud(c);
+          }
+          for (const t of sanitized.tasks) {
+            await syncTaskToCloud(t);
+          }
         }
+      } catch (err) {
+        handleFirestoreError(err, OperationType.LIST, `${coursesPath} | ${tasksPath}`);
       }
     });
 
     return () => unsubscribe();
-  }, [syncTaskToCloud, syncCourseToCloud]);
+  }, [
+    syncTaskToCloud,
+    deleteTaskFromCloud,
+    syncCourseToCloud,
+    deleteCourseFromCloud,
+  ]);
 
   /*
    * Hook 3 (useEffect): Observes searchQuery transitions and outputs
@@ -703,18 +879,30 @@ export default function App() {
   }, [searchQuery]);
 
   /*
+   * Only consider tasks that belong to an existing course in `courses`
+   * so deleted courses can never leave ghost counts in metrics, badges, or filters.
+   */
+  const validLinkedTasks = useMemo(
+    () =>
+      tasks.filter((task) => Boolean(resolveCourseForTask(task, courses))),
+    [tasks, courses]
+  );
+
+  /*
    * Hook 4 (useMemo): Computes derived task counts (total, pending, completed,
    * urgent H-3/today/overdue count, and completion percentage).
    */
   const taskMetrics: TaskMetrics = useMemo(() => {
-    const total = tasks.length;
-    const completed = tasks.filter((task) => task.status === 'Selesai').length;
+    const total = validLinkedTasks.length;
+    const completed = validLinkedTasks.filter(
+      (task) => task.status === 'Selesai'
+    ).length;
     const pending = total - completed;
-    const urgent = tasks.filter((task) => isTaskUrgent(task)).length;
+    const urgent = validLinkedTasks.filter((task) => isTaskUrgent(task)).length;
     const completionRate =
       total > 0 ? Math.round((completed / total) * 100) : 0;
     return { total, pending, completed, completionRate, urgent };
-  }, [tasks]);
+  }, [validLinkedTasks]);
 
   const urgentCount = taskMetrics.urgent ?? 0;
 
@@ -725,14 +913,10 @@ export default function App() {
 
   /*
    * Truly Proportional Weekly Task Load Distribution grouped by Indonesian Day of Week (Senin..Minggu).
-   * Example: If Senin = 1, Rabu = 7, Minggu = 15, then scaleCeiling = 15:
-   * - Senin renders at 7% height (very small)
-   * - Rabu renders at 47% height (medium)
-   * - Minggu renders at 100% height (full capsule)
    */
   const weeklyTaskDistribution = useMemo(() => {
     const perDay = WEEKDAY_FILTER_ITEMS.map((dayItem) => {
-      const dayTasks = tasks.filter(
+      const dayTasks = validLinkedTasks.filter(
         (t) => getIndonesianDayFromDateLabel(t.deadline) === dayItem.dayFull
       );
       const completedOnDay = dayTasks.filter(
@@ -746,10 +930,7 @@ export default function App() {
       };
     });
 
-    const maxTasksInDay = Math.max(
-      1,
-      ...perDay.map((d) => d.totalCount)
-    );
+    const maxTasksInDay = Math.max(1, ...perDay.map((d) => d.totalCount));
     const scaleCeiling = Math.max(4, maxTasksInDay);
     const activeDaysCount = perDay.filter((d) => d.totalCount > 0).length;
 
@@ -759,19 +940,21 @@ export default function App() {
       scaleCeiling,
       activeDaysCount,
     };
-  }, [tasks]);
+  }, [validLinkedTasks]);
 
   /*
    * Personal Productivity Leaderboard supporting both:
    * 1. 'course': Ranks the user's own courses (#1 to #N)
-   * 2. 'category': Dynamically ranks all task categories (preset + custom typed categories)
+   * 2. 'category': Dynamically ranks all task categories
    */
   const personalLeaderboardEntries: PersonalLeaderboardEntry[] = useMemo(() => {
     if (leaderboardMode === 'course') {
       const courseEntries: PersonalLeaderboardEntry[] = courses.map(
         (course) => {
-          const matching = tasks.filter(
-            (t) => t.course.toLowerCase() === course.name.toLowerCase()
+          const matching = validLinkedTasks.filter(
+            (t) =>
+              t.courseId === course.id ||
+              t.course.trim().toLowerCase() === course.name.trim().toLowerCase()
           );
           const completedCount = matching.filter(
             (t) => t.status === 'Selesai'
@@ -808,7 +991,7 @@ export default function App() {
 
     /* Collect all unique categories from preset + any custom user categories in tasks */
     const categorySet = new Set<TaskCategory>(['Praktikum', 'Proyek', 'Teori']);
-    tasks.forEach((t) => {
+    validLinkedTasks.forEach((t) => {
       const trimmed = (t.category || 'Praktikum').trim();
       if (trimmed) categorySet.add(trimmed);
     });
@@ -823,7 +1006,7 @@ export default function App() {
 
     const categoryEntries: PersonalLeaderboardEntry[] = dynamicCategories.map(
       (catName, idx) => {
-        const matching = tasks.filter(
+        const matching = validLinkedTasks.filter(
           (t) =>
             (t.category || 'Praktikum').trim().toLowerCase() ===
             catName.toLowerCase()
@@ -847,7 +1030,7 @@ export default function App() {
           subtitle: `${completedCount}/${totalCount} Tugas Tuntas · ${
             presetMeta
               ? presetMeta.subtitle
-              : 'Kategori tugas kustom mahasiswa'
+              : 'Kategori tugas akademik mahasiswa'
           }`,
           avatarUrl: presetMeta
             ? presetMeta.avatarUrl
@@ -868,19 +1051,23 @@ export default function App() {
       }
       return b.completedCount - a.completedCount;
     });
-  }, [leaderboardMode, courses, tasks]);
+  }, [leaderboardMode, courses, validLinkedTasks]);
 
   const filteredTasks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    return tasks.filter((task) => {
+    return validLinkedTasks.filter((task) => {
+      const matchedCourse = resolveCourseForTask(task, courses);
+      if (!matchedCourse) return false;
+
       const matchesStatus =
         activeFilterTab === 'Semua' ? true : task.status === activeFilterTab;
       const matchesUrgent = onlyUrgentFilter ? isTaskUrgent(task) : true;
       const matchesCourse =
         selectedCourseFilter === 'Semua'
           ? true
-          : task.course.toLowerCase() === selectedCourseFilter.toLowerCase();
+          : matchedCourse.name.toLowerCase() ===
+            selectedCourseFilter.toLowerCase();
       const matchesDayOfWeek =
         selectedDayOfWeek === 'Semua'
           ? true
@@ -890,7 +1077,7 @@ export default function App() {
       const matchesKeyword =
         query === '' ||
         task.title.toLowerCase().includes(query) ||
-        task.course.toLowerCase().includes(query) ||
+        matchedCourse.name.toLowerCase().includes(query) ||
         (task.category || '').toLowerCase().includes(query);
 
       return (
@@ -903,7 +1090,8 @@ export default function App() {
       );
     });
   }, [
-    tasks,
+    validLinkedTasks,
+    courses,
     activeFilterTab,
     onlyUrgentFilter,
     selectedCourseFilter,
@@ -939,33 +1127,60 @@ export default function App() {
 
   const handleAddTask = useCallback(
     (payload: NewTaskPayload) => {
-      const createdId = `task-${Date.now()}`;
+      const createdId = payload.id || `task-${Date.now()}`;
+      const matchedCourse = resolveCourseForTask(payload, courses);
+      const resolvedCourseId = matchedCourse?.id || payload.courseId;
+      const resolvedCourseName =
+        matchedCourse?.name || payload.course.trim();
+
       const newTaskObj: AcademicTask = {
         id: createdId,
+        courseId: resolvedCourseId,
         title: payload.title.trim(),
-        course: payload.course.trim(),
+        course: resolvedCourseName,
         category: payload.category.trim() || 'Praktikum',
         description: payload.description.trim(),
         deadline: payload.deadline.trim(),
         status: 'Belum Dikerjakan',
         attachments: payload.attachments ?? [],
       };
-      dispatch({ type: 'ADD_TASK', payload });
+      dispatch({
+        type: 'ADD_TASK',
+        payload: {
+          ...payload,
+          id: createdId,
+          courseId: resolvedCourseId,
+          course: resolvedCourseName,
+        },
+      });
       void syncTaskToCloud(newTaskObj);
       showToastMessage('Tugas baru berhasil ditambahkan.');
     },
-    [syncTaskToCloud, showToastMessage]
+    [courses, syncTaskToCloud, showToastMessage]
   );
 
   const handleEditTask = useCallback(
     (payload: EditTaskPayload) => {
-      dispatch({ type: 'EDIT_TASK', payload });
+      const matchedCourse = resolveCourseForTask(payload, courses);
+      const resolvedCourseId = matchedCourse?.id || payload.courseId;
+      const resolvedCourseName =
+        matchedCourse?.name || payload.course.trim();
+
+      dispatch({
+        type: 'EDIT_TASK',
+        payload: {
+          ...payload,
+          courseId: resolvedCourseId,
+          course: resolvedCourseName,
+        },
+      });
       const existing = tasks.find((t) => t.id === payload.id);
       if (existing) {
         void syncTaskToCloud({
           ...existing,
+          courseId: resolvedCourseId,
           title: payload.title.trim(),
-          course: payload.course.trim(),
+          course: resolvedCourseName,
           category: payload.category.trim() || 'Praktikum',
           description: payload.description.trim(),
           deadline: payload.deadline.trim(),
@@ -975,7 +1190,7 @@ export default function App() {
       setEditingTask(null);
       showToastMessage('Perubahan tugas berhasil disimpan.');
     },
-    [tasks, syncTaskToCloud, showToastMessage]
+    [courses, tasks, syncTaskToCloud, showToastMessage]
   );
 
   const handleSaveCourse = useCallback(
@@ -989,6 +1204,7 @@ export default function App() {
       const optimizedSticker = toWebpAssetPath(payload.stickerUrl);
 
       if (payload.id) {
+        const oldCourse = courses.find((c) => c.id === payload.id);
         setCourses((prev) =>
           prev.map((c) => {
             if (c.id !== payload.id) return c;
@@ -1010,13 +1226,50 @@ export default function App() {
             return updatedCourse;
           })
         );
+
+        /* Cascade course name & ID updates to all linked tasks */
+        if (oldCourse) {
+          dispatch({
+            type: 'UPDATE_COURSE_ON_TASKS',
+            payload: {
+              courseId: oldCourse.id,
+              oldCourseName: oldCourse.name,
+              newCourseName: payload.name,
+            },
+          });
+          if (
+            selectedCourseFilter.toLowerCase() ===
+            oldCourse.name.toLowerCase()
+          ) {
+            setSelectedCourseFilter(payload.name);
+          }
+          const affectedTasks = tasks.filter(
+            (t) =>
+              t.courseId === oldCourse.id ||
+              t.course.trim().toLowerCase() ===
+                oldCourse.name.trim().toLowerCase()
+          );
+          for (const t of affectedTasks) {
+            void syncTaskToCloud({
+              ...t,
+              courseId: oldCourse.id,
+              course: payload.name.trim(),
+            });
+          }
+        }
+
         setEditingCourse(null);
         showToastMessage(`Mata kuliah ${payload.name} berhasil diperbarui.`);
       } else {
-        const nextCodeNumber = 361 + courses.length;
+        const maxCodeNum = courses.reduce((max, c) => {
+          const num = parseInt(c.code.replace(/\D/g, ''), 10);
+          return !Number.isNaN(num) && num > max ? num : max;
+        }, 360);
+        const nextCodeNumber = maxCodeNum + 1;
+
         const newCourse: CourseDetail = {
           id: `course-${Date.now()}`,
-          code: `MK${nextCodeNumber}`,
+          code: `TI${nextCodeNumber}`,
           name: payload.name,
           lecturer: payload.lecturer,
           credits: payload.credits,
@@ -1034,53 +1287,122 @@ export default function App() {
         showToastMessage(`Mata kuliah ${payload.name} berhasil ditambahkan.`);
       }
     },
-    [courses.length, syncCourseToCloud, showToastMessage]
+    [
+      courses,
+      tasks,
+      selectedCourseFilter,
+      syncCourseToCloud,
+      syncTaskToCloud,
+      showToastMessage,
+    ]
   );
 
+  /*
+   * Cascade delete: When a course is deleted, remove the course AND all tasks
+   * belonging to that course from both local state and Cloud Firestore.
+   */
   const handleDeleteCourse = useCallback(
     (courseItem: CourseDetail) => {
+      const tasksToDelete = tasks.filter(
+        (t) =>
+          t.courseId === courseItem.id ||
+          t.course.trim().toLowerCase() ===
+            courseItem.name.trim().toLowerCase()
+      );
+
       setCourses((prev) => prev.filter((c) => c.id !== courseItem.id));
+      dispatch({
+        type: 'DELETE_TASKS_BY_COURSE',
+        payload: {
+          courseId: courseItem.id,
+          courseName: courseItem.name,
+        },
+      });
+
       void deleteCourseFromCloud(courseItem.id);
-      if (selectedCourseFilter === courseItem.name) {
+      for (const t of tasksToDelete) {
+        void deleteTaskFromCloud(t.id);
+      }
+
+      if (
+        selectedCourseFilter.toLowerCase() ===
+        courseItem.name.toLowerCase()
+      ) {
         setSelectedCourseFilter('Semua');
       }
-      showToastMessage(`Mata kuliah ${courseItem.name} dihapus.`);
+      showToastMessage(
+        tasksToDelete.length > 0
+          ? `Mata kuliah ${courseItem.name} beserta ${tasksToDelete.length} tugasnya dihapus.`
+          : `Mata kuliah ${courseItem.name} dihapus.`
+      );
     },
-    [selectedCourseFilter, deleteCourseFromCloud, showToastMessage]
+    [
+      tasks,
+      selectedCourseFilter,
+      deleteCourseFromCloud,
+      deleteTaskFromCloud,
+      showToastMessage,
+    ]
   );
 
   const handleResetTasks = useCallback(() => {
+    const freshCourses = INITIAL_COURSES.map((c) => ({
+      ...c,
+      stickerUrl: toWebpAssetPath(c.stickerUrl),
+    }));
+    const freshTasks = INITIAL_TASKS.map((t) => ({ ...t }));
+
     dispatch({ type: 'RESET_TASKS' });
-    setCourses(
-      INITIAL_COURSES.map((c) => ({
-        ...c,
-        stickerUrl: toWebpAssetPath(c.stickerUrl),
-      }))
-    );
+    setCourses(freshCourses);
     setSearchQuery('');
     setActiveFilterTab('Semua');
     setOnlyUrgentFilter(false);
     setSelectedCourseFilter('Semua');
     setSelectedDayOfWeek('Semua');
     setSelectedExactDate(null);
+
     try {
-      window.localStorage.removeItem(getScopedTasksKey(activeAccountScope));
-      window.localStorage.removeItem(getScopedCoursesKey(activeAccountScope));
-      window.localStorage.removeItem(STORAGE_KEYS.TASKS_LEGACY);
-      window.localStorage.removeItem(STORAGE_KEYS.COURSES_LEGACY);
+      window.localStorage.setItem(
+        getScopedCoursesKey(activeAccountScope),
+        JSON.stringify(freshCourses)
+      );
+      window.localStorage.setItem(
+        getScopedTasksKey(activeAccountScope),
+        JSON.stringify(freshTasks)
+      );
     } catch {
       // Ignore storage errors
     }
-    showToastMessage('Data akun ini berhasil diatur ulang ke kondisi awal.');
-  }, [activeAccountScope, showToastMessage]);
 
-  const handleOpenAddSheet = useCallback((courseName?: string) => {
-    setEditingTask(null);
-    if (courseName) {
-      setPreselectedCourseForAdd(courseName);
+    if (auth.currentUser && auth.currentUser.emailVerified) {
+      for (const c of freshCourses) {
+        void syncCourseToCloud(c);
+      }
+      for (const t of freshTasks) {
+        void syncTaskToCloud(t);
+      }
     }
-    setIsAddSheetOpen(true);
-  }, []);
+
+    showToastMessage('Data akun ini berhasil diatur ulang ke kondisi awal.');
+  }, [
+    activeAccountScope,
+    syncCourseToCloud,
+    syncTaskToCloud,
+    showToastMessage,
+  ]);
+
+  const handleOpenAddSheet = useCallback(
+    (courseName?: string) => {
+      setEditingTask(null);
+      if (courseName) {
+        setPreselectedCourseForAdd(courseName);
+      } else if (courses.length > 0) {
+        setPreselectedCourseForAdd(courses[0].name);
+      }
+      setIsAddSheetOpen(true);
+    },
+    [courses]
+  );
 
   const handleOpenEditTaskSheet = useCallback((taskItem: AcademicTask) => {
     setEditingTask(taskItem);
@@ -1110,6 +1432,9 @@ export default function App() {
     avatarUrl: string;
   }> => {
     setIsGoogleLoading(true);
+    authFlowSourceRef.current =
+      screenPhase === 'main' ? 'profile-link' : 'auth-screen';
+
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
@@ -1130,7 +1455,7 @@ export default function App() {
       setIsCloudSynced(true);
       if (screenPhase === 'main') {
         showToastMessage(
-          `Akun Google (${email}) terhubung & data lokal digabungkan.`
+          `Akun Google (${email}) berhasil dihubungkan dan disinkronkan.`
         );
       }
       return {
@@ -1152,7 +1477,7 @@ export default function App() {
       setIsCloudSynced(true);
       if (screenPhase === 'main') {
         showToastMessage(
-          `Terhubung ke Akun Google (${fallbackEmail}) & data lokal disinkronkan.`
+          `Terhubung ke Akun Google (${fallbackEmail}).`
         );
       }
       return {
@@ -1185,21 +1510,49 @@ export default function App() {
     setIsEditProfileOpen(true);
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanName = draftName.trim() || studentUser.name;
     const firstWord = cleanName.split(' ')[0] || cleanName;
-    setStudentUser((prev) => ({
-      ...prev,
+    const updatedUser: StudentUserSession = {
+      ...studentUser,
       name: cleanName,
       shortName: firstWord,
-      nim: draftNim.trim() || prev.nim,
-      institution: draftInstitution.trim() || prev.institution,
-      program: draftProgram.trim() || prev.program,
-      semester: draftSemester.trim() || prev.semester,
-      classGroup: draftClassGroup.trim() || prev.classGroup,
-    }));
+      nim: draftNim.trim() || studentUser.nim,
+      institution: draftInstitution.trim() || studentUser.institution,
+      program: draftProgram.trim() || studentUser.program,
+      semester: draftSemester.trim() || studentUser.semester,
+      classGroup: draftClassGroup.trim() || studentUser.classGroup,
+    };
+    setStudentUser(updatedUser);
     setIsEditProfileOpen(false);
+
+    if (auth.currentUser && auth.currentUser.emailVerified) {
+      const uid = auth.currentUser.uid;
+      try {
+        await setDoc(
+          doc(db, 'users', uid),
+          {
+            uid,
+            name: updatedUser.name.slice(0, 100),
+            nim: updatedUser.nim.slice(0, 32),
+            classGroup: updatedUser.classGroup.slice(0, 32),
+            semester: updatedUser.semester.slice(0, 32),
+            program: updatedUser.program.slice(0, 64),
+            institution: updatedUser.institution.slice(0, 120),
+            avatarUrl: (updatedUser.avatarUrl.length <= 500
+              ? updatedUser.avatarUrl
+              : '/assets/mascot-splash.webp'
+            ).slice(0, 500),
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, `users/${uid}`);
+      }
+    }
+
     showToastMessage('Identitas profil & kampus berhasil diperbarui.');
   };
 
@@ -1210,6 +1563,10 @@ export default function App() {
       // Ignore signout error if in local session
     }
     setIsCloudSynced(false);
+    setSelectedCourseFilter('Semua');
+    setSelectedDayOfWeek('Semua');
+    setSelectedExactDate(null);
+    setOnlyUrgentFilter(false);
     setScreenPhase('auth');
     showToastMessage('Anda telah keluar dari sesi akun TaskDar.');
   }, [showToastMessage]);
@@ -1223,7 +1580,7 @@ export default function App() {
         ...prev,
         avatarUrl: webpDataUrl,
       }));
-      showToastMessage('Foto karakter profil (WebP) berhasil diperbarui!');
+      showToastMessage('Foto profil berhasil diperbarui!');
     } catch {
       const reader = new FileReader();
       reader.onload = () => {
@@ -1232,7 +1589,7 @@ export default function App() {
             ...prev,
             avatarUrl: reader.result as string,
           }));
-          showToastMessage('Foto karakter profil berhasil diperbarui!');
+          showToastMessage('Foto profil berhasil diperbarui!');
         }
       };
       reader.readAsDataURL(file);
@@ -1272,7 +1629,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 1: TUGAS (Dominant Red & White Accents, Real-Time H-3 Urgent Task Badge, Weekday Filter Strip with MK Count) */}
+        {/* TAB 1: TUGAS */}
         {bottomTab === 'tugas' && (
           <motion.section
             key="tab-tugas"
@@ -1318,7 +1675,7 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                {/* Real-Time H-3 Urgent Tasks Badge (Tenggat <= H-3, Hari Ini, atau Terlewat) */}
+                {/* Real-Time H-3 Urgent Tasks Badge */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1413,7 +1770,7 @@ export default function App() {
                         : 'bg-white border-[#0F172A] text-[#0F172A]'
                     }`}
                   >
-                    Semua Hari ({tasks.length})
+                    Semua Hari ({validLinkedTasks.length})
                   </button>
                   {selectedDayOfWeek !== 'Semua' && (
                     <span className="px-2.5 py-1 rounded-xl bg-white border-2 border-[#0F172A] text-xs font-extrabold text-[#C41E3A]">
@@ -1446,7 +1803,7 @@ export default function App() {
                   const isSelected =
                     selectedDayOfWeek === dayItem.dayFull &&
                     selectedExactDate === null;
-                  const tasksOnWeekday = tasks.filter(
+                  const tasksOnWeekday = validLinkedTasks.filter(
                     (t) =>
                       getIndonesianDayFromDateLabel(t.deadline) ===
                       dayItem.dayFull
@@ -1709,7 +2066,9 @@ export default function App() {
                 >
                   <CelebrationMascotIllustration />
                   <h3 className="mt-3 text-[15px] font-extrabold leading-snug max-w-[260px] mx-auto">
-                    {onlyUrgentFilter
+                    {courses.length === 0
+                      ? 'Belum ada mata kuliah yang terdaftar'
+                      : onlyUrgentFilter
                       ? 'Tidak ada tugas mendesak (H-3 ke bawah)'
                       : selectedExactDate !== null
                       ? `Tidak ada tenggat tugas pada ${selectedExactDate}`
@@ -1722,7 +2081,9 @@ export default function App() {
                       isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                     }`}
                   >
-                    {searchQuery.trim() !== ''
+                    {courses.length === 0
+                      ? 'Tambahkan mata kuliah terlebih dahulu atau atur ulang data awal.'
+                      : searchQuery.trim() !== ''
                       ? `Tidak ditemukan tugas dengan kata kunci "${searchQuery}".`
                       : onlyUrgentFilter ||
                         selectedExactDate !== null ||
@@ -1756,13 +2117,23 @@ export default function App() {
                         Lihat Semua Tugas
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => handleOpenAddSheet()}
-                      className="min-h-[44px] px-4 rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-xs font-extrabold text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] transition-colors"
-                    >
-                      Tambah Tugas Baru
-                    </button>
+                    {courses.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenAddSheet()}
+                        className="min-h-[44px] px-4 rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-xs font-extrabold text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] transition-colors"
+                      >
+                        Tambah Tugas Baru
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setBottomTab('matakuliah')}
+                        className="min-h-[44px] px-4 rounded-2xl bg-[#C41E3A] hover:bg-[#A3162E] text-xs font-extrabold text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] transition-colors"
+                      >
+                        Kelola Mata Kuliah
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -1781,7 +2152,7 @@ export default function App() {
           </motion.section>
         )}
 
-        {/* TAB 2: MATA KULIAH (2-Column Illustrated Bento Grid with 100% Sharp Uncropped WebP Character Art) */}
+        {/* TAB 2: MATA KULIAH */}
         {bottomTab === 'matakuliah' && (
           <motion.section
             key="tab-matakuliah"
@@ -1843,12 +2214,14 @@ export default function App() {
 
             <div className="px-4 sm:px-6 pt-1">
               {courseLayoutMode === 'grid' ? (
-                /* 2-Column Illustrated Bento Grid (Sharp Native WebP + Uncropped object-contain) */
+                /* 2-Column Illustrated Bento Grid */
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {courses.map((course) => {
-                    const courseTasks = tasks.filter(
+                    const courseTasks = validLinkedTasks.filter(
                       (t) =>
-                        t.course.toLowerCase() === course.name.toLowerCase()
+                        t.courseId === course.id ||
+                        t.course.trim().toLowerCase() ===
+                          course.name.trim().toLowerCase()
                     );
                     const doneCount = courseTasks.filter(
                       (t) => t.status === 'Selesai'
@@ -1925,7 +2298,7 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* High-Resolution Uncropped 2D Character Art (WebP + object-contain) */}
+                          {/* High-Resolution Uncropped 2D Character Art */}
                           <div
                             onClick={() => {
                               setSelectedCourseFilter(course.name);
@@ -1935,7 +2308,7 @@ export default function App() {
                             style={{
                               backgroundColor: stageBgColor,
                             }}
-                            className="mt-2.5 w-full h-32 sm:h-36 rounded-2xl border-2 border-[#0F172A] overflow-hidden flex items-center justify-center cursor-pointer p-1"
+                            className="mt-2.5 w-full h-32 sm:h-36 rounded-2xl border-2 border-[#0F172A] overflow-hidden flex items-center justify-center cursor-pointer"
                           >
                             <img
                               src={sharpStickerUrl}
@@ -2020,9 +2393,11 @@ export default function App() {
                 /* Detailed Schedule & Room View */
                 <div className="space-y-3">
                   {courses.map((course) => {
-                    const courseTasks = tasks.filter(
+                    const courseTasks = validLinkedTasks.filter(
                       (t) =>
-                        t.course.toLowerCase() === course.name.toLowerCase()
+                        t.courseId === course.id ||
+                        t.course.trim().toLowerCase() ===
+                          course.name.trim().toLowerCase()
                     );
                     const activeCourseTasks = courseTasks.filter(
                       (t) => t.status === 'Belum Dikerjakan'
@@ -2057,12 +2432,12 @@ export default function App() {
                           <div className="flex items-center gap-3 min-w-0">
                             <div
                               style={{ backgroundColor: stageBgColor }}
-                              className="w-16 h-16 rounded-2xl border-2 border-[#0F172A] overflow-hidden shrink-0 p-0.5 flex items-center justify-center"
+                              className="w-16 h-16 rounded-2xl border-2 border-[#0F172A] overflow-hidden shrink-0"
                             >
                               <img
                                 src={sharpStickerUrl}
                                 alt={course.name}
-                                className="w-full h-full object-contain"
+                                className="w-full h-full object-cover"
                                 referrerPolicy="no-referrer"
                               />
                             </div>
@@ -2180,7 +2555,7 @@ export default function App() {
           </motion.section>
         )}
 
-        {/* TAB 3: PROGRES (Dominant Red & White Hero, Crisp Tactile Stat Cards, Dynamic Category Leaderboard, True Proportional Bar Chart) */}
+        {/* TAB 3: PROGRES */}
         {bottomTab === 'progres' && (
           <motion.section
             key="tab-progres"
@@ -2200,7 +2575,7 @@ export default function App() {
                     isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                   }`}
                 >
-                  Analitik ketuntasan mata kuliah & distribusi tugas riil
+                  Analitik ketuntasan mata kuliah & distribusi tugas kuliah
                 </p>
               </div>
               <button
@@ -2250,11 +2625,11 @@ export default function App() {
                   </p>
                 </div>
 
-                <div className="w-22 h-22 sm:w-24 sm:h-24 rounded-2xl border-2 border-[#0F172A] overflow-hidden bg-white shrink-0 shadow-[0_2px_0_0_#0F172A] p-1">
+                <div className="w-22 h-22 sm:w-24 sm:h-24 rounded-2xl border-2 border-[#0F172A] overflow-hidden bg-white shrink-0 shadow-[0_2px_0_0_#0F172A]">
                   <img
                     src="/assets/olympiad-trophy.webp"
                     alt="Trofi Ketuntasan Akademik"
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-cover"
                   />
                 </div>
               </div>
@@ -2322,7 +2697,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Personal Productivity Leaderboard (Supports Custom Categories & Distinct Row Colors) */}
+              {/* Personal Productivity Leaderboard */}
               <div
                 className={`rounded-[28px] border-2 border-[#0F172A] p-4 sm:p-5 shadow-[0_4px_0_0_#0F172A] ${
                   isDarkMode
@@ -2350,7 +2725,7 @@ export default function App() {
                     >
                       {leaderboardMode === 'course'
                         ? 'Urutan mata kuliah paling tuntas hingga yang perlu dikejar'
-                        : 'Distribusi ketuntasan berdasarkan jenis tugas (termasuk kategori kustom)'}
+                        : 'Distribusi ketuntasan berdasarkan jenis tugas kuliah'}
                     </p>
                   </div>
 
@@ -2396,6 +2771,7 @@ export default function App() {
                       LEADERBOARD_ROW_PALETTE[
                         index % LEADERBOARD_ROW_PALETTE.length
                       ];
+                    const avatarUrl = toWebpAssetPath(entry.avatarUrl);
 
                     return (
                       <div
@@ -2431,14 +2807,12 @@ export default function App() {
                             #{rankNumber}
                           </span>
 
-                          <div className="w-10 h-10 rounded-xl border-2 border-[#0F172A] bg-white shrink-0 overflow-hidden p-0.5 flex items-center justify-center">
-                            <img
-                              src={toWebpAssetPath(entry.avatarUrl)}
-                              alt={entry.title}
-                              className="w-full h-full object-contain"
-                              referrerPolicy="no-referrer"
-                            />
-                          </div>
+                          <img
+                            src={avatarUrl}
+                            alt={entry.title}
+                            className="w-10 h-10 rounded-xl border-2 border-[#0F172A] object-cover shrink-0"
+                            referrerPolicy="no-referrer"
+                          />
 
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
@@ -2467,7 +2841,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Truly Proportional Weekly Task Load Distribution Chart */}
+              {/* Weekly Task Load Distribution Chart */}
               <div
                 className={`rounded-[28px] border-2 border-[#0F172A] p-4 sm:p-5 shadow-[0_3px_0_0_#0F172A] ${
                   isDarkMode
@@ -2489,7 +2863,7 @@ export default function App() {
                         isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                       }`}
                     >
-                      Skala proporsional murni (Batas penuh: {weeklyTaskDistribution.scaleCeiling} tugas · Ketuk batang untuk filter)
+                      Jumlah tenggat tugas per hari · Ketuk batang untuk filter
                     </p>
                   </div>
                   <span className="px-2.5 py-1 rounded-xl bg-[#C41E3A] text-white border-2 border-[#0F172A] text-xs font-black shrink-0">
@@ -2592,7 +2966,7 @@ export default function App() {
           </motion.section>
         )}
 
-        {/* TAB 4: PROFIL (Crisp Tactile Badges, Sharp WebP Avatars, Unified Settings Icons) */}
+        {/* TAB 4: PROFIL */}
         {bottomTab === 'profil' && (
           <motion.section
             key="tab-profil"
@@ -2627,7 +3001,7 @@ export default function App() {
             </header>
 
             <div className="px-4 sm:px-6 pt-1 space-y-4">
-              {/* Unclipped Expressive Character Identity Card */}
+              {/* Expressive Character Identity Card */}
               <div
                 className={`rounded-[28px] border-2 border-[#0F172A] p-5 text-center relative shadow-[0_4px_0_0_#0F172A] ${
                   isDarkMode
@@ -2652,13 +3026,13 @@ export default function App() {
                   />
                 </button>
 
-                {/* Large Unclipped WebP Avatar with Upload Trigger */}
+                {/* Large Avatar with Upload Trigger (Edge-to-Edge without white padding ring) */}
                 <div className="relative w-24 h-24 mx-auto">
-                  <div className="w-24 h-24 rounded-[28px] border-3 border-[#0F172A] overflow-hidden bg-white shadow-[0_3px_0_0_#0F172A] p-0.5 flex items-center justify-center">
+                  <div className="w-24 h-24 rounded-[28px] border-3 border-[#0F172A] overflow-hidden bg-white shadow-[0_3px_0_0_#0F172A]">
                     <img
                       src={toWebpAssetPath(studentUser.avatarUrl)}
                       alt={studentUser.name}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
                     />
                   </div>
@@ -2695,7 +3069,7 @@ export default function App() {
                   {studentUser.program}
                 </p>
 
-                {/* Complete 8-Character Avatar Switcher (High-Res WebP + Uncropped object-contain) */}
+                {/* Complete 8-Character Avatar Switcher (Edge-to-Edge without white margin) */}
                 <div
                   className={`mt-4 pt-3.5 border-t-2 ${
                     isDarkMode ? 'border-[#2E3440]' : 'border-[#F1F5F9]'
@@ -2703,7 +3077,7 @@ export default function App() {
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-extrabold text-[#64748B]">
-                      Pilih Karakter Avatar Cepat (8 Karakter WebP)
+                      Pilih Karakter Avatar Cepat
                     </span>
                     <button
                       type="button"
@@ -2738,14 +3112,12 @@ export default function App() {
                               : 'border-[#0F172A] bg-white text-[#0F172A] hover:bg-[#FFF1F2]'
                           }`}
                         >
-                          <div className="w-11 h-11 rounded-xl overflow-hidden border border-[#0F172A]/25 bg-white p-0.5 flex items-center justify-center">
-                            <img
-                              src={webpUrl}
-                              alt={item.label}
-                              className="w-full h-full object-contain"
-                              referrerPolicy="no-referrer"
-                            />
-                          </div>
+                          <img
+                            src={webpUrl}
+                            alt={item.label}
+                            className="w-10 h-10 rounded-xl object-cover border border-[#0F172A]/25"
+                            referrerPolicy="no-referrer"
+                          />
                           <span className="text-[9px] font-extrabold truncate max-w-full">
                             {item.label.replace('Karakter ', '')}
                           </span>
@@ -2804,7 +3176,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Authentic Google Account Card with Two-Way Local + Cloud Sync */}
+              {/* Google Account Card */}
               <div
                 className={`rounded-[28px] border-2 border-[#0F172A] p-4 sm:p-5 shadow-[0_3px_0_0_#0F172A] ${
                   isDarkMode
@@ -2840,10 +3212,10 @@ export default function App() {
                     </div>
                     <div>
                       <h3 className="text-xs sm:text-sm font-black">
-                        Akun Google & Cadangan Cloud
+                        Sinkronisasi Akun Google
                       </h3>
                       <p className="text-[11px] font-semibold text-[#64748B]">
-                        Data lokal per NIM otomatis digabungkan saat dikaitkan
+                        Akses tugas dan jadwal kuliah di berbagai perangkat
                       </p>
                     </div>
                   </div>
@@ -2855,7 +3227,7 @@ export default function App() {
                         : 'bg-[#0F172A] text-white'
                     }`}
                   >
-                    {isCloudSynced ? 'Cloud Aktif' : 'Simpan Perangkat'}
+                    {isCloudSynced ? 'Terhubung' : 'Lokal'}
                   </span>
                 </div>
 
@@ -2868,7 +3240,7 @@ export default function App() {
                     <img
                       src={toWebpAssetPath(studentUser.avatarUrl)}
                       alt={studentUser.name}
-                      className="w-11 h-11 rounded-full object-contain border-2 border-[#0F172A] bg-white shrink-0 p-0.5"
+                      className="w-11 h-11 rounded-full object-cover border-2 border-[#0F172A] bg-white shrink-0"
                       referrerPolicy="no-referrer"
                     />
                     <div className="min-w-0">
@@ -2941,7 +3313,7 @@ export default function App() {
                   />
                 </button>
 
-                {/* Row 2: Pengingat Tugas H-1 (Consistent border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A]) */}
+                {/* Row 2: Pengingat Tugas H-1 */}
                 <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-[#E11D48] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] flex items-center justify-center shrink-0">
@@ -3176,7 +3548,7 @@ export default function App() {
           </motion.section>
         )}
 
-        {/* Persistent Full-Width Responsive 4-Tab Bottom Navigation Bar (100% Aligned with Main Content Cards) */}
+        {/* Persistent Full-Width Responsive 4-Tab Bottom Navigation Bar */}
         <div className="fixed bottom-3 inset-x-0 z-30 pointer-events-none">
           <div className="w-full max-w-[640px] mx-auto px-4 sm:px-6">
             <nav
@@ -3249,9 +3621,38 @@ export default function App() {
           onFinishSplash={() =>
             setScreenPhase((prev) => (prev === 'splash' ? 'auth' : prev))
           }
-          onLoginSuccess={(session) => {
+          onLoginSuccess={async (session) => {
             setStudentUser(session);
             setScreenPhase('main');
+            if (
+              session.authMethod === 'google' &&
+              auth.currentUser &&
+              auth.currentUser.emailVerified
+            ) {
+              const uid = auth.currentUser.uid;
+              try {
+                await setDoc(
+                  doc(db, 'users', uid),
+                  {
+                    uid,
+                    name: session.name.slice(0, 100),
+                    nim: session.nim.slice(0, 32),
+                    classGroup: session.classGroup.slice(0, 32),
+                    semester: session.semester.slice(0, 32),
+                    program: session.program.slice(0, 64),
+                    institution: session.institution.slice(0, 120),
+                    avatarUrl: (session.avatarUrl.length <= 500
+                      ? session.avatarUrl
+                      : '/assets/mascot-splash.webp'
+                    ).slice(0, 500),
+                    updatedAt: new Date().toISOString(),
+                  },
+                  { merge: true }
+                );
+              } catch (err) {
+                handleFirestoreError(err, OperationType.WRITE, `users/${uid}`);
+              }
+            }
             showToastMessage(
               `Selamat datang di TaskDar, ${session.shortName}!`
             );
@@ -3462,7 +3863,7 @@ export default function App() {
         initialCourse={preselectedCourseForAdd}
         onRequestCalendarPicker={handleRequestCalendarPicker}
         isDarkMode={isDarkMode}
-        allTasks={tasks}
+        allTasks={validLinkedTasks}
       />
 
       {/* Slide-Up Add / Edit Course Bottom Sheet Modal */}
@@ -3491,7 +3892,7 @@ export default function App() {
             setSelectedExactDate(dateLabel);
           }
         }}
-        tasks={tasks}
+        tasks={validLinkedTasks}
         mode={calendarModalMode}
         isDarkMode={isDarkMode}
       />
