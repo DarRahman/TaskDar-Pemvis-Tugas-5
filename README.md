@@ -1,4 +1,4 @@
-# TaskDar - Aplikasi Manajemen Tugas Mahasiswa
+# TaskDar - Pemvis Tugas 5: Aplikasi Manajemen Tugas Mahasiswa
 
 Aplikasi mobile pencatatan, pengelolaan, dan pemantauan tugas perkuliahan berbasis React Native dan Expo SDK 58. Proyek ini dikembangkan untuk memenuhi penugasan praktikum Tugas 5 (Pertemuan 5) mata kuliah Pemrograman Visual I pada program studi S1 Teknik Informatika STIKOM Poltek Cirebon.
 
