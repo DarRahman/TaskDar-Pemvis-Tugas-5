@@ -443,7 +443,7 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
                       setLecturer(e.target.value);
                       if (errorMessage) setErrorMessage(null);
                     }}
-                    placeholder="Contoh: Ir. Ahmad Fauzi, M.Kom."
+                    placeholder="Contoh: Rifky Hilmanudin, S.Kom., M.Kom."
                     className={`w-full min-h-[44px] px-4 py-2.5 rounded-2xl border-2 text-sm font-semibold outline-none transition-colors ${
                       isDarkMode
                         ? 'bg-[#232934] border-[#323A48] text-white placeholder:text-[#64748B] focus:border-[#C41E3A]'
@@ -522,7 +522,7 @@ export const AddCourseSheet: React.FC<AddCourseSheetProps> = ({
                       type="text"
                       value={room}
                       onChange={(e) => setRoom(e.target.value)}
-                      placeholder="Contoh: Ruang 302 / Lab 1"
+                      placeholder="Contoh: Lab Multimedia / Ruang 203"
                       className={`w-full min-h-[44px] px-3.5 py-2.5 rounded-2xl border-2 text-sm font-semibold outline-none transition-colors ${
                         isDarkMode
                           ? 'bg-[#232934] border-[#323A48] text-white'

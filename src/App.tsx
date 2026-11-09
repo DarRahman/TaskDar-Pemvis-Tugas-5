@@ -1893,7 +1893,7 @@ export default function App() {
                   type="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari tugas, mata kuliah, atau kategori..."
+                  placeholder="Cari tugas, matkul, atau dosen (misal: Pak Rifky, Pemvis)..."
                   aria-label="Cari tugas berdasarkan judul atau mata kuliah"
                   className="w-full min-h-[44px] pl-2.5 pr-11 py-1.5 bg-transparent text-xs sm:text-sm font-semibold outline-none placeholder:text-[#94A3B8]"
                 />
@@ -3314,124 +3314,24 @@ export default function App() {
                 </button>
 
                 {/* Row 2: Pengingat Tugas H-1 */}
-                <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-[#E11D48] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] flex items-center justify-center shrink-0">
-                      <Bell className="w-4 h-4" aria-hidden="true" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-extrabold block">
-                        Pengingat Tugas H-1
-                      </span>
-                      <span
-                        className={`text-[11px] block ${
-                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
-                        }`}
-                      >
-                        {reminderEnabled
-                          ? 'Notifikasi sehari sebelum tenggat aktif'
-                          : 'Notifikasi pengingat dinonaktifkan'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={reminderEnabled}
-                    aria-label="Aktifkan atau nonaktifkan pengingat tugas H-1"
-                    onClick={() => {
-                      const next = !reminderEnabled;
-                      setReminderEnabled(next);
-                      showToastMessage(
-                        next
-                          ? 'Pengingat Tugas H-1 diaktifkan.'
-                          : 'Pengingat Tugas H-1 dinonaktifkan.'
-                      );
-                    }}
-                    className="min-w-[48px] min-h-[44px] flex items-center justify-end"
-                  >
-                    <span
-                      className={`w-12 h-7 rounded-full p-1 border-2 border-[#0F172A] transition-colors flex items-center ${
-                        reminderEnabled
-                          ? 'bg-[#C41E3A] justify-end'
-                          : 'bg-[#CBD5E1] justify-start'
-                      }`}
-                    >
-                      <span className="w-4 h-4 rounded-full bg-white border border-[#0F172A]" />
-                    </span>
-                  </button>
-                </div>
-
-                {/* Row 3: Sinkronisasi Google Calendar */}
-                <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-[#059669] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] flex items-center justify-center shrink-0">
-                      <Calendar className="w-4 h-4" aria-hidden="true" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-extrabold block">
-                        Sinkronisasi Google Calendar
-                      </span>
-                      <span
-                        className={`text-[11px] block ${
-                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
-                        }`}
-                      >
-                        {googleCalendarSync
-                          ? 'Tenggat tugas otomatis masuk kalender'
-                          : 'Sinkronisasi kalender tidak aktif'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={googleCalendarSync}
-                    aria-label="Aktifkan atau nonaktifkan sinkronisasi Google Calendar"
-                    onClick={() => {
-                      const next = !googleCalendarSync;
-                      setGoogleCalendarSync(next);
-                      showToastMessage(
-                        next
-                          ? 'Sinkronisasi Google Calendar diaktifkan.'
-                          : 'Sinkronisasi Google Calendar dinonaktifkan.'
-                      );
-                    }}
-                    className="min-w-[48px] min-h-[44px] flex items-center justify-end"
-                  >
-                    <span
-                      className={`w-12 h-7 rounded-full p-1 border-2 border-[#0F172A] transition-colors flex items-center ${
-                        googleCalendarSync
-                          ? 'bg-[#C41E3A] justify-end'
-                          : 'bg-[#CBD5E1] justify-start'
-                      }`}
-                    >
-                      <span className="w-4 h-4 rounded-full bg-white border border-[#0F172A]" />
-                    </span>
-                  </button>
-                </div>
-
-                {/* Row 4: Pembaruan Jadwal Portal Kampus (Only visible for STIKOM Poltek Cirebon) */}
-                {isStikomCampus && (
-                  <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
+                <div className="flex flex-col gap-2 px-3 py-2 border-b border-[#0F172A]/10">
+                  <div className="flex items-center justify-between min-h-[52px]">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-[#4F46E5] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] flex items-center justify-center shrink-0">
-                        <RefreshCw className="w-4 h-4" aria-hidden="true" />
+                      <div className="w-10 h-10 rounded-2xl bg-[#E11D48] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] flex items-center justify-center shrink-0">
+                        <Bell className="w-4 h-4" aria-hidden="true" />
                       </div>
                       <div>
                         <span className="text-xs font-extrabold block">
-                          Pembaruan Jadwal Portal Kampus
+                          Pengingat Tugas H-1 & Hari Ini
                         </span>
                         <span
                           className={`text-[11px] block ${
                             isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                           }`}
                         >
-                          {siakadAutoUpdate
-                            ? `Terhubung dengan portal akademik ${studentUser.institution}`
-                            : 'Pembaruan otomatis jadwal kampus dimatikan'}
+                          {reminderEnabled
+                            ? 'Notifikasi sistem perangkat aktif'
+                            : 'Notifikasi pengingat dinonaktifkan'}
                         </span>
                       </div>
                     </div>
@@ -3439,22 +3339,31 @@ export default function App() {
                     <button
                       type="button"
                       role="switch"
-                      aria-checked={siakadAutoUpdate}
-                      aria-label="Aktifkan atau nonaktifkan pembaruan jadwal otomatis"
-                      onClick={() => {
-                        const next = !siakadAutoUpdate;
-                        setSiakadAutoUpdate(next);
-                        showToastMessage(
-                          next
-                            ? 'Pembaruan Jadwal Kampus diaktifkan.'
-                            : 'Pembaruan Jadwal Kampus dinonaktifkan.'
-                        );
+                      aria-checked={reminderEnabled}
+                      aria-label="Aktifkan atau nonaktifkan pengingat tugas H-1"
+                      onClick={async () => {
+                        const next = !reminderEnabled;
+                        setReminderEnabled(next);
+                        if (next && typeof window !== 'undefined' && 'Notification' in window) {
+                          const perm = await Notification.requestPermission();
+                          showToastMessage(
+                            perm === 'granted'
+                              ? 'Izin notifikasi sistem perangkat aktif!'
+                              : 'Pengingat aktif (izin pop-up belum disetujui).'
+                          );
+                        } else {
+                          showToastMessage(
+                            next
+                              ? 'Pengingat Tugas H-1 diaktifkan.'
+                              : 'Pengingat Tugas H-1 dinonaktifkan.'
+                          );
+                        }
                       }}
                       className="min-w-[48px] min-h-[44px] flex items-center justify-end"
                     >
                       <span
                         className={`w-12 h-7 rounded-full p-1 border-2 border-[#0F172A] transition-colors flex items-center ${
-                          siakadAutoUpdate
+                          reminderEnabled
                             ? 'bg-[#C41E3A] justify-end'
                             : 'bg-[#CBD5E1] justify-start'
                         }`}
@@ -3462,6 +3371,168 @@ export default function App() {
                         <span className="w-4 h-4 rounded-full bg-white border border-[#0F172A]" />
                       </span>
                     </button>
+                  </div>
+
+                  {reminderEnabled && (
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[10px] font-bold text-[#64748B]">
+                        Periksa apakah peramban/HP mengizinkan notifikasi
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (typeof window !== 'undefined' && 'Notification' in window) {
+                            if (Notification.permission === 'granted') {
+                              new Notification('TaskDar: Uji Notifikasi Sistem', {
+                                body: 'Pengingat tugas kuliah aktif! Kamu akan menerima pop-up saat tugas jatuh tempo H-1 atau Hari Ini.',
+                                icon: '/assets/mascot-splash.webp',
+                              });
+                              showToastMessage('Notifikasi uji coba dikirim ke perangkat!');
+                            } else {
+                              Notification.requestPermission().then((perm) => {
+                                if (perm === 'granted') {
+                                  new Notification('TaskDar: Notifikasi Perangkat Aktif', {
+                                    body: 'Izin disetujui! Notifikasi tugas kuliah siap bekerja.',
+                                    icon: '/assets/mascot-splash.webp',
+                                  });
+                                  showToastMessage('Izin disetujui & notifikasi uji coba dikirim.');
+                                } else {
+                                  showToastMessage('Izin notifikasi ditolak peramban/sistem.');
+                                }
+                              });
+                            }
+                          } else {
+                            showToastMessage('Peramban ini tidak mendukung Web Notification API.');
+                          }
+                        }}
+                        className="px-2.5 py-1 rounded-xl bg-white hover:bg-[#F8FAFC] border border-[#0F172A] text-[10px] font-extrabold text-[#C41E3A] shadow-[0_1px_0_0_#0F172A] cursor-pointer"
+                      >
+                        Uji Notifikasi
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Row 3: Sinkronisasi Google Calendar (Only visible for Google-connected account) */}
+                {isCloudSynced && (
+                  <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-[#059669] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] flex items-center justify-center shrink-0">
+                        <Calendar className="w-4 h-4" aria-hidden="true" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-extrabold block">
+                          Sinkronisasi Google Calendar
+                        </span>
+                        <span
+                          className={`text-[11px] block ${
+                            isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
+                          }`}
+                        >
+                          {googleCalendarSync
+                            ? 'Tenggat tugas otomatis masuk kalender Google'
+                            : 'Sinkronisasi kalender tidak aktif'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={googleCalendarSync}
+                      aria-label="Aktifkan atau nonaktifkan sinkronisasi Google Calendar"
+                      onClick={() => {
+                        const next = !googleCalendarSync;
+                        setGoogleCalendarSync(next);
+                        showToastMessage(
+                          next
+                            ? 'Sinkronisasi Google Calendar diaktifkan.'
+                            : 'Sinkronisasi Google Calendar dinonaktifkan.'
+                        );
+                      }}
+                      className="min-w-[48px] min-h-[44px] flex items-center justify-end"
+                    >
+                      <span
+                        className={`w-12 h-7 rounded-full p-1 border-2 border-[#0F172A] transition-colors flex items-center ${
+                          googleCalendarSync
+                            ? 'bg-[#C41E3A] justify-end'
+                            : 'bg-[#CBD5E1] justify-start'
+                        }`}
+                      >
+                        <span className="w-4 h-4 rounded-full bg-white border border-[#0F172A]" />
+                      </span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Row 4: Pembaruan Jadwal & Tugas SIAKAD (Khusus Kampus STIKOM Poltek Cirebon) */}
+                {isStikomCampus && (
+                  <div className="flex flex-col gap-2.5 px-3 py-2.5 rounded-2xl bg-[#EEF2FF] border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] text-[#0F172A]">
+                    <div className="flex items-center justify-between min-h-[44px]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-[#4F46E5] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] flex items-center justify-center shrink-0">
+                          <RefreshCw className="w-4 h-4" aria-hidden="true" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-extrabold block">
+                            Portal SIAKAD STIKOM Poltek Cirebon
+                          </span>
+                          <span className="text-[11px] block text-[#475569] font-medium">
+                            {siakadAutoUpdate
+                              ? `Terhubung dengan NIM ${studentUser.nim || '14524303'}`
+                              : 'Sinkronisasi SIAKAD tidak aktif'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={siakadAutoUpdate}
+                        aria-label="Aktifkan atau nonaktifkan pembaruan jadwal otomatis"
+                        onClick={() => {
+                          const next = !siakadAutoUpdate;
+                          setSiakadAutoUpdate(next);
+                          showToastMessage(
+                            next
+                              ? 'Sinkronisasi SIAKAD STIKOM diaktifkan.'
+                              : 'Sinkronisasi SIAKAD STIKOM dinonaktifkan.'
+                          );
+                        }}
+                        className="min-w-[48px] min-h-[44px] flex items-center justify-end"
+                      >
+                        <span
+                          className={`w-12 h-7 rounded-full p-1 border-2 border-[#0F172A] transition-colors flex items-center ${
+                            siakadAutoUpdate
+                              ? 'bg-[#C41E3A] justify-end'
+                              : 'bg-[#CBD5E1] justify-start'
+                          }`}
+                        >
+                          <span className="w-4 h-4 rounded-full bg-white border border-[#0F172A]" />
+                        </span>
+                      </button>
+                    </div>
+
+                    {siakadAutoUpdate && (
+                      <div className="flex items-center justify-between pt-1 border-t border-[#0F172A]/10">
+                        <span className="text-[10px] font-bold text-[#475569]">
+                          Tarik tugas & jadwal kuliah aktif semester 5
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            showToastMessage('Menghubungkan ke portal SIAKAD STIKOM...');
+                            setTimeout(() => {
+                              dispatch({ type: 'RESET_TASKS' });
+                              showToastMessage('Sukses! 5 tugas semester 5 disinkronkan dari SIAKAD STIKOM.');
+                            }, 500);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white border-2 border-[#0F172A] text-[11px] font-extrabold shadow-[0_2px_0_0_#0F172A] transition-all cursor-pointer active:scale-95"
+                        >
+                          Tarik Tugas SIAKAD
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -3593,21 +3664,34 @@ export default function App() {
                     onClick={() => setBottomTab(item.key)}
                     aria-current={isSelected ? 'page' : undefined}
                     aria-label={item.label}
-                    className={`min-h-[46px] px-2 rounded-[22px] flex items-center justify-center gap-1.5 text-xs font-extrabold transition-all duration-150 cursor-pointer ${
+                    className={`relative min-h-[46px] px-2 rounded-[22px] flex items-center justify-center gap-1.5 text-xs font-extrabold transition-all duration-200 cursor-pointer ${
                       isSelected
-                        ? 'bg-[#C41E3A] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A]'
+                        ? 'text-white'
                         : isDarkMode
                         ? 'text-[#94A3B8] hover:text-white'
                         : 'text-[#64748B] hover:text-[#0F172A]'
                     }`}
                   >
+                    {isSelected && (
+                      <motion.div
+                        layoutId="taskdar-active-nav-pill"
+                        className="absolute inset-0 bg-[#C41E3A] border-2 border-[#0F172A] rounded-[22px] shadow-[0_2px_0_0_#0F172A]"
+                        transition={{
+                          type: 'spring',
+                          stiffness: 400,
+                          damping: 32,
+                        }}
+                      />
+                    )}
                     <IconComponent
-                      className="w-4 h-4 shrink-0"
+                      className="w-4 h-4 shrink-0 relative z-10"
                       aria-hidden="true"
                     />
-                    <span className="truncate whitespace-nowrap">
-                      {item.label}
-                    </span>
+                    {isSelected && (
+                      <span className="truncate whitespace-nowrap relative z-10">
+                        {item.label}
+                      </span>
+                    )}
                   </button>
                 );
               })}

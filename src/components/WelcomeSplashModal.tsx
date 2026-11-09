@@ -142,12 +142,12 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
           {/* Rising Liquid Wave Fill from Bottom (0%) to Full Top (100%) */}
           <motion.div
             initial={{ y: '100%' }}
-            animate={{ y: '-8%' }}
+            animate={{ y: '0%' }}
             transition={{
               duration: 2.25,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="absolute inset-x-0 bottom-0 h-[115%] bg-[#C41E3A] pointer-events-none z-10"
+            className="absolute inset-x-0 -bottom-24 h-[135%] bg-[#C41E3A] pointer-events-none z-10"
           >
             {/* Secondary Back Liquid Wave Crest */}
             <div className="absolute -top-16 sm:-top-22 left-0 w-[200%] h-18 sm:h-24 overflow-hidden">
@@ -438,7 +438,7 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                           setNameInput(e.target.value);
                           if (authError) setAuthError(null);
                         }}
-                        placeholder="Contoh: Badar Rahman"
+                        placeholder="Ketik nama lengkapmu"
                         className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold outline-none"
                       />
                     </div>
@@ -459,7 +459,7 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                           setNimInput(e.target.value);
                           if (authError) setAuthError(null);
                         }}
-                        placeholder="Contoh: 14524303"
+                        placeholder="Ketik NIM / NPM"
                         className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold outline-none"
                       />
                     </div>

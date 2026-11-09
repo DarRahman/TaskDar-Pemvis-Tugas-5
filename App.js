@@ -39,26 +39,26 @@ import { registerRootComponent } from 'expo';
  * - olympiad-trophy.jpg
  */
 const VISUAL_ASSETS = {
-  mascotSplash: require('./public/assets/mascot-splash.jpg'),
-  stickerCoding: require('./public/assets/sticker-coding.jpg'),
-  stickerRobotics: require('./public/assets/sticker-robotics.jpg'),
-  stickerData: require('./public/assets/sticker-data.jpg'),
-  stickerSecurity: require('./public/assets/sticker-security.jpg'),
-  stickerOop: require('./public/assets/sticker-oop.jpg'),
-  stickerAi: require('./public/assets/sticker-ai.jpg'),
-  stickerDesign: require('./public/assets/sticker-design.jpg'),
-  olympiadTrophy: require('./public/assets/olympiad-trophy.jpg'),
+  mascotSplash: require('./public/assets/mascot-splash.webp'),
+  stickerCoding: require('./public/assets/sticker-coding.webp'),
+  stickerRobotics: require('./public/assets/sticker-robotics.webp'),
+  stickerData: require('./public/assets/sticker-data.webp'),
+  stickerSecurity: require('./public/assets/sticker-security.webp'),
+  stickerOop: require('./public/assets/sticker-oop.webp'),
+  stickerAi: require('./public/assets/sticker-ai.webp'),
+  stickerDesign: require('./public/assets/sticker-design.webp'),
+  olympiadTrophy: require('./public/assets/olympiad-trophy.webp'),
 };
 
 const DEFAULT_STUDENT_PROFILE = {
-  name: 'Badar Rahman',
-  shortName: 'Badar',
-  nim: '14524303',
+  name: '',
+  shortName: 'Mahasiswa',
+  nim: '',
   classGroup: 'TI-1',
   semester: 'Semester 5',
   program: 'Teknik Informatika',
-  institution: 'STIKOM Poltek Cirebon',
-  email: 'badarrahman1905@gmail.com',
+  institution: '',
+  email: '',
   streakDays: 6,
 };
 
@@ -129,10 +129,10 @@ const INITIAL_COURSES = [
     id: 'course-ti361',
     code: 'TI361',
     name: 'Pemrograman Visual I',
-    lecturer: 'Kusnadi, M.Kom.',
+    lecturer: 'Rifky Hilmanudin, S.Kom., M.Kom.',
     credits: 3,
     schedule: 'Senin, 08:00 - 10:30 WIB',
-    room: 'Lab Mobile 1',
+    room: 'Lab Multimedia',
     stickerSource: VISUAL_ASSETS.stickerCoding,
     pastelBg: '#FEE2E2',
     pastelBorder: '#FECACA',
@@ -143,10 +143,10 @@ const INITIAL_COURSES = [
     id: 'course-ti362',
     code: 'TI362',
     name: 'Robotika',
-    lecturer: 'Bambang Sugiarto, M.T.',
+    lecturer: 'Dr. Faisal Akbar, S.Kom., M.T.',
     credits: 3,
     schedule: 'Selasa, 10:30 - 13:00 WIB',
-    room: 'Lab IoT & Robotika',
+    room: 'Ruang 203',
     stickerSource: VISUAL_ASSETS.stickerRobotics,
     pastelBg: '#EEF2FF',
     pastelBorder: '#C7D2FE',
@@ -157,10 +157,10 @@ const INITIAL_COURSES = [
     id: 'course-ti363',
     code: 'TI363',
     name: 'Data Warehouse & Data Mining',
-    lecturer: 'Dr. Rina Kurniawati, M.Kom.',
+    lecturer: 'Prio Wahono, M.Kom.',
     credits: 3,
     schedule: 'Rabu, 08:00 - 10:30 WIB',
-    room: 'Ruang 304',
+    room: 'Ruang 103',
     stickerSource: VISUAL_ASSETS.stickerData,
     pastelBg: '#FEF3C7',
     pastelBorder: '#FDE68A',
@@ -174,7 +174,7 @@ const INITIAL_COURSES = [
     lecturer: 'Hendra Wijaya, S.Kom., M.T.',
     credits: 3,
     schedule: 'Kamis, 13:00 - 15:30 WIB',
-    room: 'Lab Jaringan',
+    room: 'Ruang 205',
     stickerSource: VISUAL_ASSETS.stickerSecurity,
     pastelBg: '#D1FAE5',
     pastelBorder: '#A7F3D0',
@@ -188,7 +188,7 @@ const INITIAL_COURSES = [
     lecturer: 'Dedi Pratama, M.Kom.',
     credits: 3,
     schedule: 'Jumat, 08:00 - 10:30 WIB',
-    room: 'Lab Pemrograman 2',
+    room: 'Lab GIS',
     stickerSource: VISUAL_ASSETS.stickerOop,
     pastelBg: '#CFFAFE',
     pastelBorder: '#A5F3FC',
@@ -633,7 +633,27 @@ export default function App() {
     setIsAddTaskOpen(true);
   }, []);
 
-  const handleSaveTask = () => {
+  const handleAddTask = useCallback(() => {
+    if (!taskTitle.trim()) return;
+    dispatch({
+      type: 'ADD_TASK',
+      payload: {
+        title: taskTitle,
+        course: taskCourse,
+        category: taskCategory,
+        deadline: taskDeadline,
+        description: taskDesc || `Tugas ${taskCourse}`,
+      },
+    });
+    setTaskTitle('');
+    setTaskDesc('');
+    setIsAddTaskOpen(false);
+    setTimeout(() => {
+      titleInputRef.current?.focus();
+    }, 150);
+  }, [taskTitle, taskCourse, taskCategory, taskDeadline, taskDesc]);
+
+  const handleSaveTask = useCallback(() => {
     if (!taskTitle.trim()) return;
     if (editingTask) {
       dispatch({
@@ -647,23 +667,14 @@ export default function App() {
           description: taskDesc || `Tugas ${taskCourse}`,
         },
       });
+      setEditingTask(null);
+      setTaskTitle('');
+      setTaskDesc('');
+      setIsAddTaskOpen(false);
     } else {
-      dispatch({
-        type: 'ADD_TASK',
-        payload: {
-          title: taskTitle,
-          course: taskCourse,
-          category: taskCategory,
-          deadline: taskDeadline,
-          description: taskDesc || `Tugas ${taskCourse}`,
-        },
-      });
+      handleAddTask();
     }
-    setEditingTask(null);
-    setTaskTitle('');
-    setTaskDesc('');
-    setIsAddTaskOpen(false);
-  };
+  }, [editingTask, taskTitle, taskCourse, taskCategory, taskDeadline, taskDesc, handleAddTask]);
 
   const handleSaveCourse = () => {
     if (!courseName.trim() || !courseLecturer.trim()) return;
@@ -756,6 +767,8 @@ export default function App() {
                   shortName: v.split(' ')[0] || v,
                 }))
               }
+              placeholder="Contoh: Badar Rahman"
+              placeholderTextColor="#94A3B8"
               style={styles.textInput}
             />
 
@@ -765,6 +778,8 @@ export default function App() {
               onChangeText={(v) =>
                 setStudentUser((prev) => ({ ...prev, nim: v }))
               }
+              placeholder="Contoh: 14524303"
+              placeholderTextColor="#94A3B8"
               style={styles.textInput}
             />
 
@@ -774,6 +789,8 @@ export default function App() {
               onChangeText={(v) =>
                 setStudentUser((prev) => ({ ...prev, institution: v }))
               }
+              placeholder="Contoh: STIKOM Poltek Cirebon"
+              placeholderTextColor="#94A3B8"
               style={styles.textInput}
             />
 
@@ -880,7 +897,8 @@ export default function App() {
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Cari tugas, mata kuliah, atau kategori..."
+              placeholder="Cari tugas, matkul, atau dosen (misal: Pak Rifky, Pemvis)..."
+              placeholderTextColor="#94A3B8"
               style={styles.searchInput}
             />
           </View>
@@ -1148,29 +1166,46 @@ export default function App() {
 
           <View style={styles.settingsCard}>
             <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Pengingat Tugas H-1</Text>
+              <View>
+                <Text style={styles.settingLabel}>Pengingat Tugas H-1</Text>
+                <Text style={styles.settingSubLabel}>Notifikasi sistem H-1 & hari ini</Text>
+              </View>
               <Switch
                 value={reminderEnabled}
                 onValueChange={setReminderEnabled}
+                trackColor={{ false: '#CBD5E1', true: '#C41E3A' }}
               />
             </View>
             <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>
-                Sinkronisasi Google Calendar
-              </Text>
+              <View>
+                <Text style={styles.settingLabel}>
+                  Sinkronisasi Google Calendar
+                </Text>
+                <Text style={styles.settingSubLabel}>Tenggat tugas otomatis masuk kalender</Text>
+              </View>
               <Switch
                 value={calendarSyncEnabled}
                 onValueChange={setCalendarSyncEnabled}
+                trackColor={{ false: '#CBD5E1', true: '#C41E3A' }}
               />
             </View>
-            <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>
-                Pembaruan Jadwal Portal Kampus
-              </Text>
-              <Switch
-                value={portalSyncEnabled}
-                onValueChange={setPortalSyncEnabled}
-              />
+            <View style={[styles.settingRow, { borderBottomWidth: 0 }]}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={styles.settingLabel}>
+                  Portal SIAKAD STIKOM Poltek Cirebon
+                </Text>
+                <Text style={styles.settingSubLabel}>
+                  {studentUser.nim ? `Terhubung: NIM ${studentUser.nim}` : 'NIM 14524303 (TI-1 Semester 5)'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  dispatch({ type: 'RESET_TASKS' });
+                }}
+                style={styles.siakadSyncBtn}
+              >
+                <Text style={styles.siakadSyncBtnText}>Tarik Tugas</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -1906,6 +1941,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     minHeight: 44,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  settingSubLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  siakadSyncBtn: {
+    backgroundColor: '#4F46E5',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#0F172A',
+  },
+  siakadSyncBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
   },
   settingLabel: { fontSize: 12, fontWeight: '800', color: '#0F172A' },
   profileActionsRow: { flexDirection: 'row', gap: 10 },
