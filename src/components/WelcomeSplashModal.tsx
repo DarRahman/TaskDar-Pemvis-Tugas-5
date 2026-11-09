@@ -434,7 +434,7 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                           setNameInput(e.target.value);
                           if (authError) setAuthError(null);
                         }}
-                        placeholder="Ketik nama lengkapmu"
+                        placeholder="Contoh: Badar Rahman"
                         className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold outline-none"
                       />
                     </div>
@@ -455,7 +455,7 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                           setNimInput(e.target.value);
                           if (authError) setAuthError(null);
                         }}
-                        placeholder="Ketik NIM / NPM"
+                        placeholder="Contoh: 14524303"
                         className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold outline-none"
                       />
                     </div>
@@ -474,7 +474,7 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                       type="text"
                       value={institutionInput}
                       onChange={(e) => setInstitutionInput(e.target.value)}
-                      placeholder="Ketik nama universitas atau kampusmu"
+                      placeholder="Contoh: STIKOM Poltek Cirebon"
                       className="w-full min-h-[44px] px-3.5 py-2 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] focus:bg-white text-xs font-bold outline-none"
                     />
                   </div>

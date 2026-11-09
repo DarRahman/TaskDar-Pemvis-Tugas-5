@@ -764,7 +764,7 @@ export default function App() {
                   shortName: v.split(' ')[0] || v,
                 }))
               }
-              placeholder="Nama Lengkap"
+              placeholder="Contoh: Badar Rahman"
               placeholderTextColor="#94A3B8"
               style={styles.textInput}
             />
@@ -775,7 +775,7 @@ export default function App() {
               onChangeText={(v) =>
                 setStudentUser((prev) => ({ ...prev, nim: v }))
               }
-              placeholder="NIM / NPM"
+              placeholder="Contoh: 14524303"
               placeholderTextColor="#94A3B8"
               style={styles.textInput}
             />
@@ -786,7 +786,7 @@ export default function App() {
               onChangeText={(v) =>
                 setStudentUser((prev) => ({ ...prev, institution: v }))
               }
-              placeholder="Nama Kampus / Universitas"
+              placeholder="Contoh: STIKOM Poltek Cirebon"
               placeholderTextColor="#94A3B8"
               style={styles.textInput}
             />
