@@ -251,23 +251,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                   </p>
                 </div>
 
-                {/* Shortcut Google Calendar */}
-                <div className="pt-2 border-t border-[#E2E8F0] flex items-center justify-between gap-2 flex-wrap">
-                  <a
-                    href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
-                      task.title
-                    )}&details=${encodeURIComponent(
-                      `${task.course} - ${task.description || ''}`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-[#F8FAFC] border-2 border-[#0F172A] text-[10px] font-extrabold text-[#059669] shadow-[0_2px_0_0_#0F172A] transition-all cursor-pointer active:scale-95"
-                  >
-                    <Calendar className="w-3.5 h-3.5 text-[#059669]" />
-                    <span>Simpan ke Google Calendar</span>
-                  </a>
-                </div>
-
                 {/* Attachments Section Inside Rincian */}
                 {attachments.length > 0 && (
                   <div className="pt-2.5 border-t border-[#E2E8F0]">

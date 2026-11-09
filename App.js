@@ -1162,7 +1162,7 @@ export default function App() {
           </View>
 
           <View style={styles.settingsCard}>
-            <View style={styles.settingRow}>
+            <View style={[styles.settingRow, { borderBottomWidth: 0 }]}>
               <View>
                 <Text style={styles.settingLabel}>Pengingat Tugas H-1</Text>
                 <Text style={styles.settingSubLabel}>Notifikasi sistem H-1 & hari ini</Text>
@@ -1172,37 +1172,6 @@ export default function App() {
                 onValueChange={setReminderEnabled}
                 trackColor={{ false: '#CBD5E1', true: '#C41E3A' }}
               />
-            </View>
-            <View style={styles.settingRow}>
-              <View>
-                <Text style={styles.settingLabel}>
-                  Sinkronisasi Google Calendar
-                </Text>
-                <Text style={styles.settingSubLabel}>Tenggat tugas otomatis masuk kalender</Text>
-              </View>
-              <Switch
-                value={calendarSyncEnabled}
-                onValueChange={setCalendarSyncEnabled}
-                trackColor={{ false: '#CBD5E1', true: '#C41E3A' }}
-              />
-            </View>
-            <View style={[styles.settingRow, { borderBottomWidth: 0 }]}>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={styles.settingLabel}>
-                  Portal SIAKAD STIKOM Poltek Cirebon
-                </Text>
-                <Text style={styles.settingSubLabel}>
-                  {studentUser.nim ? `Terhubung: NIM ${studentUser.nim}` : 'NIM 14524303 (TI-1 Semester 5)'}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => {
-                  dispatch({ type: 'RESET_TASKS' });
-                }}
-                style={styles.siakadSyncBtn}
-              >
-                <Text style={styles.siakadSyncBtnText}>Tarik Tugas</Text>
-              </TouchableOpacity>
             </View>
           </View>
 
