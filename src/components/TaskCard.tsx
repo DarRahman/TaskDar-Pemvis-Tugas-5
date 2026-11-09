@@ -117,10 +117,10 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     resolveCourseForTask(task, resolvedCourseList) ??
     resolveCourseForTask(task, INITIAL_COURSES);
 
-  const cardBg = isDarkMode
-    ? '#1F242D'
-    : isCompleted
-    ? '#F8FAFC'
+  const cardBg = isCompleted
+    ? isDarkMode
+      ? '#1F242D'
+      : '#F8FAFC'
     : matchedCourse?.pastelBg || '#FEE2E2';
   const accentColor = matchedCourse?.accentColor || '#C41E3A';
   const iconBg = matchedCourse?.iconBg || '#C41E3A';
@@ -230,9 +230,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             <h3
               className={`text-[15px] sm:text-[16px] font-extrabold leading-snug break-words ${
                 isCompleted
-                  ? 'line-through text-[#64748B]'
-                  : isDarkMode
-                  ? 'text-white'
+                  ? isDarkMode
+                    ? 'line-through text-[#94A3B8]'
+                    : 'line-through text-[#64748B]'
                   : 'text-[#0F172A]'
               }`}
             >
