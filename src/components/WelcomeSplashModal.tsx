@@ -344,11 +344,7 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                 />
               </div>
               <div className="text-left">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-[#C41E3A] border-2 border-[#0F172A] text-[11px] font-extrabold shadow-[0_2px_0_0_#0F172A]">
-                  <Sparkles className="w-3 h-3" aria-hidden="true" />
-                  <span>TaskDar Mobile</span>
-                </span>
-                <h1 className="mt-1.5 text-2xl sm:text-3xl font-black tracking-tight text-white leading-tight">
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white leading-tight">
                   {authStep === 'google-complete'
                     ? 'Lengkapi Data Kampus'
                     : 'Selamat Datang!'}
@@ -531,30 +527,6 @@ export const WelcomeSplashModal: React.FC<WelcomeSplashModalProps> = ({
                     />
                   </button>
                 </form>
-
-                {/* Quick Fill Default Profile Button */}
-                <div className="pt-1 text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNameInput(STUDENT_METADATA.name);
-                      setNimInput(STUDENT_METADATA.nim);
-                      setInstitutionInput(STUDENT_METADATA.institution);
-                      setProgramInput(STUDENT_METADATA.program);
-                      setSemesterInput(STUDENT_METADATA.semester);
-                      setClassInput(STUDENT_METADATA.classGroup);
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#F8FAFC] hover:bg-[#FEE2E2] border-2 border-[#0F172A] text-[11px] font-extrabold text-[#0F172A] transition-colors"
-                  >
-                    <UserCheck
-                      className="w-3.5 h-3.5 text-[#C41E3A]"
-                      aria-hidden="true"
-                    />
-                    <span>
-                      Isi Cepat Profil Default ({STUDENT_METADATA.name})
-                    </span>
-                  </button>
-                </div>
               </div>
             ) : (
               /* STEP 2/2: Complete Campus, NIM, and Class after Google Sign-In */

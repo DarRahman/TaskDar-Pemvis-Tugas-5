@@ -3148,103 +3148,53 @@ export default function App() {
                     aria-hidden="true"
                   />
                 </button>
-                <div className="flex flex-col gap-2 px-3 py-2 border-b border-[#0F172A]/10">
-                  <div className="flex items-center justify-between min-h-[52px]">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-[#E11D48] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] flex items-center justify-center shrink-0">
-                        <Bell className="w-4 h-4" aria-hidden="true" />
-                      </div>
-                      <div>
-                        <span className="text-xs font-extrabold block">
-                          Pengingat Tugas H-1 & Hari Ini
-                        </span>
-                        <span
-                          className={`text-[11px] block ${
-                            isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
-                          }`}
-                        >
-                          {reminderEnabled
-                            ? 'Notifikasi sistem perangkat aktif'
-                            : 'Notifikasi pengingat dinonaktifkan'}
-                        </span>
-                      </div>
+                <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-[#E11D48] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] flex items-center justify-center shrink-0">
+                      <Bell className="w-4 h-4" aria-hidden="true" />
                     </div>
-
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={reminderEnabled}
-                      aria-label="Aktifkan atau nonaktifkan pengingat tugas H-1"
-                      onClick={async () => {
-                        const next = !reminderEnabled;
-                        setReminderEnabled(next);
-                        if (next && typeof window !== 'undefined' && 'Notification' in window) {
-                          const perm = await Notification.requestPermission();
-                          showToastMessage(
-                            perm === 'granted'
-                              ? 'Izin notifikasi sistem perangkat aktif!'
-                              : 'Pengingat aktif (izin pop-up belum disetujui).'
-                          );
-                        } else {
-                          showToastMessage(
-                            next
-                              ? 'Pengingat Tugas H-1 diaktifkan.'
-                              : 'Pengingat Tugas H-1 dinonaktifkan.'
-                          );
-                        }
-                      }}
-                      className="min-w-[48px] min-h-[44px] flex items-center justify-end"
-                    >
+                    <div>
+                      <span className="text-xs font-extrabold block">
+                        Pengingat Tugas H-1
+                      </span>
                       <span
-                        className={`w-12 h-7 rounded-full p-1 border-2 border-[#0F172A] transition-colors flex items-center ${
-                          reminderEnabled
-                            ? 'bg-[#C41E3A] justify-end'
-                            : 'bg-[#CBD5E1] justify-start'
+                        className={`text-[11px] block ${
+                          isDarkMode ? 'text-[#94A3B8]' : 'text-[#64748B]'
                         }`}
                       >
-                        <span className="w-4 h-4 rounded-full bg-white border border-[#0F172A]" />
+                        {reminderEnabled
+                          ? 'Notifikasi sehari sebelum tenggat aktif'
+                          : 'Notifikasi pengingat dinonaktifkan'}
                       </span>
-                    </button>
+                    </div>
                   </div>
 
-                  {reminderEnabled && (
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-[10px] font-bold text-[#64748B]">
-                        Periksa apakah peramban/HP mengizinkan notifikasi
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (typeof window !== 'undefined' && 'Notification' in window) {
-                            if (Notification.permission === 'granted') {
-                              new Notification('TaskDar: Uji Notifikasi Sistem', {
-                                body: 'Pengingat tugas kuliah aktif! Kamu akan menerima pop-up saat tugas jatuh tempo H-1 atau Hari Ini.',
-                                icon: '/assets/mascot-splash.webp',
-                              });
-                              showToastMessage('Notifikasi uji coba dikirim ke perangkat!');
-                            } else {
-                              Notification.requestPermission().then((perm) => {
-                                if (perm === 'granted') {
-                                  new Notification('TaskDar: Notifikasi Perangkat Aktif', {
-                                    body: 'Izin disetujui! Notifikasi tugas kuliah siap bekerja.',
-                                    icon: '/assets/mascot-splash.webp',
-                                  });
-                                  showToastMessage('Izin disetujui & notifikasi uji coba dikirim.');
-                                } else {
-                                  showToastMessage('Izin notifikasi ditolak peramban/sistem.');
-                                }
-                              });
-                            }
-                          } else {
-                            showToastMessage('Peramban ini tidak mendukung Web Notification API.');
-                          }
-                        }}
-                        className="px-2.5 py-1 rounded-xl bg-white hover:bg-[#F8FAFC] border border-[#0F172A] text-[10px] font-extrabold text-[#C41E3A] shadow-[0_1px_0_0_#0F172A] cursor-pointer"
-                      >
-                        Uji Notifikasi
-                      </button>
-                    </div>
-                  )}
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={reminderEnabled}
+                    aria-label="Aktifkan atau nonaktifkan pengingat tugas H-1"
+                    onClick={() => {
+                      const next = !reminderEnabled;
+                      setReminderEnabled(next);
+                      showToastMessage(
+                        next
+                          ? 'Pengingat Tugas H-1 diaktifkan.'
+                          : 'Pengingat Tugas H-1 dinonaktifkan.'
+                      );
+                    }}
+                    className="min-w-[48px] min-h-[44px] flex items-center justify-end"
+                  >
+                    <span
+                      className={`w-12 h-7 rounded-full p-1 border-2 border-[#0F172A] transition-colors flex items-center ${
+                        reminderEnabled
+                          ? 'bg-[#C41E3A] justify-end'
+                          : 'bg-[#CBD5E1] justify-start'
+                      }`}
+                    >
+                      <span className="w-4 h-4 rounded-full bg-white border border-[#0F172A]" />
+                    </span>
+                  </button>
                 </div>
 
                 <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
