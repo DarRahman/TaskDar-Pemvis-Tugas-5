@@ -15,7 +15,7 @@ Aplikasi mobile pencatatan, pengelolaan, dan pemantauan tugas perkuliahan berbas
 - Mata Kuliah    : Pemrograman Visual I (TI361)
 - Penugasan      : Tugas 5 (Pertemuan 5)
 - Dosen Pengampu : Rifky Hilmanudin, S.Kom., M.Kom.
-- Repositori Git : https://github.com/DarRahman/Pemvis
+- Repositori Git : https://github.com/DarRahman/TaskDar-Pemvis-Tugas-5
 
 ---
 
@@ -159,8 +159,8 @@ Proyek ini menerapkan arsitektur React Native fungsional dengan pemenuhan 7 kete
 Prasyarat: Node.js (versi 18 ke atas) dan npm telah terpasang pada komputer.
 
 1. Kloning repositori proyek:
-   git clone https://github.com/DarRahman/Pemvis.git
-   cd Pemvis
+   git clone https://github.com/DarRahman/TaskDar-Pemvis-Tugas-5.git
+   cd TaskDar-Pemvis-Tugas-5
 
 2. Pasang seluruh dependensi pustaka:
    npm install
