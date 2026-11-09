@@ -25,6 +25,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { registerRootComponent } from 'expo';
+import { WebView } from 'react-native-webview';
 
 const VISUAL_ASSETS = {
   mascotSplash: require('./public/assets/mascot-splash.webp'),
@@ -680,7 +681,23 @@ export default function App() {
     setIsAddCourseOpen(false);
   };
 
-    if (screenPhase === 'splash') {
+  return (
+    <SafeAreaView style={styles.flexOne}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFDF9" />
+      <WebView
+        source={{ uri: 'http://192.168.1.74:3000' }}
+        style={styles.flexOne}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        startInLoadingState={true}
+        allowsInlineMediaPlayback={true}
+        scalesPageToFit={true}
+        originWhitelist={['*']}
+      />
+    </SafeAreaView>
+  );
+
+  if (screenPhase === 'splash') {
     return (
       <TouchableOpacity
         activeOpacity={1}
