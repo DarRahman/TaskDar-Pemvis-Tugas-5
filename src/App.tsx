@@ -196,6 +196,11 @@ function loadSanitizedAccountBundle(scopeId: string): {
   } catch {
   }
 
+  const isBadarAccount =
+    scopeId === 'default' ||
+    scopeId.includes('14524303') ||
+    scopeId.toLowerCase().includes('badar');
+
   const fallbackCourses =
     rawCourses !== null
       ? rawCourses
@@ -205,7 +210,11 @@ function loadSanitizedAccountBundle(scopeId: string): {
         }));
 
   const fallbackTasks =
-    rawTasks !== null ? rawTasks : INITIAL_TASKS.map((t) => ({ ...t }));
+    rawTasks !== null
+      ? rawTasks
+      : isBadarAccount
+      ? INITIAL_TASKS.map((t) => ({ ...t }))
+      : [];
 
   const sanitized = sanitizeAndLinkCoursesAndTasks(
     fallbackCourses,
@@ -1238,11 +1247,17 @@ export default function App() {
   );
 
   const handleResetTasks = useCallback(() => {
+    const isBadarAccount =
+      activeAccountScope === 'default' ||
+      activeAccountScope.includes('14524303') ||
+      studentUser.nim === '14524303';
     const freshCourses = INITIAL_COURSES.map((c) => ({
       ...c,
       stickerUrl: toWebpAssetPath(c.stickerUrl),
     }));
-    const freshTasks = INITIAL_TASKS.map((t) => ({ ...t }));
+    const freshTasks = isBadarAccount
+      ? INITIAL_TASKS.map((t) => ({ ...t }))
+      : [];
 
     dispatch({ type: 'RESET_TASKS' });
     setCourses(freshCourses);
@@ -1773,7 +1788,7 @@ export default function App() {
                   type="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari tugas, matkul, atau dosen (misal: Pak Rifky, Pemvis)..."
+                  placeholder="Cari tugas, mata kuliah, atau kategori..."
                   aria-label="Cari tugas berdasarkan judul atau mata kuliah"
                   className="w-full min-h-[44px] pl-2.5 pr-11 py-1.5 bg-transparent text-xs sm:text-sm font-semibold outline-none placeholder:text-[#94A3B8]"
                 />

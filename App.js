@@ -764,7 +764,7 @@ export default function App() {
                   shortName: v.split(' ')[0] || v,
                 }))
               }
-              placeholder="Contoh: Badar Rahman"
+              placeholder="Nama Lengkap"
               placeholderTextColor="#94A3B8"
               style={styles.textInput}
             />
@@ -775,7 +775,7 @@ export default function App() {
               onChangeText={(v) =>
                 setStudentUser((prev) => ({ ...prev, nim: v }))
               }
-              placeholder="Contoh: 14524303"
+              placeholder="NIM / NPM"
               placeholderTextColor="#94A3B8"
               style={styles.textInput}
             />
@@ -786,7 +786,7 @@ export default function App() {
               onChangeText={(v) =>
                 setStudentUser((prev) => ({ ...prev, institution: v }))
               }
-              placeholder="Contoh: STIKOM Poltek Cirebon"
+              placeholder="Nama Kampus / Universitas"
               placeholderTextColor="#94A3B8"
               style={styles.textInput}
             />
@@ -894,7 +894,7 @@ export default function App() {
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Cari tugas, matkul, atau dosen (misal: Pak Rifky, Pemvis)..."
+              placeholder="Cari tugas, mata kuliah, atau kategori..."
               placeholderTextColor="#94A3B8"
               style={styles.searchInput}
             />
@@ -1285,7 +1285,7 @@ export default function App() {
             <TextInput
               value={courseTime}
               onChangeText={setCourseTime}
-              placeholder="Jam Perkuliahan (misal 08:00 - 10:30 WIB)"
+              placeholder="Jam perkuliahan (08:00 - 10:30 WIB)"
               style={styles.textInput}
             />
             <View style={styles.modalActionRow}>
