@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Manajemen Tugas STIKOM",
+    "slug": "pemvis-tugas5-task-manager",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./public/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#C41E3A",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#C41E3A"
+      },
+      "package": "com.badarrahman.stikomtaskmanager"
+    }
+  }
+}

@@ -26,18 +26,6 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { registerRootComponent } from 'expo';
 
-/*
- * Paket Aset Visual Lokal TaskDar (Tersedia di folder /public/assets/ proyek ini):
- * - mascot-splash.jpg
- * - sticker-coding.jpg
- * - sticker-robotics.jpg
- * - sticker-data.jpg
- * - sticker-security.jpg
- * - sticker-oop.jpg
- * - sticker-ai.jpg
- * - sticker-design.jpg
- * - olympiad-trophy.jpg
- */
 const VISUAL_ASSETS = {
   mascotSplash: require('./public/assets/mascot-splash.webp'),
   stickerCoding: require('./public/assets/sticker-coding.webp'),
@@ -269,9 +257,6 @@ const QUICK_DATE_CHIPS = [
   { label: 'Senin Depan', value: '16 Nov 2026' },
 ];
 
-/*
- * Komponen 7 (useReducer): Reducer terpusat untuk mutasi daftar tugas.
- */
 function taskReducer(state, action) {
   switch (action.type) {
     case 'ADD_TASK': {
@@ -318,9 +303,6 @@ function taskReducer(state, action) {
   }
 }
 
-/*
- * Komponen 1 (Props): TaskCard menerima data dan callback aksi melalui Props.
- */
 const TaskCard = React.memo(function TaskCard({
   task,
   courses,
@@ -698,8 +680,7 @@ export default function App() {
     setIsAddCourseOpen(false);
   };
 
-  /* 1. LAYAR FULL-SCREEN CORAL SPLASH (GAYA APTIVO) */
-  if (screenPhase === 'splash') {
+    if (screenPhase === 'splash') {
     return (
       <TouchableOpacity
         activeOpacity={1}
@@ -730,8 +711,7 @@ export default function App() {
     );
   }
 
-  /* 2. LAYAR LOGIN / REGISTER UNIVERSAL TASKDAR */
-  if (screenPhase === 'auth') {
+    if (screenPhase === 'auth') {
     return (
       <SafeAreaView style={styles.authContainer}>
         <ScrollView contentContainerStyle={styles.authScroll}>
@@ -810,7 +790,7 @@ export default function App() {
     <SafeAreaView style={styles.mainContainer}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFDF9" />
 
-      {/* TAB 1: TUGAS */}
+      {}
       {bottomTab === 'tugas' && (
         <View style={styles.flexOne}>
           <View style={styles.headerRow}>
@@ -952,7 +932,7 @@ export default function App() {
         </View>
       )}
 
-      {/* TAB 2: MATA KULIAH (2-COLUMN BENTO GRID) */}
+      {}
       {bottomTab === 'matakuliah' && (
         <ScrollView contentContainerStyle={styles.listContent}>
           <View style={styles.sectionHeaderRow}>
@@ -1014,7 +994,7 @@ export default function App() {
         </ScrollView>
       )}
 
-      {/* TAB 3: PROGRES (PERSONAL LEADERBOARD PER MATKUL & KATEGORI) */}
+      {}
       {bottomTab === 'progres' && (
         <ScrollView contentContainerStyle={styles.listContent}>
           <Text style={styles.sectionTitle}>Progres & Capaianmu</Text>
@@ -1110,7 +1090,7 @@ export default function App() {
         </ScrollView>
       )}
 
-      {/* TAB 4: PROFIL & PENGATURAN TASKDAR */}
+      {}
       {bottomTab === 'profil' && (
         <ScrollView contentContainerStyle={styles.listContent}>
           <View style={styles.profileCard}>
@@ -1226,7 +1206,7 @@ export default function App() {
         </ScrollView>
       )}
 
-      {/* MODAL TAMBAH / EDIT TUGAS */}
+      {}
       <Modal visible={isAddTaskOpen} transparent animationType="slide">
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -1278,7 +1258,7 @@ export default function App() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* MODAL TAMBAH MATA KULIAH (HARI SEN-MIN, SKS KETIK, JAM & WARNA) */}
+      {}
       <Modal visible={isAddCourseOpen} transparent animationType="slide">
         <View style={styles.modalBackdrop}>
           <ScrollView contentContainerStyle={styles.modalCard}>
@@ -1340,7 +1320,7 @@ export default function App() {
         </View>
       </Modal>
 
-      {/* MODAL UBAH PROFIL AKADEMIK & KAMPUS */}
+      {}
       <Modal visible={isEditProfileOpen} transparent animationType="slide">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
@@ -1383,7 +1363,7 @@ export default function App() {
         </View>
       </Modal>
 
-      {/* BOTTOM NAVIGATION BAR 4 TAB */}
+      {}
       <View style={styles.bottomNav}>
         {[
           { key: 'tugas', label: 'Tugas', icon: 'check-square' },

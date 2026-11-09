@@ -110,12 +110,6 @@ const STORAGE_KEYS = {
   USER: 'taskdar_user_v3',
   SETTINGS: 'taskdar_settings_v3',
 } as const;
-
-/*
- * Distinct storage bucket per account:
- * - Google accounts are scoped by their Firebase UID (`google_${uid}`) so switching from Gmail A to Gmail B is 100% isolated.
- * - Local NIM accounts are scoped by their NIM (`nim_${nim}`).
- */
 function getAccountScopeId(
   user: Pick<StudentUserSession, 'nim' | 'uid' | 'authMethod'>
 ): string {
@@ -169,7 +163,6 @@ function loadStoredUser(): StudentUserSession {
       };
     }
   } catch {
-    // Fallback to default session
   }
   return defaultSession;
 }
@@ -201,7 +194,6 @@ function loadSanitizedAccountBundle(scopeId: string): {
       }
     }
   } catch {
-    // Ignore storage read errors
   }
 
   const fallbackCourses =
@@ -260,8 +252,6 @@ const PRESET_CATEGORY_METADATA: Record<
     pastelBg: '#D1FAE5',
   },
 };
-
-/* Distinct colorful Bento row surfaces for Leaderboard #1 through #6+ */
 const LEADERBOARD_ROW_PALETTE = [
   { bg: '#FECDD3', badgeBg: '#C41E3A' },
   { bg: '#A7F3D0', badgeBg: '#059669' },
@@ -286,19 +276,11 @@ export default function App() {
   );
 
   const [courses, setCourses] = useState<CourseDetail[]>(initialBundle.courses);
-
-  /*
-   * Hook 7 (useReducer): Central state engine managing task list mutations
-   * across ADD_TASK, EDIT_TASK, DELETE_TASK, DELETE_TASKS_BY_COURSE, UPDATE_COURSE_ON_TASKS,
-   * TOGGLE_STATUS, SET_TASKS, and RESET_TASKS, initialized with sanitized relational links.
-   */
   const [tasks, dispatch] = useReducer(taskReducer, initialBundle.tasks);
 
   const [screenPhase, setScreenPhase] = useState<AppScreenPhase>('splash');
   const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
   const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
-
-  /* Editable profile modal state in Tab 4 */
   const [isEditProfileOpen, setIsEditProfileOpen] = useState<boolean>(false);
   const [draftName, setDraftName] = useState<string>(studentUser.name);
   const [draftNim, setDraftNim] = useState<string>(studentUser.nim);
@@ -314,11 +296,6 @@ export default function App() {
   );
 
   const [bottomTab, setBottomTab] = useState<MainBottomTab>('tugas');
-
-  /*
-   * Day-of-week filter ('Semua' or 'Senin'..'Minggu') + optional exact date filter
-   * + urgent H-3 filter so urgent tasks can be filtered with one tap.
-   */
   const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<
     'Semua' | IndonesianDayName
   >('Semua');
@@ -371,29 +348,13 @@ export default function App() {
   const studentUserRef = useRef<StudentUserSession>(studentUser);
   studentUserRef.current = studentUser;
   const previousScopeRef = useRef<string>(activeAccountScope);
-
-  /*
-   * Tracks how Google sign-in was triggered:
-   * - 'profile-link': User clicked "Hubungkan Google" inside Tab 4 (Profil) to link their active local session.
-   * - 'auth-screen': User clicked "Masuk Cepat dengan Akun Google" on the Login screen (e.g. switching to Gmail B after logout or signing in on another device).
-   * - 'none': Automatic session restore on page reload.
-   */
   const authFlowSourceRef = useRef<'none' | 'profile-link' | 'auth-screen'>(
     'none'
   );
-
-  /* Switch local data cleanly when user switches to a different NIM/Account */
   useEffect(() => {
     if (previousScopeRef.current !== activeAccountScope) {
       const prevScope = previousScopeRef.current;
       previousScopeRef.current = activeAccountScope;
-
-      /*
-       * If the user linked their local NIM session to Google from inside Tab 4 ('profile-link'),
-       * carry their active sanitized courses & tasks into the newly linked Google scope.
-       * Otherwise (switching to a different NIM or logging into a different Gmail from Auth screen),
-       * load that target account's own isolated bundle!
-       */
       if (
         authFlowSourceRef.current === 'profile-link' &&
         prevScope.startsWith('nim_') &&
@@ -412,8 +373,6 @@ export default function App() {
       }
     }
   }, [activeAccountScope]);
-
-  /* Load persisted app preferences on mount */
   useEffect(() => {
     try {
       const raw =
@@ -435,11 +394,8 @@ export default function App() {
         }
       }
     } catch {
-      // Ignore storage read errors
     }
   }, []);
-
-  /* Automatically persist tasks, courses, studentUser, and settings per isolated account scope */
   useEffect(() => {
     try {
       window.localStorage.setItem(
@@ -447,7 +403,6 @@ export default function App() {
         JSON.stringify(tasks)
       );
     } catch {
-      // Ignore quota errors
     }
   }, [tasks, activeAccountScope]);
 
@@ -458,7 +413,6 @@ export default function App() {
         JSON.stringify(courses)
       );
     } catch {
-      // Ignore quota errors
     }
   }, [courses, activeAccountScope]);
 
@@ -469,7 +423,6 @@ export default function App() {
         JSON.stringify(studentUser)
       );
     } catch {
-      // Ignore quota errors
     }
   }, [studentUser]);
 
@@ -485,7 +438,6 @@ export default function App() {
         })
       );
     } catch {
-      // Ignore quota errors
     }
   }, [reminderEnabled, googleCalendarSync, siakadAutoUpdate, isDarkMode]);
 
@@ -586,13 +538,6 @@ export default function App() {
       handleFirestoreError(err, OperationType.DELETE, path);
     }
   }, []);
-
-  /*
-   * Observe Firebase Authentication state and handle all 3 scenarios cleanly:
-   * 1. 'profile-link': User is inside the app (Local NIM) and links Google -> active local courses & tasks are authoritative and synced to Firestore.
-   * 2. 'auth-screen': User signs in with Google from the Auth screen (e.g. switching to Gmail B after logout, or logging in on another device) -> loads Gmail B's own profile, courses, and tasks from Firestore without leaking previous account memory.
-   * 3. 'none': Page reload while already authenticated -> loads and sanitizes the account's courses & tasks and keeps Firestore in sync.
-   */
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser || !firebaseUser.emailVerified) {
@@ -608,7 +553,6 @@ export default function App() {
       const tasksPath = `users/${uid}/tasks`;
 
       try {
-        /* 1. Sync or fetch student profile metadata for cross-device support */
         const userDocRef = doc(db, 'users', uid);
         const userDocSnap = await getDoc(userDocRef);
         const existingCloudProfile = userDocSnap.exists()
@@ -688,7 +632,6 @@ export default function App() {
       }
 
       try {
-        /* 2. Fetch existing Cloud courses & tasks for this Google UID */
         const [courseSnap, taskSnap] = await Promise.all([
           getDocs(collection(db, 'users', uid, 'courses')),
           getDocs(collection(db, 'users', uid, 'tasks')),
@@ -732,11 +675,6 @@ export default function App() {
         });
 
         if (flowSource === 'profile-link') {
-          /*
-           * User clicked "Hubungkan Google" from Tab 4 (Profil) while working in the app:
-           * The current in-app courses & tasks are authoritative!
-           * Sync them to Cloud and delete any stale Cloud courses/tasks not in the current state.
-           */
           const sanitized = sanitizeAndLinkCoursesAndTasks(
             coursesRef.current,
             tasksRef.current
@@ -764,11 +702,6 @@ export default function App() {
             await syncTaskToCloud(t);
           }
         } else if (flowSource === 'auth-screen') {
-          /*
-           * User logged in with Google from the Auth screen (e.g. switched to Gmail B after logout,
-           * or signed in on another device):
-           * Use this Google account's own Cloud data (or initialize fresh if brand new).
-           */
           const baseCourses =
             cloudCourses.length > 0
               ? cloudCourses
@@ -797,11 +730,6 @@ export default function App() {
             }
           }
         } else {
-          /*
-           * Page reload with active Google session:
-           * Respect local state for `google_${uid}` if present, otherwise use Cloud state,
-           * and enforce 1:1 referential integrity between courses and tasks.
-           */
           const googleScope = `google_${uid.replace(/[^a-zA-Z0-9_-]/g, '')}`;
           const hasLocalGoogleCourses =
             window.localStorage.getItem(getScopedCoursesKey(googleScope)) !==
@@ -812,8 +740,6 @@ export default function App() {
             : cloudCourses.length > 0
             ? cloudCourses
             : coursesRef.current;
-
-          /* Preserve local attachments when merging tasks */
           const localTasksById = new Map(
             tasksRef.current.map((lt) => [lt.id, lt])
           );
@@ -865,11 +791,6 @@ export default function App() {
     syncCourseToCloud,
     deleteCourseFromCloud,
   ]);
-
-  /*
-   * Hook 3 (useEffect): Observes searchQuery transitions and outputs
-   * debugging traces to the console terminal as mandated by FR-05.
-   */
   useEffect(() => {
     const normalizedQuery = searchQuery.trim();
     console.log(
@@ -877,21 +798,11 @@ export default function App() {
       normalizedQuery === '' ? '(kosong)' : normalizedQuery
     );
   }, [searchQuery]);
-
-  /*
-   * Only consider tasks that belong to an existing course in `courses`
-   * so deleted courses can never leave ghost counts in metrics, badges, or filters.
-   */
   const validLinkedTasks = useMemo(
     () =>
       tasks.filter((task) => Boolean(resolveCourseForTask(task, courses))),
     [tasks, courses]
   );
-
-  /*
-   * Hook 4 (useMemo): Computes derived task counts (total, pending, completed,
-   * urgent H-3/today/overdue count, and completion percentage).
-   */
   const taskMetrics: TaskMetrics = useMemo(() => {
     const total = validLinkedTasks.length;
     const completed = validLinkedTasks.filter(
@@ -910,10 +821,6 @@ export default function App() {
     () => courses.reduce((sum, item) => sum + item.credits, 0),
     [courses]
   );
-
-  /*
-   * Truly Proportional Weekly Task Load Distribution grouped by Indonesian Day of Week (Senin..Minggu).
-   */
   const weeklyTaskDistribution = useMemo(() => {
     const perDay = WEEKDAY_FILTER_ITEMS.map((dayItem) => {
       const dayTasks = validLinkedTasks.filter(
@@ -941,12 +848,6 @@ export default function App() {
       activeDaysCount,
     };
   }, [validLinkedTasks]);
-
-  /*
-   * Personal Productivity Leaderboard supporting both:
-   * 1. 'course': Ranks the user's own courses (#1 to #N)
-   * 2. 'category': Dynamically ranks all task categories
-   */
   const personalLeaderboardEntries: PersonalLeaderboardEntry[] = useMemo(() => {
     if (leaderboardMode === 'course') {
       const courseEntries: PersonalLeaderboardEntry[] = courses.map(
@@ -988,8 +889,6 @@ export default function App() {
         return b.completedCount - a.completedCount;
       });
     }
-
-    /* Collect all unique categories from preset + any custom user categories in tasks */
     const categorySet = new Set<TaskCategory>(['Praktikum', 'Proyek', 'Teori']);
     validLinkedTasks.forEach((t) => {
       const trimmed = (t.category || 'Praktikum').trim();
@@ -1226,8 +1125,6 @@ export default function App() {
             return updatedCourse;
           })
         );
-
-        /* Cascade course name & ID updates to all linked tasks */
         if (oldCourse) {
           dispatch({
             type: 'UPDATE_COURSE_ON_TASKS',
@@ -1296,11 +1193,6 @@ export default function App() {
       showToastMessage,
     ]
   );
-
-  /*
-   * Cascade delete: When a course is deleted, remove the course AND all tasks
-   * belonging to that course from both local state and Cloud Firestore.
-   */
   const handleDeleteCourse = useCallback(
     (courseItem: CourseDetail) => {
       const tasksToDelete = tasks.filter(
@@ -1371,7 +1263,6 @@ export default function App() {
         JSON.stringify(freshTasks)
       );
     } catch {
-      // Ignore storage errors
     }
 
     if (auth.currentUser && auth.currentUser.emailVerified) {
@@ -1560,7 +1451,6 @@ export default function App() {
     try {
       await firebaseSignOut(auth);
     } catch {
-      // Ignore signout error if in local session
     }
     setIsCloudSynced(false);
     setSelectedCourseFilter('Semua');
@@ -1610,12 +1500,10 @@ export default function App() {
           : 'bg-[#FFFDF9] text-[#0F172A]'
       }`}
     >
-      {/* Unified Responsive Application Container Aligned 1:1 with Full-Width Bottom Navigation Bar */}
       <main
         aria-label="Aplikasi TaskDar"
         className="w-full max-w-[640px] mx-auto min-h-screen flex flex-col relative pb-28"
       >
-        {/* Toast Feedback Notification */}
         {feedbackToast && (
           <div
             role="status"
@@ -1628,8 +1516,6 @@ export default function App() {
             <span className="truncate">{feedbackToast}</span>
           </div>
         )}
-
-        {/* TAB 1: TUGAS */}
         {bottomTab === 'tugas' && (
           <motion.section
             key="tab-tugas"
@@ -1639,7 +1525,6 @@ export default function App() {
             aria-label="Daftar Tugas Harian"
             className="flex-1 flex flex-col"
           >
-            {/* Unified Header */}
             <header className="px-4 sm:px-6 pt-4 pb-2.5 flex items-center justify-between gap-2">
               <div className="flex items-center gap-3 min-w-0">
                 <button
@@ -1675,7 +1560,6 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                {/* Real-Time H-3 Urgent Tasks Badge */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1748,8 +1632,6 @@ export default function App() {
                 </button>
               </div>
             </header>
-
-            {/* Interactive 7-Day Weekday Filter Strip (Sen s/d Min with Scheduled Course Count) */}
             <div className="px-4 sm:px-6 pb-2.5">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -1874,8 +1756,6 @@ export default function App() {
                 })}
               </div>
             </div>
-
-            {/* Real-Time Search Bar (FR-05 + useEffect observer) */}
             <div className="px-4 sm:px-6 pb-2">
               <div
                 className={`relative flex items-center rounded-2xl border-2 transition-colors ${
@@ -1912,8 +1792,6 @@ export default function App() {
                 )}
               </div>
             </div>
-
-            {/* Clean Status Filter Tabs: Semua, Belum Dikerjakan, Selesai */}
             <nav
               aria-label="Filter Status Tugas"
               className={`px-4 sm:px-6 border-b-2 grid grid-cols-3 ${
@@ -1959,8 +1837,6 @@ export default function App() {
                 );
               })}
             </nav>
-
-            {/* Active Course / Day / Date / Urgent Filter Banner */}
             {(selectedCourseFilter !== 'Semua' ||
               selectedDayOfWeek !== 'Semua' ||
               selectedExactDate !== null ||
@@ -2001,8 +1877,6 @@ export default function App() {
                 </button>
               </div>
             )}
-
-            {/* Colorful Bento TaskCard List / 2-Column Grid */}
             <div className="px-4 sm:px-6 pt-3.5 space-y-3">
               {allTasksCompleted && activeFilterTab === 'Semua' && (
                 <div
@@ -2138,8 +2012,6 @@ export default function App() {
                 </div>
               )}
             </div>
-
-            {/* Floating Action Button (+) */}
             <button
               type="button"
               onClick={() => handleOpenAddSheet()}
@@ -2151,8 +2023,6 @@ export default function App() {
             </button>
           </motion.section>
         )}
-
-        {/* TAB 2: MATA KULIAH */}
         {bottomTab === 'matakuliah' && (
           <motion.section
             key="tab-matakuliah"
@@ -2214,7 +2084,6 @@ export default function App() {
 
             <div className="px-4 sm:px-6 pt-1">
               {courseLayoutMode === 'grid' ? (
-                /* 2-Column Illustrated Bento Grid */
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {courses.map((course) => {
                     const courseTasks = validLinkedTasks.filter(
@@ -2256,7 +2125,6 @@ export default function App() {
                             : 'shadow-[0_3px_0_0_#0F172A]'
                         }`}
                       >
-                        {/* Top Header: Single-Line Code · SKS Pill + Crisp Edit/Delete */}
                         <div>
                           <div className="flex items-center justify-between gap-1">
                             <span
@@ -2297,8 +2165,6 @@ export default function App() {
                               </button>
                             </div>
                           </div>
-
-                          {/* High-Resolution Uncropped 2D Character Art */}
                           <div
                             onClick={() => {
                               setSelectedCourseFilter(course.name);
@@ -2340,8 +2206,6 @@ export default function App() {
                             {course.schedule}
                           </p>
                         </div>
-
-                        {/* Bottom Progress Bar & Quick Action Row */}
                         <div className="mt-3 pt-2 border-t border-black/10">
                           <div className="flex items-center justify-between text-[10px] font-extrabold mb-1">
                             <span>
@@ -2390,7 +2254,6 @@ export default function App() {
                   })}
                 </div>
               ) : (
-                /* Detailed Schedule & Room View */
                 <div className="space-y-3">
                   {courses.map((course) => {
                     const courseTasks = validLinkedTasks.filter(
@@ -2554,8 +2417,6 @@ export default function App() {
             </div>
           </motion.section>
         )}
-
-        {/* TAB 3: PROGRES */}
         {bottomTab === 'progres' && (
           <motion.section
             key="tab-progres"
@@ -2610,7 +2471,6 @@ export default function App() {
             </header>
 
             <div className="px-4 sm:px-6 pt-1 space-y-4">
-              {/* Dominant Red & Crisp White Hero Card with Golden Trophy */}
               <div className="rounded-[28px] bg-[#C41E3A] text-white border-2 border-[#0F172A] p-4 sm:p-5 flex items-center justify-between gap-3.5 shadow-[0_4px_0_0_#0F172A]">
                 <div className="flex-1 min-w-0">
                   <span className="inline-block px-3 py-0.5 rounded-full bg-white text-[#C41E3A] border border-[#0F172A] text-[10px] font-black uppercase tracking-wider">
@@ -2633,8 +2493,6 @@ export default function App() {
                   />
                 </div>
               </div>
-
-              {/* 3 High-Contrast Crisp Tactile Stat Cards */}
               <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
                 <div
                   className={`rounded-3xl border-2 border-[#0F172A] p-3 text-center shadow-[0_3px_0_0_#0F172A] flex flex-col items-center justify-between ${
@@ -2696,8 +2554,6 @@ export default function App() {
                   </span>
                 </div>
               </div>
-
-              {/* Personal Productivity Leaderboard */}
               <div
                 className={`rounded-[28px] border-2 border-[#0F172A] p-4 sm:p-5 shadow-[0_4px_0_0_#0F172A] ${
                   isDarkMode
@@ -2728,8 +2584,6 @@ export default function App() {
                         : 'Distribusi ketuntasan berdasarkan jenis tugas kuliah'}
                     </p>
                   </div>
-
-                  {/* Switcher: Per Matkul vs Per Kategori */}
                   <div
                     className={`p-1 rounded-2xl border-2 border-[#0F172A] flex items-center self-start sm:self-auto ${
                       isDarkMode ? 'bg-[#141821]' : 'bg-[#F8FAFC]'
@@ -2840,8 +2694,6 @@ export default function App() {
                   })}
                 </div>
               </div>
-
-              {/* Weekly Task Load Distribution Chart */}
               <div
                 className={`rounded-[28px] border-2 border-[#0F172A] p-4 sm:p-5 shadow-[0_3px_0_0_#0F172A] ${
                   isDarkMode
@@ -2965,8 +2817,6 @@ export default function App() {
             </div>
           </motion.section>
         )}
-
-        {/* TAB 4: PROFIL */}
         {bottomTab === 'profil' && (
           <motion.section
             key="tab-profil"
@@ -3001,7 +2851,6 @@ export default function App() {
             </header>
 
             <div className="px-4 sm:px-6 pt-1 space-y-4">
-              {/* Expressive Character Identity Card */}
               <div
                 className={`rounded-[28px] border-2 border-[#0F172A] p-5 text-center relative shadow-[0_4px_0_0_#0F172A] ${
                   isDarkMode
@@ -3009,7 +2858,6 @@ export default function App() {
                     : 'bg-white text-[#0F172A]'
                 }`}
               >
-                {/* Solid Tactile Editable Campus Pill */}
                 <button
                   type="button"
                   onClick={handleOpenEditProfile}
@@ -3025,8 +2873,6 @@ export default function App() {
                     aria-hidden="true"
                   />
                 </button>
-
-                {/* Large Avatar with Upload Trigger (Edge-to-Edge without white padding ring) */}
                 <div className="relative w-24 h-24 mx-auto">
                   <div className="w-24 h-24 rounded-[28px] border-3 border-[#0F172A] overflow-hidden bg-white shadow-[0_3px_0_0_#0F172A]">
                     <img
@@ -3068,8 +2914,6 @@ export default function App() {
                   Kelas {studentUser.classGroup} · {studentUser.semester} ·{' '}
                   {studentUser.program}
                 </p>
-
-                {/* Complete 8-Character Avatar Switcher (Edge-to-Edge without white margin) */}
                 <div
                   className={`mt-4 pt-3.5 border-t-2 ${
                     isDarkMode ? 'border-[#2E3440]' : 'border-[#F1F5F9]'
@@ -3126,8 +2970,6 @@ export default function App() {
                     })}
                   </div>
                 </div>
-
-                {/* Academic Stats Bar */}
                 <div
                   className={`mt-4 pt-3.5 border-t-2 grid grid-cols-3 ${
                     isDarkMode ? 'border-[#2E3440]' : 'border-[#F1F5F9]'
@@ -3175,8 +3017,6 @@ export default function App() {
                   </div>
                 </div>
               </div>
-
-              {/* Google Account Card */}
               <div
                 className={`rounded-[28px] border-2 border-[#0F172A] p-4 sm:p-5 shadow-[0_3px_0_0_#0F172A] ${
                   isDarkMode
@@ -3267,8 +3107,6 @@ export default function App() {
                   </button>
                 </div>
               </div>
-
-              {/* Expanded Mobile App Settings List with Consistent Solid Tactile Icon Boxes */}
               <div
                 className={`rounded-[28px] border-2 border-[#0F172A] p-3.5 space-y-1 shadow-[0_3px_0_0_#0F172A] ${
                   isDarkMode
@@ -3281,8 +3119,6 @@ export default function App() {
                     Pengaturan Aplikasi & Akademik
                   </span>
                 </div>
-
-                {/* Row 1: Edit Identitas Akademik & Kampus */}
                 <button
                   type="button"
                   onClick={handleOpenEditProfile}
@@ -3312,8 +3148,6 @@ export default function App() {
                     aria-hidden="true"
                   />
                 </button>
-
-                {/* Row 2: Pengingat Tugas H-1 */}
                 <div className="flex flex-col gap-2 px-3 py-2 border-b border-[#0F172A]/10">
                   <div className="flex items-center justify-between min-h-[52px]">
                     <div className="flex items-center gap-3">
@@ -3412,8 +3246,6 @@ export default function App() {
                     </div>
                   )}
                 </div>
-
-                {/* Row 3: Sinkronisasi Google Calendar (Only visible for Google-connected account) */}
                 {isCloudSynced && (
                   <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
                     <div className="flex items-center gap-3">
@@ -3464,8 +3296,6 @@ export default function App() {
                     </button>
                   </div>
                 )}
-
-                {/* Row 4: Pembaruan Jadwal & Tugas SIAKAD (Khusus Kampus STIKOM Poltek Cirebon) */}
                 {isStikomCampus && (
                   <div className="flex flex-col gap-2.5 px-3 py-2.5 rounded-2xl bg-[#EEF2FF] border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] text-[#0F172A]">
                     <div className="flex items-center justify-between min-h-[44px]">
@@ -3535,8 +3365,6 @@ export default function App() {
                     )}
                   </div>
                 )}
-
-                {/* Row 5: Mode Tampilan */}
                 <div className="flex items-center justify-between px-3 py-2 min-h-[52px]">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-[#D97706] text-white border-2 border-[#0F172A] shadow-[0_2px_0_0_#0F172A] flex items-center justify-center shrink-0">
@@ -3590,8 +3418,6 @@ export default function App() {
                   </button>
                 </div>
               </div>
-
-              {/* Action Buttons: Atur Ulang Data & Keluar Akun (Logout) */}
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
@@ -3618,8 +3444,6 @@ export default function App() {
             </div>
           </motion.section>
         )}
-
-        {/* Persistent Full-Width Responsive 4-Tab Bottom Navigation Bar */}
         <div className="fixed bottom-3 inset-x-0 z-30 pointer-events-none">
           <div className="w-full max-w-[640px] mx-auto px-4 sm:px-6">
             <nav
@@ -3698,8 +3522,6 @@ export default function App() {
             </nav>
           </div>
         </div>
-
-        {/* Full-Screen Bottom-to-Top Liquid Wave Splash + Unified Single-Screen Login & 2-Step Google Flow */}
         <WelcomeSplashModal
           screenPhase={screenPhase}
           onFinishSplash={() =>
@@ -3745,8 +3567,6 @@ export default function App() {
           isGoogleLoading={isGoogleLoading}
         />
       </main>
-
-      {/* Edit Academic Profile Modal */}
       {isEditProfileOpen && (
         <div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/55 backdrop-blur-[2px] p-0 sm:p-4"
@@ -3931,8 +3751,6 @@ export default function App() {
           </div>
         </div>
       )}
-
-      {/* Slide-Up / FAB-Morph Add / Edit Task Bottom Sheet Modal */}
       <AddTaskSheet
         isOpen={isAddSheetOpen}
         onClose={() => {
@@ -3949,8 +3767,6 @@ export default function App() {
         isDarkMode={isDarkMode}
         allTasks={validLinkedTasks}
       />
-
-      {/* Slide-Up Add / Edit Course Bottom Sheet Modal */}
       <AddCourseSheet
         isOpen={isAddCourseOpen}
         onClose={() => {
@@ -3961,8 +3777,6 @@ export default function App() {
         editingCourse={editingCourse}
         isDarkMode={isDarkMode}
       />
-
-      {/* Full Interactive Month & Year Calendar Modal */}
       <CalendarModal
         isOpen={isCalendarModalOpen}
         onClose={() => setIsCalendarModalOpen(false)}
